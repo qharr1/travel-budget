@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Trip Budget">
+  <meta name="format-detection" content="telephone=no">
+  <title>Trip Budget</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PRIVATE • OFFLINE READY</p>
+        <h1 id="headerTripName">Trip Budget</h1>
+        <p id="headerTripDates" class="muted">Set up your trip to begin.</p>
+      </div>
+      <span id="connectionBadge" class="badge">Checking…</span>
+    </header>
+
+    <main>
+      <section id="setupPanel" class="panel setup-panel hidden" aria-labelledby="setupHeading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">FIRST-TIME SETUP</p>
+            <h2 id="setupHeading">Create your trip</h2>
+          </div>
+        </div>
+
+        <form id="setupForm" class="form-grid">
+          <label>
+            Trip name
+            <input id="tripName" name="tripName" type="text" maxlength="60" placeholder="China + Japan 2026" required>
+          </label>
+
+          <div class="two-col">
+            <label>
+              Start date
+              <input id="startDate" name="startDate" type="date" required>
+            </label>
+            <label>
+              End date
+              <input id="endDate" name="endDate" type="date" required>
+            </label>
+          </div>
+
+          <label>
+            Total trip budget (AUD)
+            <div class="money-input">
+              <span>$</span>
+              <input id="totalBudget" name="totalBudget" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="7500" required>
+            </div>
+          </label>
+
+          <div class="rate-card">
+            <h3>Offline exchange rates</h3>
+            <p class="muted small">Enter how many local currency units equal A$1. You can change these later. No internet is needed.</p>
+            <div class="two-col">
+              <label>
+                JPY per A$1
+                <input id="jpyRate" name="jpyRate" type="number" min="0.0001" step="0.0001" inputmode="decimal" value="110">
+              </label>
+              <label>
+                CNY per A$1
+                <input id="cnyRate" name="cnyRate" type="number" min="0.0001" step="0.0001" inputmode="decimal" value="5">
+              </label>
+            </div>
+          </div>
+
+          <p id="setupError" class="error" role="alert"></p>
+          <button class="primary-btn" type="submit">Create trip</button>
+        </form>
+      </section>
+
+      <section id="appPanel" class="hidden">
+        <nav class="tabs" aria-label="Budget sections">
+          <button class="tab active" type="button" data-tab="today">Today</button>
+          <button class="tab" type="button" data-tab="history">History</button>
+          <button class="tab" type="button" data-tab="settings">Settings</button>
+        </nav>
+
+        <section id="todayTab" class="tab-panel active" data-panel="today">
+          <div id="tripStatus" class="trip-status"></div>
+
+          <div class="hero-card">
+            <p class="metric-label">Remaining budget</p>
+            <p id="remainingBudget" class="hero-value">$0.00</p>
+            <div class="hero-meta">
+              <span id="daysRemaining">0 days remaining</span>
+              <span id="tripDay">Trip day —</span>
+            </div>
+          </div>
+
+          <div class="metrics-grid">
+            <article class="metric-card">
+              <p class="metric-label">Available / day</p>
+              <p id="dailyAllowance" class="metric-value">$0.00</p>
+              <p class="metric-note">Recalculates after every expense</p>
+            </article>
+            <article class="metric-card">
+              <p class="metric-label">Spent today</p>
+              <p id="spentToday" class="metric-value">$0.00</p>
+              <p id="todayLocalDate" class="metric-note"></p>
+            </article>
+            <article class="metric-card">
+              <p class="metric-label">Total spent</p>
+              <p id="totalSpent" class="metric-value">$0.00</p>
+              <p id="spentPercent" class="metric-note">0% of budget</p>
+            </article>
+            <article class="metric-card">
+              <p class="metric-label">Ahead / behind pace</p>
+              <p id="paceValue" class="metric-value">$0.00</p>
+              <p id="paceNote" class="metric-note">Compared with even daily spending</p>
+            </article>
+          </div>
+
+          <div class="progress-wrap" aria-label="Budget used">
+            <div class="progress-track">
+              <div id="budgetProgress" class="progress-bar"></div>
+            </div>
+            <div class="progress-labels">
+              <span id="progressUsed">0% used</span>
+              <span id="progressRemaining">100% left</span>
+            </div>
+          </div>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">QUICK ENTRY</p>
+                <h2 id="expenseFormHeading">Add expense</h2>
+              </div>
+              <button id="cancelEditBtn" class="text-btn hidden" type="button">Cancel edit</button>
+            </div>
+
+            <form id="expenseForm">
+              <input id="editingExpenseId" type="hidden">
+              <div class="two-col">
+                <label>
+                  Date
+                  <input id="expenseDate" type="date" required>
+                </label>
+                <label>
+                  Currency
+                  <select id="expenseCurrency">
+                    <option value="AUD">AUD $</option>
+                    <option value="JPY">JPY ¥</option>
+                    <option value="CNY">CNY ¥</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                Amount
+                <input id="expenseAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required>
+              </label>
+
+              <div class="two-col">
+                <label>
+                  Category
+                  <select id="expenseCategory">
+                    <option>Food</option>
+                    <option>Drinks</option>
+                    <option>Shopping</option>
+                    <option>Transport</option>
+                    <option>Theme parks</option>
+                    <option>Tours</option>
+                    <option>Kids</option>
+                    <option>Other</option>
+                  </select>
+                </label>
+                <label>
+                  Country
+                  <select id="expenseCountry">
+                    <option value="China">China</option>
+                    <option value="Japan">Japan</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </label>
+              </div>
+
+              <label>
+                Note <span class="optional">(optional)</span>
+                <input id="expenseNote" type="text" maxlength="100" placeholder="Dinner, Disney snacks, taxi…">
+              </label>
+
+              <p id="conversionPreview" class="conversion-preview"></p>
+              <p id="expenseError" class="error" role="alert"></p>
+              <button id="saveExpenseBtn" class="primary-btn" type="submit">Add expense</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">RECENT</p>
+                <h2>Latest spending</h2>
+              </div>
+              <button id="viewAllBtn" class="text-btn" type="button">View all</button>
+            </div>
+            <div id="recentExpenses" class="expense-list"></div>
+          </section>
+        </section>
+
+        <section id="historyTab" class="tab-panel" data-panel="history">
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">SPENDING HISTORY</p>
+                <h2>All expenses</h2>
+              </div>
+              <select id="historyFilter" class="compact-select" aria-label="Filter expenses">
+                <option value="all">All</option>
+                <option value="China">China</option>
+                <option value="Japan">Japan</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div id="historySummary" class="history-summary"></div>
+            <div id="historyExpenses" class="expense-list"></div>
+          </section>
+        </section>
+
+        <section id="settingsTab" class="tab-panel" data-panel="settings">
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">TRIP SETTINGS</p>
+                <h2>Budget & dates</h2>
+              </div>
+            </div>
+            <form id="settingsForm" class="form-grid">
+              <label>
+                Trip name
+                <input id="settingsTripName" type="text" maxlength="60" required>
+              </label>
+              <div class="two-col">
+                <label>
+                  Start date
+                  <input id="settingsStartDate" type="date" required>
+                </label>
+                <label>
+                  End date
+                  <input id="settingsEndDate" type="date" required>
+                </label>
+              </div>
+              <label>
+                Total trip budget (AUD)
+                <div class="money-input">
+                  <span>$</span>
+                  <input id="settingsBudget" type="number" min="0.01" step="0.01" inputmode="decimal" required>
+                </div>
+              </label>
+              <div class="two-col">
+                <label>
+                  JPY per A$1
+                  <input id="settingsJpyRate" type="number" min="0.0001" step="0.0001" inputmode="decimal" required>
+                </label>
+                <label>
+                  CNY per A$1
+                  <input id="settingsCnyRate" type="number" min="0.0001" step="0.0001" inputmode="decimal" required>
+                </label>
+              </div>
+              <p class="muted small">Rate changes apply to new or edited expenses. Existing entries keep the AUD value recorded when you entered them.</p>
+              <p id="settingsError" class="error" role="alert"></p>
+              <button class="primary-btn" type="submit">Save settings</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">YOUR DATA</p>
+                <h2>Backup & restore</h2>
+              </div>
+            </div>
+            <p class="muted">Your trip data is stored on this device. Export a backup occasionally so you can restore it if Safari data is ever cleared.</p>
+            <div class="stack-actions">
+              <button id="exportBtn" class="secondary-btn" type="button">Export backup</button>
+              <label class="secondary-btn file-btn">
+                Import backup
+                <input id="importInput" type="file" accept=".json,application/json">
+              </label>
+            </div>
+            <p id="backupMessage" class="status-message" role="status"></p>
+          </section>
+
+          <section class="panel danger-panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">RESET</p>
+                <h2>Start a new trip</h2>
+              </div>
+            </div>
+            <p class="muted">This removes the current trip and all expenses from this device. Export a backup first if you want to keep them.</p>
+            <button id="resetBtn" class="danger-btn" type="button">Erase trip data</button>
+          </section>
+
+          <section class="privacy-note">
+            <strong>Privacy:</strong> No account, advertising, analytics or cloud database is used. Your budget and expenses stay in this browser unless you export a backup yourself.
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <footer>
+      <span>Trip Budget</span>
+      <span>Local-only data • Offline capable</span>
+    </footer>
+  </div>
+
+  <dialog id="confirmDialog">
+    <form method="dialog">
+      <h2>Erase this trip?</h2>
+      <p>This will remove the trip settings and all saved expenses from this device.</p>
+      <div class="dialog-actions">
+        <button value="cancel" class="secondary-btn">Cancel</button>
+        <button value="confirm" class="danger-btn">Erase everything</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
