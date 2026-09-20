@@ -580,3 +580,123 @@ dialog::backdrop { background: rgba(15, 23, 42, 0.5); }
     transition: none !important;
   }
 }
+
+
+/* v2 additions */
+.destination-builder {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.compact-heading {
+  margin-bottom: 8px;
+}
+
+.destination-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.destination-row {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.destination-row-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr);
+  gap: 10px;
+}
+
+.destination-row-bottom {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.remove-destination {
+  justify-self: end;
+  min-height: 34px;
+  margin-top: -2px;
+  border: 0;
+  background: transparent;
+  color: var(--bad);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.daily-history {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.day-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) repeat(3, minmax(0, 0.9fr));
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.day-row.today-row {
+  border-color: #99f6e4;
+  background: #f0fdfa;
+}
+
+.day-row.future-row {
+  color: #64748b;
+}
+
+.day-name strong {
+  display: block;
+  font-size: 0.88rem;
+}
+
+.day-name span,
+.day-cell span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.day-cell {
+  min-width: 0;
+  text-align: right;
+}
+
+.day-cell strong {
+  display: block;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.day-variance.good strong { color: var(--good); }
+.day-variance.bad strong { color: var(--bad); }
+
+@media (max-width: 520px) {
+  .destination-row-top,
+  .destination-row-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .day-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .day-name {
+    grid-column: 1 / -1;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+}

@@ -36,17 +36,17 @@
         <form id="setupForm" class="form-grid">
           <label>
             Trip name
-            <input id="tripName" name="tripName" type="text" maxlength="60" placeholder="China + Japan 2026" required>
+            <input id="tripName" type="text" maxlength="60" placeholder="Europe 2027" required>
           </label>
 
           <div class="two-col">
             <label>
               Start date
-              <input id="startDate" name="startDate" type="date" required>
+              <input id="startDate" type="date" required>
             </label>
             <label>
               End date
-              <input id="endDate" name="endDate" type="date" required>
+              <input id="endDate" type="date" required>
             </label>
           </div>
 
@@ -54,24 +54,21 @@
             Total trip budget (AUD)
             <div class="money-input">
               <span>$</span>
-              <input id="totalBudget" name="totalBudget" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="7500" required>
+              <input id="totalBudget" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="7500" required>
             </div>
           </label>
 
-          <div class="rate-card">
-            <h3>Offline exchange rates</h3>
-            <p class="muted small">Enter how many local currency units equal A$1. You can change these later. No internet is needed.</p>
-            <div class="two-col">
-              <label>
-                JPY per A$1
-                <input id="jpyRate" name="jpyRate" type="number" min="0.0001" step="0.0001" inputmode="decimal" value="110">
-              </label>
-              <label>
-                CNY per A$1
-                <input id="cnyRate" name="cnyRate" type="number" min="0.0001" step="0.0001" inputmode="decimal" value="5">
-              </label>
+          <section class="destination-builder">
+            <div class="section-heading compact-heading">
+              <div>
+                <p class="eyebrow">DESTINATIONS & CURRENCIES</p>
+                <h3>Where are you spending?</h3>
+              </div>
+              <button id="addSetupDestinationBtn" class="text-btn" type="button">+ Add</button>
             </div>
-          </div>
+            <p class="muted small">Add each part of the trip. Rates mean local currency units per A$1. Transition dates can overlap if you use two currencies on the same day.</p>
+            <div id="setupDestinations" class="destination-list"></div>
+          </section>
 
           <p id="setupError" class="error" role="alert"></p>
           <button class="primary-btn" type="submit">Create trip</button>
@@ -85,23 +82,23 @@
           <button class="tab" type="button" data-tab="settings">Settings</button>
         </nav>
 
-        <section id="todayTab" class="tab-panel active" data-panel="today">
+        <section class="tab-panel active" data-panel="today">
           <div id="tripStatus" class="trip-status"></div>
 
           <div class="hero-card">
             <p class="metric-label">Remaining budget</p>
             <p id="remainingBudget" class="hero-value">$0.00</p>
             <div class="hero-meta">
-              <span id="daysRemaining">0 days remaining</span>
+              <span id="daysRemaining">0 future days</span>
               <span id="tripDay">Trip day —</span>
             </div>
           </div>
 
           <div class="metrics-grid">
             <article class="metric-card">
-              <p class="metric-label">Available / day</p>
+              <p class="metric-label">Available / future day</p>
               <p id="dailyAllowance" class="metric-value">$0.00</p>
-              <p class="metric-note">Recalculates after every expense</p>
+              <p class="metric-note">Remaining budget ÷ days after today</p>
             </article>
             <article class="metric-card">
               <p class="metric-label">Spent today</p>
@@ -141,53 +138,46 @@
 
             <form id="expenseForm">
               <input id="editingExpenseId" type="hidden">
+
               <div class="two-col">
                 <label>
                   Date
                   <input id="expenseDate" type="date" required>
                 </label>
                 <label>
-                  Currency
-                  <select id="expenseCurrency">
-                    <option value="AUD">AUD $</option>
-                    <option value="JPY">JPY ¥</option>
-                    <option value="CNY">CNY ¥</option>
-                  </select>
+                  Destination
+                  <select id="expenseDestination" required></select>
                 </label>
               </div>
-
-              <label>
-                Amount
-                <input id="expenseAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required>
-              </label>
 
               <div class="two-col">
                 <label>
-                  Category
-                  <select id="expenseCategory">
-                    <option>Food</option>
-                    <option>Drinks</option>
-                    <option>Shopping</option>
-                    <option>Transport</option>
-                    <option>Theme parks</option>
-                    <option>Tours</option>
-                    <option>Kids</option>
-                    <option>Other</option>
-                  </select>
+                  Currency
+                  <select id="expenseCurrency"></select>
                 </label>
                 <label>
-                  Country
-                  <select id="expenseCountry">
-                    <option value="China">China</option>
-                    <option value="Japan">Japan</option>
-                    <option value="Other">Other</option>
-                  </select>
+                  Amount
+                  <input id="expenseAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required>
                 </label>
               </div>
 
               <label>
+                Category
+                <select id="expenseCategory">
+                  <option>Food</option>
+                  <option>Drinks</option>
+                  <option>Shopping</option>
+                  <option>Transport</option>
+                  <option>Theme parks</option>
+                  <option>Tours</option>
+                  <option>Kids</option>
+                  <option>Other</option>
+                </select>
+              </label>
+
+              <label>
                 Note <span class="optional">(optional)</span>
-                <input id="expenseNote" type="text" maxlength="100" placeholder="Dinner, Disney snacks, taxi…">
+                <input id="expenseNote" type="text" maxlength="100" placeholder="Dinner, tickets, taxi…">
               </label>
 
               <p id="conversionPreview" class="conversion-preview"></p>
@@ -208,7 +198,18 @@
           </section>
         </section>
 
-        <section id="historyTab" class="tab-panel" data-panel="history">
+        <section class="tab-panel" data-panel="history">
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">DAY BY DAY</p>
+                <h2>Daily budget</h2>
+              </div>
+            </div>
+            <p class="muted small">Each day's allocation rolls forward from the actual spend on previous days.</p>
+            <div id="dailyHistory" class="daily-history"></div>
+          </section>
+
           <section class="panel">
             <div class="section-heading">
               <div>
@@ -216,10 +217,7 @@
                 <h2>All expenses</h2>
               </div>
               <select id="historyFilter" class="compact-select" aria-label="Filter expenses">
-                <option value="all">All</option>
-                <option value="China">China</option>
-                <option value="Japan">Japan</option>
-                <option value="Other">Other</option>
+                <option value="all">All destinations</option>
               </select>
             </div>
             <div id="historySummary" class="history-summary"></div>
@@ -227,7 +225,7 @@
           </section>
         </section>
 
-        <section id="settingsTab" class="tab-panel" data-panel="settings">
+        <section class="tab-panel" data-panel="settings">
           <section class="panel">
             <div class="section-heading">
               <div>
@@ -235,11 +233,13 @@
                 <h2>Budget & dates</h2>
               </div>
             </div>
+
             <form id="settingsForm" class="form-grid">
               <label>
                 Trip name
                 <input id="settingsTripName" type="text" maxlength="60" required>
               </label>
+
               <div class="two-col">
                 <label>
                   Start date
@@ -250,6 +250,7 @@
                   <input id="settingsEndDate" type="date" required>
                 </label>
               </div>
+
               <label>
                 Total trip budget (AUD)
                 <div class="money-input">
@@ -257,17 +258,19 @@
                   <input id="settingsBudget" type="number" min="0.01" step="0.01" inputmode="decimal" required>
                 </div>
               </label>
-              <div class="two-col">
-                <label>
-                  JPY per A$1
-                  <input id="settingsJpyRate" type="number" min="0.0001" step="0.0001" inputmode="decimal" required>
-                </label>
-                <label>
-                  CNY per A$1
-                  <input id="settingsCnyRate" type="number" min="0.0001" step="0.0001" inputmode="decimal" required>
-                </label>
-              </div>
-              <p class="muted small">Rate changes apply to new or edited expenses. Existing entries keep the AUD value recorded when you entered them.</p>
+
+              <section class="destination-builder">
+                <div class="section-heading compact-heading">
+                  <div>
+                    <p class="eyebrow">DESTINATIONS & CURRENCIES</p>
+                    <h3>Trip periods</h3>
+                  </div>
+                  <button id="addSettingsDestinationBtn" class="text-btn" type="button">+ Add</button>
+                </div>
+                <p class="muted small">Changing a rate only affects new or edited expenses. Existing expenses keep the AUD value recorded when you entered them.</p>
+                <div id="settingsDestinations" class="destination-list"></div>
+              </section>
+
               <p id="settingsError" class="error" role="alert"></p>
               <button class="primary-btn" type="submit">Save settings</button>
             </form>
