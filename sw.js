@@ -1,4 +1,4 @@
-const CACHE_NAME = "trip-budget-v2";
+const CACHE_NAME = "travel-planner-v3";
 
 const ASSETS = [
   "./",
@@ -29,8 +29,8 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  const requestUrl = new URL(event.request.url);
-  if (requestUrl.origin !== self.location.origin) return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
 
   if (event.request.mode === "navigate") {
     event.respondWith(

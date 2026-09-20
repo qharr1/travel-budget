@@ -1,7 +1,7 @@
 {
-  "name": "Trip Budget",
-  "short_name": "Trip Budget",
-  "description": "Private offline travel budget tracker",
+  "name": "Travel Planner",
+  "short_name": "Travel",
+  "description": "Private offline travel itinerary and budget tracker",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

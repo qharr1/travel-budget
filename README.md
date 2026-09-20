@@ -1,48 +1,64 @@
-# Trip Budget v2
+# Travel Planner v3
 
-This is the reusable budget-first version of the offline travel app.
+This version adds the full itinerary layer while keeping the existing offline budget tracker.
 
-## What changed in v2
+## Opening screen
 
-- Destinations and currencies are no longer hard-coded to China/Japan.
-- A trip can have as many destination/currency periods as required.
-- Each destination has:
-  - name
-  - from/to dates
-  - local currency
-  - exchange rate expressed as local currency units per A$1
-- Transition dates can overlap, so two destinations can both include the same travel day.
-- Expense entry asks for the destination and lets you enter either AUD or that destination's local currency.
-- Every expense is converted back to AUD for the main budget.
-- Historic foreign-currency expenses keep the AUD value/rate used when entered.
-- "Available / future day" now excludes today during an active trip:
-  - remaining budget ÷ number of days AFTER today
-- History now includes a Day 1 / Day 2 / Day 3... view showing:
-  - rolling allocation
-  - actual spend
-  - variance
+A new user now sees only:
 
-## Updating your existing GitHub Pages site
+- Create New Trip
+- Import Trip
 
-1. Export a backup from your existing app first.
-2. Unzip this package.
-3. In GitHub, open your `travel-budget` repository.
-4. Upload and replace these files in the repository root:
-   - index.html
-   - styles.css
-   - app.js
-   - manifest.webmanifest
-   - sw.js
-   - icon-192.png
-   - icon-512.png
-   - apple-touch-icon.png
-5. Commit directly to `main`.
-6. Open the live site once while online.
-7. Because this is a PWA update, close and reopen it if the old version appears at first.
-8. Test again in Airplane Mode.
+This makes it easy to send the public app link to somebody else. They open the link, choose **Import Trip**, and select the private `.trip.json` file you sent them.
 
-The app keeps using the same browser storage key, and v2 includes migration support for the original v1 data.
+## Itinerary
 
-## Privacy
+The top-level app switch is:
 
-No account, analytics, advertising, remote database, or server-side storage is used. Trip data remains local to the browser/device unless you explicitly export a backup file.
+- Itinerary
+- Budget
+
+The itinerary is day-based and supports:
+
+- day headline / location / overnight hotel
+- timed items
+- duration
+- type
+- location
+- booking status
+- booking reference
+- total cost
+- adult cost per person
+- child cost per person
+- notes
+- edit / delete
+- free days
+
+No routing or maps are required.
+
+## Important privacy rule
+
+Do NOT upload your private `.trip.json` file to the public GitHub repository.
+
+The GitHub repository should contain only the generic app files:
+- index.html
+- styles.css
+- app.js
+- manifest.webmanifest
+- sw.js
+- icon-192.png
+- icon-512.png
+- apple-touch-icon.png
+
+Keep your trip file in iPhone Files / iCloud Drive, or share it directly by AirDrop / Messages / email.
+
+## Updating GitHub Pages
+
+1. Export your existing trip first as a backup.
+2. Upload and replace the generic app files above in the root of the `travel-budget` repository.
+3. Commit to `main`.
+4. Open the live website once while online.
+5. Close and reopen the Home Screen app if the previous cached version appears first.
+6. Test Airplane Mode again.
+
+Existing v1/v2 local data is migrated automatically.
