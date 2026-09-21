@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 17;
+  const APP_VERSION = 18;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -45,7 +45,7 @@
   function defaultUiSettings() {
     return {
       startScreen: "home",
-      appearance: "system",
+      appearance: "light",
       itineraryDefaultView: "day",
       homeNextCount: 3,
       homeWidgets: {

@@ -11,20 +11,20 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=17" rel="manifest"/>
+<link href="./manifest.webmanifest?v=18" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
   try {
     const raw = JSON.parse(localStorage.getItem("travelPlanner.ui.v1") || "{}");
-    const preference = ["light", "dark", "system"].includes(raw.appearance) ? raw.appearance : "system";
+    const preference = ["light", "dark", "system"].includes(raw.appearance) ? raw.appearance : "light";
     const dark = preference === "dark" ||
       (preference === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=17" rel="stylesheet"/>
+</script><link href="./styles.css?v=18" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -615,9 +615,9 @@
 <span>Follow your iPhone automatically, or force Travel Planner to stay light or dark.</span>
 </div>
 <select class="compact-select" id="settingsAppearance">
-<option value="system">Use iPhone setting</option>
 <option value="light">Light</option>
 <option value="dark">Dark</option>
+<option value="system">Use iPhone setting</option>
 </select>
 </div><div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
 <div class="settings-row"><div><strong>Default itinerary view</strong><span>Day view automatically selects the correct trip day.</span></div><select class="compact-select" id="settingsItineraryView"><option value="day">Day view</option><option value="full">Full trip</option></select></div>
@@ -1245,6 +1245,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=17"></script>
+<script defer="" src="./app.js?v=18"></script>
 </body>
 </html>

@@ -1,42 +1,38 @@
-# Travel Planner v17 — payment controls now use attendee-card layout
+# Travel Planner v18 — Light appearance by default
 
-## Why this version changes approach
+## Appearance default
 
-The payment choices had their own `choice-card` component and it kept conflicting with
-the app-wide form styles on iPhone.
+New devices / new local UI settings now default to:
 
-v17 stops trying to maintain a second card component.
+`Light`
 
-The payment options now use the exact same proven card structure as:
+The available choices remain:
 
-`Who's going?`
+- Light
+- Dark
+- Use iPhone setting
 
-The only functional difference is:
-- attendance = checkboxes / multiple selections
-- payment mode = radio buttons / one selection
+## Existing users
 
-## Payment choices
+If a device already has an appearance preference saved in `travelPlanner.ui.v1`,
+that saved preference is respected.
 
-Both itinerary items and pre-trip tasks now use the attendee-style cards for:
+This avoids unexpectedly changing somebody who deliberately selected Dark or
+Use iPhone setting.
 
-- Not assigned
-- Individual
-- Split cost
+## Launch behaviour
 
-On iPhone these display as simple full-width rows with:
-- control on the left
-- title + description beside it
+The early pre-stylesheet theme bootstrap also defaults to Light, preventing the
+app from initially following iOS Dark Mode before Travel Planner settings load.
 
 ## Existing features retained
 
-v17 keeps:
+v18 keeps:
+- attendee-style payment controls from v17
 - named travellers
-- attendee selection
-- individual payer assignment
-- split costs
-- pre-trip split costs
-- Who Pays What summary
-- dark mode
+- individual / split costs
+- pre-trip cost assignment
+- Who Pays What Summary
 - Settings
 - offline caching
 - document vault
