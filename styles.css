@@ -3099,6 +3099,25 @@ html[data-theme="dark"] .map-source-status span[data-state="fallback"], html[dat
 html[data-theme="dark"] .map-source-status span[data-state="failed"] { background:#3b1515; color:#fecaca; }
 
 
+/* v28 — MapLibre v5 compatibility diagnostics */
+.map-source-status span[data-state="WebGL2"],
+.map-source-status span[data-state="WebGL1"] {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+.map-source-status span[data-state="unavailable"] {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+html[data-theme="dark"] .map-source-status span[data-state="WebGL2"],
+html[data-theme="dark"] .map-source-status span[data-state="WebGL1"] {
+  background: #12331f;
+  color: #86efac;
+}
+
+
 /* v29 — critical MapLibre container sizing fix
    MapLibre adds .maplibregl-map { position: relative; } after our stylesheet.
    The ID selector below intentionally wins that cascade so the map canvas
@@ -3127,6 +3146,8 @@ html[data-theme="dark"] .map-source-status span[data-state="failed"] { backgroun
   top: 0;
 }
 
+/* Keep MapLibre controls above the raster/globe canvas even if its external
+   stylesheet is late to arrive. */
 #tripMapCanvas .maplibregl-control-container {
   position: absolute;
   inset: 0;

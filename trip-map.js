@@ -1,15 +1,19 @@
 const MAPLIBRE_VERSION = "5.24.0";
-const MAPLIBRE_IMPORTS = [
+
+const MAPLIBRE_SCRIPT_URLS = [
   `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`,
   `https://cdn.jsdelivr.net/npm/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`
 ];
-const MAPLIBRE_CSS = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`;
 
-const OPENFREEMAP_STYLE = "https://demotiles.maplibre.org/globe.json";
-const FALLBACK_STYLE = "https://demotiles.maplibre.org/style.json";
-const SATELLITE_TILES = "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg";
-const TERRAIN_TILEJSON = "https://tiles.mapterhorn.com/tilejson.json";
-const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search";
+const MAPLIBRE_CSS_URLS = [
+  `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`,
+  `https://cdn.jsdelivr.net/npm/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`
+];
+
+const OFFICIAL_GLOBE_STYLE = "https://demotiles.maplibre.org/globe.json";
+const SATELLITE_TILES =
+  "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg";
+const PHOTON_SEARCH = "https://photon.komoot.io/api/";
 
 let bridge = null;
 let maplibregl = null;
@@ -21,10 +25,8 @@ let geocoding = false;
 let queued = [];
 let hasAutoLocated = false;
 let activatedOnce = false;
-let mapLoadPromise = null;
-let fallbackAttempted = false;
-let styleReady = false;
-let enhancementApplied = false;
+let enginePromise = null;
+let mapPromise = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -41,42 +43,131 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function validCoords(record) {
-  return Number.isFinite(Number(record?.latitude)) &&
-    Number.isFinite(Number(record?.longitude)) &&
-    Math.abs(Number(record.latitude)) <= 90 &&
-    Math.abs(Number(record.longitude)) <= 180;
+function setStatus(text) {
+  if ($("mapStatus")) $("mapStatus").textContent = text || "";
 }
 
-function records() {
-  return bridge?.getRecords?.() || [];
+function setSourceState(key, value, label = "") {
+  const node = $("mapSourceStatus")?.querySelector(`[data-map-source="${key}"]`);
+  if (!node) return;
+  const display = label || (key === "webgl" ? "WebGL" : key === "engine" ? "Engine" : key === "base" ? "Globe" : "Satellite");
+  node.textContent = `${display}: ${value}`;
+  node.dataset.state = value;
 }
 
-function mappedRecords() {
-  return records().filter(validCoords);
+function showOverlay(title, text) {
+  if ($("tripMapOverlayTitle")) $("tripMapOverlayTitle").textContent = title;
+  if ($("tripMapOverlayText")) $("tripMapOverlayText").textContent = text;
+  $("tripMapOffline")?.classList.remove("hidden");
 }
 
-function missingRecords() {
-  return records().filter((r) => !validCoords(r));
+function hideOverlay() {
+  $("tripMapOffline")?.classList.add("hidden");
 }
 
-function filteredRecords() {
-  return mappedRecords().filter((record) => {
-    if (activeFilter === "all") return true;
-    if (activeFilter === "hotel") return Boolean(record.isHotel);
-    if (activeFilter === "itinerary") return record.kind === "itinerary";
-    if (activeFilter === "places") return record.kind === "place";
-    return true;
+function testWebGL() {
+  const canvas = document.createElement("canvas");
+  let gl2 = null;
+  let gl1 = null;
+
+  try { gl2 = canvas.getContext("webgl2"); } catch {}
+  if (!gl2) {
+    try {
+      gl1 = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    } catch {}
+  }
+
+  if (gl2) {
+    setSourceState("webgl", "WebGL2");
+    return { ok: true, version: 2 };
+  }
+  if (gl1) {
+    setSourceState("webgl", "WebGL1");
+    return { ok: true, version: 1 };
+  }
+
+  setSourceState("webgl", "unavailable");
+  return { ok: false, version: 0 };
+}
+
+function addCss(url) {
+  let link = document.querySelector('link[data-trip-map-maplibre]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.dataset.tripMapMaplibre = "true";
+    document.head.appendChild(link);
+  }
+  link.href = url;
+}
+
+function loadClassicScript(url) {
+  return new Promise((resolve, reject) => {
+    const old = document.querySelector(`script[data-trip-map-lib="${CSS.escape(url)}"]`);
+    if (old) {
+      if (window.maplibregl) return resolve(window.maplibregl);
+      old.addEventListener("load", () => resolve(window.maplibregl), { once: true });
+      old.addEventListener("error", () => reject(new Error(`Failed to load ${url}`)), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = url;
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.dataset.tripMapLib = url;
+    script.onload = () => {
+      if (window.maplibregl) resolve(window.maplibregl);
+      else reject(new Error("MapLibre loaded but did not expose window.maplibregl."));
+    };
+    script.onerror = () => reject(new Error(`Failed to load ${url}`));
+    document.head.appendChild(script);
   });
 }
 
-function addMapLibreCss() {
-  if (document.querySelector('link[data-trip-map-maplibre]')) return;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = MAPLIBRE_CSS;
-  link.dataset.tripMapMaplibre = "true";
-  document.head.appendChild(link);
+async function loadMapLibreV5() {
+  if (maplibregl) return maplibregl;
+  if (enginePromise) return enginePromise;
+
+  enginePromise = (async () => {
+    const webgl = testWebGL();
+    if (!webgl.ok) {
+      throw new Error("WebGL is disabled or unavailable in this browser.");
+    }
+
+    if (!navigator.onLine) {
+      throw new Error("The map engine needs internet the first time it loads.");
+    }
+
+    let lastError = null;
+    for (let i = 0; i < MAPLIBRE_SCRIPT_URLS.length; i++) {
+      try {
+        setSourceState("engine", i ? "backup" : "loading");
+        setStatus(i ? "Loading map engine from backup source…" : "Loading map engine…");
+        addCss(MAPLIBRE_CSS_URLS[i]);
+        maplibregl = await loadClassicScript(MAPLIBRE_SCRIPT_URLS[i]);
+
+        if (!maplibregl?.Map) {
+          throw new Error("MapLibre Map constructor was not found.");
+        }
+
+        if (typeof maplibregl.supported === "function" && !maplibregl.supported()) {
+          throw new Error("MapLibre reports that this browser/GPU cannot render WebGL maps.");
+        }
+
+        setSourceState("engine", "ready");
+        return maplibregl;
+      } catch (error) {
+        console.warn("MapLibre source failed:", MAPLIBRE_SCRIPT_URLS[i], error);
+        lastError = error;
+      }
+    }
+
+    setSourceState("engine", "failed");
+    throw lastError || new Error("MapLibre could not be loaded.");
+  })();
+
+  return enginePromise;
 }
 
 async function waitForBridge() {
@@ -90,204 +181,171 @@ async function waitForBridge() {
   throw new Error("Travel Planner did not finish loading.");
 }
 
-function setStatus(text) {
-  if ($("mapStatus")) $("mapStatus").textContent = text || "";
+function validCoords(record) {
+  return Number.isFinite(Number(record?.latitude)) &&
+    Number.isFinite(Number(record?.longitude)) &&
+    Math.abs(Number(record.latitude)) <= 90 &&
+    Math.abs(Number(record.longitude)) <= 180;
 }
 
-function setOfflineVisible(show, title = "Map imagery needs internet", text = "Your saved itinerary and pin coordinates are still stored locally.") {
-  if ($("tripMapOverlayTitle")) $("tripMapOverlayTitle").textContent = title;
-  if ($("tripMapOverlayText")) $("tripMapOverlayText").textContent = text;
-  $("tripMapOffline")?.classList.toggle("hidden", !show);
+function records() {
+  return bridge?.getRecords?.() || [];
 }
 
-function setSourceState(id, label, state) {
-  const node = $(id);
-  if (!node) return;
-  node.textContent = `${label}: ${state}`;
-  node.dataset.state = state;
+function missingRecords() {
+  return records().filter((r) => !validCoords(r));
 }
 
-function loadClassicMapLibreScript(url) {
-  return new Promise((resolve, reject) => {
-    if (window.maplibregl?.Map) {
-      resolve(window.maplibregl);
-      return;
-    }
-
-    const existing = [...document.scripts].find((script) => script.src === url);
-    if (existing) {
-      existing.addEventListener("load", () => resolve(window.maplibregl), { once: true });
-      existing.addEventListener("error", () => reject(new Error(`Failed to load ${url}`)), { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = url;
-    script.async = true;
-    script.crossOrigin = "anonymous";
-    script.onload = () => {
-      if (window.maplibregl?.Map) resolve(window.maplibregl);
-      else reject(new Error("MapLibre loaded but did not expose window.maplibregl."));
-    };
-    script.onerror = () => reject(new Error(`Failed to load ${url}`));
-    document.head.appendChild(script);
+function filteredRecords() {
+  return records().filter(validCoords).filter((record) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "hotel") return Boolean(record.isHotel);
+    if (activeFilter === "itinerary") return record.kind === "itinerary";
+    if (activeFilter === "places") return record.kind === "place";
+    return true;
   });
 }
 
-async function loadMapLibre() {
-  if (maplibregl) return maplibregl;
-  if (!navigator.onLine) throw new Error("Map imagery needs an internet connection.");
-
-  addMapLibreCss();
-  let lastError = null;
-
-  for (let i = 0; i < MAPLIBRE_IMPORTS.length; i++) {
-    try {
-      setSourceState("mapEngineState", "Engine", i ? "backup" : "loading");
-      maplibregl = await loadClassicMapLibreScript(MAPLIBRE_IMPORTS[i]);
-
-      if (!maplibregl?.Map) {
-        throw new Error("MapLibre Map constructor was not found.");
-      }
-
-      if (typeof maplibregl.supported === "function" && !maplibregl.supported()) {
-        throw new Error("WebGL is disabled or unavailable in this browser.");
-      }
-
-      setSourceState("mapEngineState", "Engine", "ready");
-      return maplibregl;
-    } catch (error) {
-      lastError = error;
-      console.warn("MapLibre source failed", MAPLIBRE_IMPORTS[i], error);
-    }
-  }
-
-  setSourceState("mapEngineState", "Engine", "failed");
-  throw lastError || new Error("Map engine could not load.");
-}
-
-async function enhanceSatelliteAndTerrain() {
-  if (!map || !styleReady || enhancementApplied) return;
-  enhancementApplied = true;
+function installSatelliteLayer() {
+  if (!map || !mapReady) return;
 
   try {
-    if (!map.getSource("trip-satellite-source")) {
-      map.addSource("trip-satellite-source", {
+    if (!map.getSource("trip-satellite")) {
+      map.addSource("trip-satellite", {
         type: "raster",
         tiles: [SATELLITE_TILES],
         tileSize: 256,
-        attribution: "Sentinel-2 cloudless 2020 © EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2020)"
+        attribution:
+          "Sentinel-2 cloudless 2020 © EOX IT Services GmbH • modified Copernicus Sentinel data"
       });
     }
-    if (!map.getLayer("trip-satellite-layer")) {
-      const before = map.getStyle().layers?.find((layer) => layer.type === "line" || layer.type === "symbol")?.id;
+
+    if (!map.getLayer("trip-satellite")) {
+      const style = map.getStyle();
+      const firstLineOrSymbol = style.layers?.find((layer) =>
+        layer.type === "line" || layer.type === "symbol"
+      )?.id;
+
       map.addLayer({
-        id: "trip-satellite-layer",
+        id: "trip-satellite",
         type: "raster",
-        source: "trip-satellite-source",
-        paint: { "raster-opacity": 0.93, "raster-saturation": -0.05, "raster-contrast": 0.04 }
-      }, before);
+        source: "trip-satellite",
+        paint: {
+          "raster-opacity": 0.92,
+          "raster-saturation": -0.05,
+          "raster-contrast": 0.03
+        }
+      }, firstLineOrSymbol);
     }
-    setSourceState("mapSatelliteState", "Satellite", "ready");
-  } catch (error) {
-    console.warn("Satellite layer unavailable", error);
-    setSourceState("mapSatelliteState", "Satellite", "fallback");
-  }
 
-  try {
-    if (!map.getSource("trip-terrain-source")) {
-      map.addSource("trip-terrain-source", { type: "raster-dem", url: TERRAIN_TILEJSON });
-    }
-    map.setTerrain({ source: "trip-terrain-source", exaggeration: 1 });
-    setSourceState("mapTerrainState", "Terrain", "ready");
+    setSourceState("satellite", "ready");
   } catch (error) {
-    console.warn("Terrain unavailable", error);
-    setSourceState("mapTerrainState", "Terrain", "fallback");
-  }
-}
-
-function switchToFallbackStyle(reason = "") {
-  if (!map || fallbackAttempted) return;
-  fallbackAttempted = true;
-  styleReady = false;
-  enhancementApplied = false;
-  setStatus("Primary map source did not load. Switching to fallback globe…");
-  setSourceState("mapBaseState", "Base", "fallback");
-  console.warn("Switching to fallback map style", reason);
-  try {
-    map.setStyle(FALLBACK_STYLE);
-  } catch (error) {
-    setOfflineVisible(true, "Map could not render", error?.message || "Both map styles failed.");
+    console.warn("Satellite layer failed; base globe remains active.", error);
+    setSourceState("satellite", "fallback");
+    setStatus("Globe is working; satellite imagery could not be added, so the vector globe is being shown.");
   }
 }
 
 async function ensureMap() {
   if (map && mapReady) {
-    setOfflineVisible(false);
+    hideOverlay();
     map.resize();
     return map;
   }
-  if (mapLoadPromise) return mapLoadPromise;
+  if (mapPromise) return mapPromise;
 
-  mapLoadPromise = (async () => {
+  mapPromise = (async () => {
     try {
-      setStatus("Starting globe…");
-      setOfflineVisible(false);
-      const lib = await loadMapLibre();
+      hideOverlay();
+      setSourceState("base", "loading");
+      const lib = await loadMapLibreV5();
 
+      // Important: official globe style is provided directly in the constructor.
+      // No blank style / transform phase.
       map = new lib.Map({
         container: "tripMapCanvas",
-        style: OPENFREEMAP_STYLE,
+        style: OFFICIAL_GLOBE_STYLE,
         center: [125, 30],
-        zoom: 2.6,
-        pitch: 35,
+        zoom: 2.4,
+        pitch: 20,
         bearing: 0,
-        maxPitch: 85,
+        maxPitch: 75,
+        attributionControl: true,
         canvasContextAttributes: { antialias: true }
       });
 
-      map.addControl(new lib.NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true }), "top-right");
-      if (lib.GlobeControl) map.addControl(new lib.GlobeControl(), "top-right");
+      map.addControl(
+        new lib.NavigationControl({
+          showZoom: true,
+          showCompass: true,
+          visualizePitch: true
+        }),
+        "top-right"
+      );
 
-      map.on("style.load", () => {
-        styleReady = true;
+      if (lib.GlobeControl) {
+        map.addControl(new lib.GlobeControl(), "top-right");
+      }
+
+      let loaded = false;
+
+      map.on("load", () => {
+        loaded = true;
         mapReady = true;
-        enhancementApplied = false;
-        setSourceState("mapBaseState", "Base", fallbackAttempted ? "fallback" : "ready");
-        try { map.setProjection({ type: "globe" }); } catch (error) { console.warn("Globe projection unavailable", error); }
-        setOfflineVisible(false);
+        setSourceState("base", "ready");
         setStatus("Globe loaded.");
+        hideOverlay();
+
+        // Official globe.json already requests globe projection, but set it again
+        // for compatibility if the style endpoint changes.
+        try {
+          if (map.setProjection) map.setProjection({ type: "globe" });
+        } catch {}
+
+        requestAnimationFrame(() => map.resize());
+        setTimeout(() => map.resize(), 100);
+        setTimeout(() => map.resize(), 400);
+
         refreshMarkers();
-        requestAnimationFrame(() => map?.resize());
-        setTimeout(() => map?.resize(), 150);
-        setTimeout(() => map?.resize(), 500);
         fitTrip(false);
-        enhanceSatelliteAndTerrain();
+        installSatelliteLayer();
       });
 
       map.on("error", (event) => {
         const message = event?.error?.message || "Unknown map error";
-        console.warn("Travel Planner map error", message);
-        if (!styleReady && !fallbackAttempted) {
-          setTimeout(() => { if (!styleReady) switchToFallbackStyle(message); }, 1200);
+        console.warn("MapLibre map error:", message);
+
+        if (!loaded) {
+          setStatus(`Globe loading issue: ${message}`);
         }
       });
 
+      // A hard visible failure replaces the silent black rectangle.
       setTimeout(() => {
-        if (!styleReady) switchToFallbackStyle("Primary style load timeout");
-      }, 8000);
+        if (!loaded) {
+          setSourceState("base", "failed");
+          showOverlay(
+            "The globe did not finish loading",
+            "The map engine started, but the globe style/tiles did not render. Your trip data is unaffected."
+          );
+          setStatus("Globe style failed to load.");
+        }
+      }, 12000);
 
       return map;
     } catch (error) {
-      mapLoadPromise = null;
-      setSourceState("mapBaseState", "Base", "failed");
-      setOfflineVisible(true, "Map engine could not load", `${error?.message || "Unknown error"}. Your saved trip data is unaffected.`);
-      setStatus(`Map error: ${error?.message || "could not load"}`);
+      mapPromise = null;
+      setSourceState("base", "failed");
+      showOverlay(
+        "Map could not start",
+        `${error?.message || "Unknown map error"} Your itinerary and saved coordinates are unaffected.`
+      );
+      setStatus(`Map error: ${error?.message || "could not start"}`);
       throw error;
     }
   })();
 
-  return mapLoadPromise;
+  return mapPromise;
 }
 
 function markerElement(record) {
@@ -350,10 +408,7 @@ function refreshMarkers() {
       maxWidth: "300px"
     }).setHTML(popupHtml(record));
 
-    const marker = new maplibregl.Marker({
-      element,
-      anchor: "bottom"
-    })
+    const marker = new maplibregl.Marker({ element, anchor: "bottom" })
       .setLngLat([Number(record.longitude), Number(record.latitude)])
       .setPopup(popup)
       .addTo(map);
@@ -381,6 +436,7 @@ function renderStatusCounts() {
   if ($("mapPinCount")) {
     $("mapPinCount").textContent = `${mapped} pin${mapped === 1 ? "" : "s"}`;
   }
+
   if ($("mapMissingSummary")) {
     $("mapMissingSummary").textContent = missing
       ? `${missing} location${missing === 1 ? "" : "s"} need a pin`
@@ -426,6 +482,7 @@ function renderMissingList() {
 
 function fitTrip(animate = true) {
   if (!map || !mapReady || !maplibregl) return;
+
   const items = filteredRecords();
   if (!items.length) return;
 
@@ -433,59 +490,75 @@ function fitTrip(animate = true) {
     map.flyTo({
       center: [Number(items[0].longitude), Number(items[0].latitude)],
       zoom: 12,
-      pitch: 55,
-      duration: animate ? 1200 : 0
+      pitch: 45,
+      duration: animate ? 1000 : 0
     });
     return;
   }
 
   const bounds = new maplibregl.LngLatBounds();
-  items.forEach((record) => bounds.extend([Number(record.longitude), Number(record.latitude)]));
+  items.forEach((record) =>
+    bounds.extend([Number(record.longitude), Number(record.latitude)])
+  );
+
   map.fitBounds(bounds, {
     padding: 70,
     maxZoom: 11,
-    pitch: 45,
-    duration: animate ? 1300 : 0
+    duration: animate ? 1200 : 0
   });
+}
+
+function photonLabel(feature, fallback) {
+  const p = feature?.properties || {};
+  return [
+    p.name,
+    p.street,
+    p.city || p.locality,
+    p.state,
+    p.country
+  ].filter(Boolean).filter((value, index, array) => array.indexOf(value) === index).join(", ") || fallback;
 }
 
 async function geocodeRecord(record) {
   if (!navigator.onLine) throw new Error("Internet is required to locate a new pin.");
+
   const query = String(record.query || record.location || "").trim();
   if (!query) throw new Error("No location text to search.");
 
-  const url = new URL(NOMINATIM_SEARCH);
+  const url = new URL(PHOTON_SEARCH);
   url.searchParams.set("q", query);
-  url.searchParams.set("format", "jsonv2");
   url.searchParams.set("limit", "1");
-  url.searchParams.set("addressdetails", "1");
-  url.searchParams.set("accept-language", "en");
+  url.searchParams.set("lang", "en");
 
   const response = await fetch(url.toString(), {
     headers: { "Accept": "application/json" }
   });
+
   if (!response.ok) throw new Error(`Location search failed (${response.status}).`);
 
-  const results = await response.json();
-  const first = Array.isArray(results) ? results[0] : null;
-  if (!first) return false;
+  const result = await response.json();
+  const first = result?.features?.[0] || null;
+  const coords = first?.geometry?.coordinates || [];
 
-  const lat = Number(first.lat);
-  const lng = Number(first.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  const lng = Number(coords[0]);
+  const lat = Number(coords[1]);
+
+  if (!first || !Number.isFinite(lat) || !Number.isFinite(lng)) return false;
 
   bridge.updateCoordinates?.(
     record.kind,
     record.id,
     lat,
     lng,
-    first.display_name || query
+    photonLabel(first, query)
   );
+
   return true;
 }
 
 async function processQueue() {
   if (geocoding || !queued.length) return;
+
   geocoding = true;
   renderStatusCounts();
 
@@ -504,16 +577,12 @@ async function processQueue() {
     try {
       if (await geocodeRecord(record)) found += 1;
     } catch (error) {
-      if (!navigator.onLine) {
-        setStatus("Offline — saved pins remain available when the map imagery is online.");
-        break;
-      }
+      console.warn("Trip location search failed:", error);
+      if (!navigator.onLine) break;
     }
 
     refreshMarkers();
-
-    // Public geocoding: deliberately keep requests slow and one-at-a-time.
-    if (queued.length) await sleep(1150);
+    if (queued.length) await sleep(850);
   }
 
   geocoding = false;
@@ -521,12 +590,12 @@ async function processQueue() {
   refreshMarkers();
 
   if (found > 0) {
-    setStatus(`Located ${found} new pin${found === 1 ? "" : "s"}. Coordinates are now saved with the trip.`);
+    setStatus(`Located ${found} new pin${found === 1 ? "" : "s"}. Coordinates are saved with the trip.`);
     fitTrip(true);
   } else if (!missingRecords().length) {
     setStatus("Every saved location has a pin.");
   } else if (navigator.onLine) {
-    setStatus("Some locations could not be matched. Make the location/address more specific and try again.");
+    setStatus("Some locations could not be matched. Make the address/location more specific and retry.");
   }
 }
 
@@ -538,21 +607,23 @@ function queueGeocode(kind, id, prioritize = false) {
     if (prioritize) queued.unshift({ kind, id });
     else queued.push({ kind, id });
   }
+
   processQueue();
 }
 
 function locateAllMissing() {
   if (geocoding) return;
-  const missing = missingRecords();
-  queued = missing.map((r) => ({ kind: r.kind, id: r.id }));
+  queued = missingRecords().map((r) => ({ kind: r.kind, id: r.id }));
   processQueue();
 }
 
 function setFilter(filter) {
   activeFilter = filter;
+
   document.querySelectorAll("[data-map-filter]").forEach((button) => {
     button.classList.toggle("active", button.dataset.mapFilter === filter);
   });
+
   refreshMarkers();
   fitTrip(true);
 }
@@ -573,8 +644,7 @@ async function activate() {
       locateAllMissing();
     }
   } catch (error) {
-    console.error("Trip Map failed to activate", error);
-    setOfflineVisible(true, "Map could not start", `${error?.message || "Unknown map error"}. Your saved trip data is unaffected.`);
+    console.error("Trip Map activation failed:", error);
   }
 }
 
@@ -593,12 +663,15 @@ function bindUi() {
   $("mapLocateMissingBtn")?.addEventListener("click", locateAllMissing);
 
   window.addEventListener("online", () => {
-    setOfflineVisible(false);
     if (activatedOnce && !mapReady) activate();
   });
+
   window.addEventListener("offline", () => {
     if (activatedOnce) {
-      setOfflineVisible(true, "Map imagery needs internet", "Your itinerary, Family Sync data and saved pin coordinates remain stored locally.");
+      showOverlay(
+        "Map imagery needs internet",
+        "Your itinerary, Family Sync data and saved pin coordinates remain stored locally."
+      );
       setStatus("Offline — saved trip data is still available.");
     }
   });
@@ -610,7 +683,8 @@ async function init() {
     bindUi();
     dataChanged();
   } catch (error) {
-    setStatus(error.message || "Trip Map could not start.");
+    console.error("Trip Map init failed:", error);
+    setStatus(`Trip Map could not start: ${error.message}`);
   }
 }
 

@@ -312,12 +312,7 @@
 <button class="secondary-btn" id="mapLocateMissingBtn" type="button">Locate missing pins</button>
 </div>
 <p class="status-message" id="mapStatus" role="status"></p>
-<div class="map-source-status" id="mapSourceStatus">
-<span id="mapEngineState">Engine: waiting</span>
-<span id="mapBaseState">Base: waiting</span>
-<span id="mapSatelliteState">Satellite: waiting</span>
-<span id="mapTerrainState">Terrain: waiting</span>
-</div>
+<div class="map-source-status" id="mapSourceStatus"><span data-map-source="webgl">WebGL: waiting</span><span data-map-source="engine">Engine: waiting</span><span data-map-source="base">Globe: waiting</span><span data-map-source="satellite">Satellite: waiting</span></div>
 </section>
 <section class="trip-map-shell">
 <div aria-label="Interactive trip globe" class="trip-map-canvas" id="tripMapCanvas"></div>
