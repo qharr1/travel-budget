@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "tripBudgetApp.v1";
-  const APP_VERSION = 6;
+  const APP_VERSION = 7;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -31,7 +31,9 @@
   let setupDraftDestinations = [];
   let settingsDraftDestinations = [];
   let selectedItineraryDate = "";
+  let itineraryViewMode = "day";
   let setupVisible = false;
+  let lastObservedCalendarDate = todayISO();
 
   function uid(prefix = "id") {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -50,7 +52,8 @@
       travellers: { adults: 0, children: 0 },
       budget: { configured: false, totalBudget: null, day1HardLimit: null, destinations: [] },
       dayMeta: {},
-      itinerary: []
+      itinerary: [],
+      preTripTasks: []
     };
   }
 
@@ -82,6 +85,23 @@
       adultCost: item?.adultCost === null || item?.adultCost === "" || item?.adultCost === undefined ? null : Number(item.adultCost),
       childCost: item?.childCost === null || item?.childCost === "" || item?.childCost === undefined ? null : Number(item.childCost),
       participants: String(item?.participants || ""),
+      notes: String(item?.notes || ""),
+      createdAt: Number(item?.createdAt || Date.now()),
+      updatedAt: Number(item?.updatedAt || Date.now())
+    };
+  }
+
+  function normalizePreTripTask(item) {
+    return {
+      id: String(item?.id || uid("pre")),
+      title: String(item?.title || "Pre-trip task"),
+      dueDate: String(item?.dueDate || ""),
+      category: String(item?.category || "Other"),
+      status: String(item?.status || "Planned"),
+      costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined
+        ? null
+        : Number(item.costTotal),
+      costCurrency: String(item?.costCurrency || "AUD").toUpperCase(),
       notes: String(item?.notes || ""),
       createdAt: Number(item?.createdAt || Date.now()),
       updatedAt: Number(item?.updatedAt || Date.now())
@@ -128,6 +148,7 @@
     };
     trip.dayMeta = raw?.dayMeta && typeof raw.dayMeta === "object" ? raw.dayMeta : {};
     trip.itinerary = Array.isArray(raw?.itinerary) ? raw.itinerary.map(normalizeItineraryItem) : [];
+    trip.preTripTasks = Array.isArray(raw?.preTripTasks) ? raw.preTripTasks.map(normalizePreTripTask) : [];
     return trip;
   }
 
@@ -587,8 +608,149 @@
       </article>`;
   }
 
+  function preTripCategoryClass(category) {
+    const key = String(category || "Other").trim().toLowerCase();
+    if (key === "insurance") return "category-insurance";
+    if (key === "connectivity") return "category-connectivity";
+    if (key === "transport") return "category-transport";
+    if (key === "hotel") return "category-hotel";
+    if (key === "app / setup") return "category-app-setup";
+    if (key === "documents") return "category-documents";
+    return "category-other";
+  }
+
+  function isPreTripComplete(status) {
+    const value = String(status || "").trim().toLowerCase();
+    return ["completed", "paid", "booked - paid"].includes(value);
+  }
+
+  function preTripTaskMarkup(task) {
+    const due = task.dueDate ? formatDate(task.dueDate, { weekday: true }) : "No due date";
+    const cost = task.costTotal !== null && Number.isFinite(Number(task.costTotal))
+      ? money(task.costTotal, task.costCurrency || "AUD")
+      : "No cost";
+
+    return `
+      <article class="pretrip-task-card ${preTripCategoryClass(task.category)}">
+        <span class="pretrip-stripe" aria-hidden="true"></span>
+        <div class="pretrip-card-content">
+          <div class="pretrip-card-top">
+            <div>
+              <h3 class="pretrip-card-title">${escapeHtml(task.title)}</h3>
+              <div class="pretrip-card-meta">${escapeHtml(due)} • ${escapeHtml(task.category)} • ${escapeHtml(task.status)}</div>
+            </div>
+            <div class="pretrip-card-cost">${escapeHtml(cost)}</div>
+          </div>
+          ${task.notes ? `<p class="pretrip-card-notes">${escapeHtml(task.notes)}</p>` : ""}
+          <div class="pretrip-card-actions">
+            ${!isPreTripComplete(task.status) ? `<button class="mini-btn complete-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Mark done</button>` : ""}
+            <button class="mini-btn edit-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Edit</button>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  function renderPreTrip() {
+    if (!state.trip) return;
+    const tasks = [...(state.trip.preTripTasks || [])].sort((a, b) => {
+      if (!a.dueDate && !b.dueDate) return a.title.localeCompare(b.title);
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+
+    const complete = tasks.filter((x) => isPreTripComplete(x.status)).length;
+    const outstandingCost = tasks.reduce((sum, task) => {
+      if (isPreTripComplete(task.status)) return sum;
+      const cost = Number(task.costTotal);
+      return task.costTotal !== null && Number.isFinite(cost) ? sum + cost : sum;
+    }, 0);
+
+    el("preTripSummaryText").textContent = tasks.length
+      ? `${complete}/${tasks.length} complete${outstandingCost > 0 ? ` • ${aud(outstandingCost)} still to pay` : ""}`
+      : "No tasks yet";
+
+    el("preTripTaskList").innerHTML = tasks.length
+      ? tasks.map(preTripTaskMarkup).join("")
+      : `<p class="expense-empty">No pre-trip tasks yet. Add insurance, eSIM, booking reminders or anything else you need before departure.</p>`;
+
+    el("preTripTaskList").querySelectorAll(".edit-pretrip-task").forEach((button) => {
+      button.addEventListener("click", () => openPreTripTaskDialog(button.dataset.id));
+    });
+
+    el("preTripTaskList").querySelectorAll(".complete-pretrip-task").forEach((button) => {
+      button.addEventListener("click", () => {
+        const task = state.trip.preTripTasks.find((x) => x.id === button.dataset.id);
+        if (!task) return;
+        task.status = "Completed";
+        task.updatedAt = Date.now();
+        saveState();
+        renderPreTrip();
+        renderSummary();
+      });
+    });
+  }
+
+  function fullDayMarkup(date, index) {
+    const meta = state.trip.dayMeta?.[date] || {};
+    const items = [...state.trip.itinerary]
+      .filter((x) => x.date === date)
+      .sort((a, b) => (a.startTime || "99:99").localeCompare(b.startTime || "99:99"));
+    const todayClass = date === todayISO() ? "today-full-day" : "";
+
+    return `
+      <article class="full-day-card">
+        <div class="full-day-header ${todayClass}">
+          <div class="full-day-title">
+            <strong>Day ${index + 1} • ${escapeHtml(formatDate(date, { weekday: true }))}</strong>
+            <span>${escapeHtml(meta.location || "")}</span>
+            <p class="full-day-headline">${escapeHtml(meta.headline || (items.length ? "Planned day" : "Nothing planned"))}</p>
+          </div>
+          <button class="full-day-open" type="button" data-date="${date}">Open day</button>
+        </div>
+        <div class="full-day-body">
+          ${meta.overnight ? `<p class="full-day-overnight">Overnight: ${escapeHtml(meta.overnight)}</p>` : ""}
+          ${items.length ? items.map(itineraryItemMarkup).join("") : `<div class="full-day-empty">Nothing planned</div>`}
+        </div>
+      </article>`;
+  }
+
+  function renderFullItinerary() {
+    if (!state.trip) return;
+    const dates = tripDates();
+    el("fullItineraryCount").textContent = `${dates.length} days`;
+    el("fullItineraryList").innerHTML = dates.map(fullDayMarkup).join("");
+
+    el("fullItineraryList").querySelectorAll(".full-day-open").forEach((button) => {
+      button.addEventListener("click", () => {
+        selectedItineraryDate = button.dataset.date;
+        itineraryViewMode = "day";
+        el("itineraryViewSelect").value = "day";
+        renderItinerary();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
+    el("fullItineraryList").querySelectorAll(".edit-itinerary-item").forEach((button) => {
+      button.addEventListener("click", () => openItineraryItemDialog(button.dataset.id));
+    });
+  }
+
+  function renderItineraryViewMode() {
+    const full = itineraryViewMode === "full";
+    el("dayItineraryView").classList.toggle("hidden", full);
+    el("fullItineraryView").classList.toggle("hidden", !full);
+    el("itineraryViewSelect").value = itineraryViewMode;
+    if (full) renderFullItinerary();
+  }
+
   function renderItinerary() {
     if (!state.trip) return;
+
+    renderPreTrip();
+    renderItineraryViewMode();
+    if (itineraryViewMode === "full") return;
+
     renderDayStrip();
 
     const dates = tripDates();
@@ -635,24 +797,55 @@
   function renderSummary() {
     if (!state.trip) return;
 
-    const items = Array.isArray(state.trip.itinerary) ? state.trip.itinerary : [];
+    const itineraryItems = Array.isArray(state.trip.itinerary) ? state.trip.itinerary : [];
+    const preTripTasks = Array.isArray(state.trip.preTripTasks) ? state.trip.preTripTasks : [];
     const priced = [];
     const unpriced = [];
     let total = 0;
     let paid = 0;
     let outstanding = 0;
 
-    for (const item of items) {
+    for (const item of itineraryItems) {
       const cost = itemEffectiveCost(item);
+      const summaryItem = {
+        kind: "itinerary",
+        type: item.type || "Other",
+        title: item.title,
+        date: item.date,
+        status: item.status || "Planned"
+      };
+
       if (cost === null || !Number.isFinite(cost)) {
-        unpriced.push(item);
+        unpriced.push(summaryItem);
         continue;
       }
 
-      priced.push({ item, cost });
+      priced.push({ item: summaryItem, cost });
       total += cost;
-
       if (isPaidStatus(item.status)) paid += cost;
+      else outstanding += cost;
+    }
+
+    for (const task of preTripTasks) {
+      const cost = task.costTotal === null || task.costTotal === "" || task.costTotal === undefined
+        ? null
+        : Number(task.costTotal);
+      const summaryItem = {
+        kind: "pretrip",
+        type: "Pre-trip",
+        title: task.title,
+        date: task.dueDate,
+        status: task.status || "Planned"
+      };
+
+      if (cost === null || !Number.isFinite(cost)) {
+        unpriced.push(summaryItem);
+        continue;
+      }
+
+      priced.push({ item: summaryItem, cost });
+      total += cost;
+      if (isPreTripComplete(task.status)) paid += cost;
       else outstanding += cost;
     }
 
@@ -663,10 +856,12 @@
     el("summaryOutstanding").textContent = aud(outstanding);
     el("summaryUnpriced").textContent = String(unpriced.length);
     el("summaryPricedItems").textContent = String(priced.length);
-    el("summaryPaidPct").textContent = `${paidPct.toFixed(1)}% of priced itinerary`;
+    el("summaryPaidPct").textContent = `${paidPct.toFixed(1)}% of priced trip`;
     el("summaryProgressText").textContent = `${paidPct.toFixed(0)}% paid`;
     el("summaryPaidProgress").style.width = `${Math.max(0, Math.min(100, paidPct))}%`;
-    el("summaryItemCount").textContent = `${items.length} itinerary item${items.length === 1 ? "" : "s"}`;
+    el("summaryItemCount").textContent =
+      `${itineraryItems.length} itinerary item${itineraryItems.length === 1 ? "" : "s"} • ${preTripTasks.length} pre-trip task${preTripTasks.length === 1 ? "" : "s"}`;
+
     const dayCount = daysInclusive(state.trip.startDate, state.trip.endDate);
     el("summaryDayCount").textContent = `${dayCount} trip day${dayCount === 1 ? "" : "s"}`;
 
@@ -682,7 +877,7 @@
     const breakdown = [...groups.values()].sort((a, b) => b.cost - a.cost);
     el("summaryBreakdown").innerHTML = breakdown.length
       ? breakdown.map((group) => `
-          <div class="summary-breakdown-row ${typeClass(group.type)}">
+          <div class="summary-breakdown-row ${group.type === "Pre-trip" ? "type-pretrip" : typeClass(group.type)}">
             <span class="summary-colour-dot" aria-hidden="true"></span>
             <div class="summary-breakdown-label">
               <strong>${escapeHtml(group.type)}</strong>
@@ -691,22 +886,23 @@
             <div class="summary-breakdown-value">${escapeHtml(aud(group.cost))}</div>
           </div>
         `).join("")
-      : `<p class="expense-empty">No priced itinerary items yet.</p>`;
+      : `<p class="expense-empty">No priced trip items yet.</p>`;
 
     const unpaidItems = priced
-      .filter(({ item }) => !isPaidStatus(item.status))
+      .filter(({ item }) => item.kind === "pretrip" ? !isPreTripComplete(item.status) : !isPaidStatus(item.status))
       .sort((a, b) => {
-        if (a.item.date !== b.item.date) return a.item.date.localeCompare(b.item.date);
-        return (a.item.startTime || "99:99").localeCompare(b.item.startTime || "99:99");
+        const aDate = a.item.date || "9999-12-31";
+        const bDate = b.item.date || "9999-12-31";
+        return aDate.localeCompare(bDate);
       });
 
     el("summaryOutstandingList").innerHTML = unpaidItems.length
       ? unpaidItems.map(({ item, cost }) => `
-          <div class="summary-outstanding-item ${typeClass(item.type)}">
+          <div class="summary-outstanding-item ${item.type === "Pre-trip" ? "type-pretrip" : typeClass(item.type)}">
             <span class="summary-outstanding-stripe" aria-hidden="true"></span>
             <div class="summary-outstanding-main">
               <strong>${escapeHtml(item.title)}</strong>
-              <span>${escapeHtml(formatDate(item.date, { weekday: true }))} • ${escapeHtml(item.status || "Planned")}</span>
+              <span>${item.date ? escapeHtml(formatDate(item.date, { weekday: true })) : "No date"} • ${escapeHtml(item.status || "Planned")}</span>
             </div>
             <div class="summary-outstanding-amount">${escapeHtml(aud(cost))}</div>
           </div>
@@ -1335,6 +1531,7 @@
       state = imported;
       setupVisible = false;
       selectedItineraryDate = defaultSelectedDate();
+      itineraryViewMode = "day";
       settingsDraftDestinations = [];
       saveState();
       render();
@@ -1462,13 +1659,14 @@
       }
 
       state = migrateState({
-        version: 5,
+        version: APP_VERSION,
         trip: payload.trip,
         expenses: Array.isArray(payload.expenses) ? payload.expenses : []
       });
 
       setupVisible = false;
       selectedItineraryDate = defaultSelectedDate();
+      itineraryViewMode = "day";
       settingsDraftDestinations = [];
       saveState();
 
@@ -1515,6 +1713,86 @@
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     if (messageElement) messageElement.textContent = "Trip file downloaded.";
+  }
+
+  function openPreTripTaskDialog(id = "") {
+    if (!state.trip) return;
+    const task = id ? state.trip.preTripTasks.find((x) => x.id === id) : null;
+
+    el("preTripTaskId").value = task?.id || "";
+    el("preTripDialogTitle").textContent = task ? "Edit task" : "Add task";
+    el("preTripTitle").value = task?.title || "";
+    el("preTripDueDate").value = task?.dueDate || "";
+    el("preTripCategory").value = task?.category || "Other";
+    el("preTripStatus").value = task?.status || "Planned";
+    el("preTripCost").value =
+      task?.costTotal !== null && task?.costTotal !== undefined && Number.isFinite(Number(task.costTotal))
+        ? task.costTotal
+        : "";
+    el("preTripNotes").value = task?.notes || "";
+    el("preTripTaskError").textContent = "";
+    el("deletePreTripTaskBtn").classList.toggle("hidden", !task);
+
+    showModalSafe(el("preTripTaskDialog"));
+  }
+
+  function mergePreTripTasks(tasks) {
+    if (!state.trip) return 0;
+    let added = 0;
+
+    for (const raw of tasks) {
+      const incoming = normalizePreTripTask(raw);
+      const existingIndex = state.trip.preTripTasks.findIndex((task) =>
+        task.id === incoming.id ||
+        (task.title.trim().toLowerCase() === incoming.title.trim().toLowerCase() &&
+         task.dueDate === incoming.dueDate)
+      );
+
+      if (existingIndex >= 0) {
+        state.trip.preTripTasks[existingIndex] = {
+          ...state.trip.preTripTasks[existingIndex],
+          ...incoming,
+          id: state.trip.preTripTasks[existingIndex].id
+        };
+      } else {
+        state.trip.preTripTasks.push(incoming);
+        added += 1;
+      }
+    }
+
+    saveState();
+    renderPreTrip();
+    renderSummary();
+    return added;
+  }
+
+  async function importPreTripUpdate(file) {
+    try {
+      const parsed = JSON.parse(await file.text());
+      const tasks = Array.isArray(parsed?.preTripTasks)
+        ? parsed.preTripTasks
+        : Array.isArray(parsed?.trip?.preTripTasks)
+          ? parsed.trip.preTripTasks
+          : [];
+
+      if (!tasks.length) throw new Error("No pre-trip tasks were found in this file.");
+
+      if (parsed?.tripId && state.trip?.id && parsed.tripId !== state.trip.id) {
+        const sameName = parsed?.tripName && parsed.tripName === state.trip.name;
+        if (!sameName && !window.confirm("This update was created for a different trip. Import the tasks anyway?")) {
+          return;
+        }
+      }
+
+      const before = state.trip.preTripTasks.length;
+      mergePreTripTasks(tasks);
+      const after = state.trip.preTripTasks.length;
+      el("preTripImportMessage").textContent =
+        `Pre-trip update imported. ${after - before} new task${after - before === 1 ? "" : "s"} added; matching tasks were refreshed.`;
+      el("preTripPanel").open = true;
+    } catch (error) {
+      el("preTripImportMessage").textContent = `Could not import pre-trip tasks: ${error.message}`;
+    }
   }
 
   function openItineraryItemDialog(id = "") {
@@ -1658,6 +1936,69 @@
       selectedItineraryDate = dates[index + 1];
       renderItinerary();
     }
+  });
+
+  el("itineraryViewSelect").addEventListener("change", () => {
+    itineraryViewMode = el("itineraryViewSelect").value === "full" ? "full" : "day";
+    renderItinerary();
+  });
+
+  el("addPreTripTaskBtn").addEventListener("click", () => openPreTripTaskDialog());
+  el("closePreTripDialogBtn").addEventListener("click", () => closeModalSafe(el("preTripTaskDialog")));
+
+  el("preTripTaskForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const id = el("preTripTaskId").value;
+    const title = el("preTripTitle").value.trim();
+    if (!title) {
+      el("preTripTaskError").textContent = "Enter a task name.";
+      return;
+    }
+
+    const existing = id ? state.trip.preTripTasks.find((x) => x.id === id) : null;
+    const task = normalizePreTripTask({
+      id: existing?.id || uid("pre"),
+      title,
+      dueDate: el("preTripDueDate").value,
+      category: el("preTripCategory").value,
+      status: el("preTripStatus").value,
+      costTotal: el("preTripCost").value === "" ? null : Number(el("preTripCost").value),
+      costCurrency: "AUD",
+      notes: el("preTripNotes").value.trim(),
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now()
+    });
+
+    if (existing) {
+      state.trip.preTripTasks = state.trip.preTripTasks.map((x) => x.id === id ? task : x);
+    } else {
+      state.trip.preTripTasks.push(task);
+    }
+
+    saveState();
+    closeModalSafe(el("preTripTaskDialog"));
+    renderPreTrip();
+    renderSummary();
+  });
+
+  el("deletePreTripTaskBtn").addEventListener("click", () => {
+    const id = el("preTripTaskId").value;
+    const task = state.trip?.preTripTasks.find((x) => x.id === id);
+    if (!task) return;
+    if (!window.confirm(`Delete "${task.title}"?`)) return;
+
+    state.trip.preTripTasks = state.trip.preTripTasks.filter((x) => x.id !== id);
+    saveState();
+    closeModalSafe(el("preTripTaskDialog"));
+    renderPreTrip();
+    renderSummary();
+  });
+
+  el("preTripImportInput").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (file) await importPreTripUpdate(file);
+    event.target.value = "";
   });
 
   el("addItineraryItemBtn").addEventListener("click", () => openItineraryItemDialog());
@@ -1967,6 +2308,29 @@
       setTimeout(syncModalLock, 0);
     });
   });
+
+  function refreshCurrentTripDayIfNeeded() {
+    const currentCalendarDate = todayISO();
+    if (currentCalendarDate === lastObservedCalendarDate) return;
+
+    lastObservedCalendarDate = currentCalendarDate;
+    if (!state.trip) return;
+
+    const currentN = dayNumber(currentCalendarDate);
+    const startN = dayNumber(state.trip.startDate);
+    const endN = dayNumber(state.trip.endDate);
+
+    if (currentN >= startN && currentN <= endN) {
+      selectedItineraryDate = currentCalendarDate;
+      itineraryViewMode = "day";
+      renderItinerary();
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshCurrentTripDayIfNeeded();
+  });
+  window.addEventListener("focus", refreshCurrentTripDayIfNeeded);
 
   function updateConnection() {
     const badge = el("connectionBadge");

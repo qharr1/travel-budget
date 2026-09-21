@@ -1,11 +1,11 @@
-const CACHE_NAME = "travel-planner-v6";
+const CACHE_NAME = "travel-planner-v7";
 
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=6",
-  "./app.js?v=6",
-  "./manifest.webmanifest?v=6",
+  "./styles.css?v=7",
+  "./app.js?v=7",
+  "./manifest.webmanifest?v=7",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",

@@ -1,33 +1,48 @@
-# Travel Planner v6
+# Travel Planner v7
 
-## Budget dashboard redesign
+## New itinerary views
 
-The Budget > Today screen now flows as:
+The Itinerary tab now defaults to `Day view`.
 
-1. Remaining Budget — large full-width hero
-2. Today's Budget / Day 1 Budget — full-width progress strip
-   - budget
-   - amount spent
-   - amount left / over
-   - hard-limit badge when applicable
-3. Ahead / Behind Pace
-4. Available / Future Day
-5. Overall trip budget progress
+- Before the trip: Day 1 is selected.
+- During the trip: the current trip date/day is selected automatically.
+- If the app remains open overnight, returning to it on the next calendar day automatically moves the itinerary to that new day.
+- After the trip: the final trip day is selected.
 
-Before the trip, if a Day 1 hard limit is configured, the daily strip shows the Day 1 limit and Available / Future Day is calculated only across Days 2 onward.
+A second `Full trip` view displays every day and every itinerary item in one continuous list. Each full-list day has an `Open day` action that returns to the normal Day view.
 
-Example:
-- Total budget: A$9,000
-- 21 trip days
-- Day 1 hard limit: A$200
-- Days 2–21: 20 days
-- Future allowance before the trip: (9,000 - 200) / 20 = A$440.00/day
+## Pre-trip
 
-After Day 1, the app uses actual Day 1 spending and automatically rolls any underspend or overspend into the remaining trip.
+The Itinerary tab now has a collapsible `Pre-trip` section.
 
-## Update reliability
+Pre-trip tasks support:
+- task title
+- due date
+- category
+- status
+- optional AUD cost
+- notes
+- quick `Mark done`
+- add / edit / delete
 
-v6 adds versioned JS/CSS URLs and changes the service worker to prefer the newest core app files when online, falling back to cache when offline. This prevents a new HTML page from accidentally running an older cached calculation.
+Pre-trip tasks are included in:
+- exported trip files
+- itinerary share links
+- full-trip share links
+- Summary cost calculations
+
+The Summary now includes a `Pre-trip` category when pre-trip tasks have entered costs.
+
+## Private pre-trip update import
+
+The Pre-trip section includes `Import pre-trip tasks`.
+
+This accepts a `travel-planner-pretrip-update` JSON file and merges matching tasks into the current trip without replacing:
+- itinerary
+- budget
+- exchange rates
+- Day 1 hard limit
+- expenses
 
 ## GitHub update files
 
@@ -42,4 +57,4 @@ Replace/upload:
 - icon-512.png
 - apple-touch-icon.png
 
-Existing local trip data remains compatible.
+Existing v6 local trip data migrates automatically.
