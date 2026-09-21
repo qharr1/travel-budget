@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "tripBudgetApp.v1";
-  const APP_VERSION = 3;
+  const APP_VERSION = 4;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -283,6 +283,59 @@
     }
   }
 
+
+  function typeClass(type) {
+    const key = String(type || "Other").trim().toLowerCase();
+    if (key === "flight") return "type-flight";
+    if (key === "accommodation") return "type-accommodation";
+    if (key === "theme park") return "type-theme-park";
+    if (key === "activity") return "type-activity";
+    if (key === "travel") return "type-travel";
+    if (key === "food") return "type-food";
+    if (key === "shopping") return "type-shopping";
+    return "type-other";
+  }
+
+  function itemEffectiveCost(item) {
+    const explicit = Number(item?.costTotal);
+    if (item?.costTotal !== null && item?.costTotal !== "" && item?.costTotal !== undefined && Number.isFinite(explicit)) {
+      return explicit;
+    }
+
+    const adults = Number(state.trip?.travellers?.adults || 0);
+    const children = Number(state.trip?.travellers?.children || 0);
+    const adultCost = Number(item?.adultCost);
+    const childCost = Number(item?.childCost);
+
+    const hasAdult = item?.adultCost !== null && item?.adultCost !== "" && item?.adultCost !== undefined && Number.isFinite(adultCost);
+    const hasChild = item?.childCost !== null && item?.childCost !== "" && item?.childCost !== undefined && Number.isFinite(childCost);
+
+    if (!hasAdult && !hasChild) return null;
+
+    return (hasAdult ? adults * adultCost : 0) + (hasChild ? children * childCost : 0);
+  }
+
+  function isPaidStatus(status) {
+    const value = String(status || "").trim().toLowerCase();
+    return value === "paid" || value === "booked - paid";
+  }
+
+  function showModalSafe(dialog) {
+    document.documentElement.classList.add("modal-open");
+    document.body.classList.add("modal-open");
+    if (typeof dialog.showModal === "function") dialog.showModal();
+  }
+
+  function closeModalSafe(dialog) {
+    if (dialog?.open) dialog.close();
+  }
+
+  function syncModalLock() {
+    const anyOpen = Boolean(document.querySelector("dialog[open]"));
+    document.documentElement.classList.toggle("modal-open", anyOpen);
+    document.body.classList.toggle("modal-open", anyOpen);
+  }
+
   function currencyOptions(selected) {
     return COMMON_CURRENCIES.map(([code, label]) =>
       `<option value="${code}" ${code === selected ? "selected" : ""}>${escapeHtml(label)}</option>`
@@ -503,7 +556,7 @@
     const costCurrency = item.costCurrency || "AUD";
 
     return `
-      <article class="itinerary-item" data-itinerary-id="${escapeHtml(item.id)}">
+      <article class="itinerary-item ${typeClass(item.type)}" data-itinerary-id="${escapeHtml(item.id)}">
         <div class="itinerary-item-main">
           <div class="item-topline">
             <span class="item-time">${escapeHtml(itemTimeLabel(item))}</span>
@@ -571,6 +624,89 @@
 
     el("prevDayBtn").disabled = dayIndex <= 0;
     el("nextDayBtn").disabled = dayIndex >= dates.length - 1;
+  }
+
+
+  function renderSummary() {
+    if (!state.trip) return;
+
+    const items = Array.isArray(state.trip.itinerary) ? state.trip.itinerary : [];
+    const priced = [];
+    const unpriced = [];
+    let total = 0;
+    let paid = 0;
+    let outstanding = 0;
+
+    for (const item of items) {
+      const cost = itemEffectiveCost(item);
+      if (cost === null || !Number.isFinite(cost)) {
+        unpriced.push(item);
+        continue;
+      }
+
+      priced.push({ item, cost });
+      total += cost;
+
+      if (isPaidStatus(item.status)) paid += cost;
+      else outstanding += cost;
+    }
+
+    const paidPct = total > 0 ? (paid / total) * 100 : 0;
+
+    el("summaryTotalCost").textContent = aud(total);
+    el("summaryPaid").textContent = aud(paid);
+    el("summaryOutstanding").textContent = aud(outstanding);
+    el("summaryUnpriced").textContent = String(unpriced.length);
+    el("summaryPricedItems").textContent = String(priced.length);
+    el("summaryPaidPct").textContent = `${paidPct.toFixed(1)}% of priced itinerary`;
+    el("summaryProgressText").textContent = `${paidPct.toFixed(0)}% paid`;
+    el("summaryPaidProgress").style.width = `${Math.max(0, Math.min(100, paidPct))}%`;
+    el("summaryItemCount").textContent = `${items.length} itinerary item${items.length === 1 ? "" : "s"}`;
+    const dayCount = daysInclusive(state.trip.startDate, state.trip.endDate);
+    el("summaryDayCount").textContent = `${dayCount} trip day${dayCount === 1 ? "" : "s"}`;
+
+    const groups = new Map();
+    for (const { item, cost } of priced) {
+      const type = item.type || "Other";
+      const current = groups.get(type) || { type, count: 0, cost: 0 };
+      current.count += 1;
+      current.cost += cost;
+      groups.set(type, current);
+    }
+
+    const breakdown = [...groups.values()].sort((a, b) => b.cost - a.cost);
+    el("summaryBreakdown").innerHTML = breakdown.length
+      ? breakdown.map((group) => `
+          <div class="summary-breakdown-row ${typeClass(group.type)}">
+            <span class="summary-colour-dot" aria-hidden="true"></span>
+            <div class="summary-breakdown-label">
+              <strong>${escapeHtml(group.type)}</strong>
+              <span>${group.count} priced item${group.count === 1 ? "" : "s"}</span>
+            </div>
+            <div class="summary-breakdown-value">${escapeHtml(aud(group.cost))}</div>
+          </div>
+        `).join("")
+      : `<p class="expense-empty">No priced itinerary items yet.</p>`;
+
+    const unpaidItems = priced
+      .filter(({ item }) => !isPaidStatus(item.status))
+      .sort((a, b) => {
+        if (a.item.date !== b.item.date) return a.item.date.localeCompare(b.item.date);
+        return (a.item.startTime || "99:99").localeCompare(b.item.startTime || "99:99");
+      });
+
+    el("summaryOutstandingList").innerHTML = unpaidItems.length
+      ? unpaidItems.map(({ item, cost }) => `
+          <div class="summary-outstanding-item ${typeClass(item.type)}">
+            <span class="summary-outstanding-stripe" aria-hidden="true"></span>
+            <div class="summary-outstanding-main">
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(formatDate(item.date, { weekday: true }))} • ${escapeHtml(item.status || "Planned")}</span>
+            </div>
+            <div class="summary-outstanding-amount">${escapeHtml(aud(cost))}</div>
+          </div>
+        `).join("")
+      : `<p class="expense-empty">Nothing priced is currently marked as unpaid.</p>`;
   }
 
   function renderBudgetVisibility() {
@@ -939,6 +1075,7 @@
 
     if (!selectedItineraryDate) selectedItineraryDate = defaultSelectedDate();
     renderItinerary();
+    renderSummary();
     renderBudgetVisibility();
 
     if (state.trip.budget?.configured) {
@@ -958,6 +1095,7 @@
     document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
     document.querySelectorAll(".mode-panel").forEach((p) => p.classList.toggle("active", p.dataset.modePanel === mode));
     if (mode === "budget") renderBudgetVisibility();
+    if (mode === "summary") renderSummary();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -1064,11 +1202,11 @@
     el("itemCostCurrency").value = item?.costCurrency || "AUD";
 
     const dialog = el("itineraryItemDialog");
-    if (typeof dialog.showModal === "function") dialog.showModal();
+    showModalSafe(dialog);
   }
 
   function closeItineraryItemDialog() {
-    el("itineraryItemDialog").close();
+    closeModalSafe(el("itineraryItemDialog"));
   }
 
   function openDayDialog() {
@@ -1078,7 +1216,7 @@
     el("dayLocation").value = meta.location || "";
     el("dayOvernight").value = meta.overnight || "";
     el("dayNotes").value = meta.notes || "";
-    el("dayDialog").showModal();
+    showModalSafe(el("dayDialog"));
   }
 
   el("welcomeCreateBtn").addEventListener("click", showCreate);
@@ -1175,7 +1313,7 @@
   el("addItineraryItemBtn").addEventListener("click", () => openItineraryItemDialog());
   el("closeItemDialogBtn").addEventListener("click", closeItineraryItemDialog);
   el("editDayBtn").addEventListener("click", openDayDialog);
-  el("closeDayDialogBtn").addEventListener("click", () => el("dayDialog").close());
+  el("closeDayDialogBtn").addEventListener("click", () => closeModalSafe(el("dayDialog")));
 
   el("itineraryItemForm").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -1220,6 +1358,7 @@
     saveState();
     closeItineraryItemDialog();
     renderItinerary();
+    renderSummary();
   });
 
   el("deleteItemBtn").addEventListener("click", () => {
@@ -1231,6 +1370,7 @@
     saveState();
     closeItineraryItemDialog();
     renderItinerary();
+    renderSummary();
   });
 
   el("dayForm").addEventListener("submit", (event) => {
@@ -1242,8 +1382,9 @@
       notes: el("dayNotes").value.trim()
     };
     saveState();
-    el("dayDialog").close();
+    closeModalSafe(el("dayDialog"));
     renderItinerary();
+    renderSummary();
   });
 
   el("quickExportBtn").addEventListener("click", () => exportTrip(el("quickExportMessage")));
@@ -1433,7 +1574,7 @@
   });
 
   el("resetBtn").addEventListener("click", () => {
-    if (typeof el("confirmDialog").showModal === "function") el("confirmDialog").showModal();
+    if (typeof el("confirmDialog").showModal === "function") showModalSafe(el("confirmDialog"));
     else if (window.confirm("Erase this trip from this device?")) resetAll();
   });
 
@@ -1451,6 +1592,14 @@
     render();
     activateMode("itinerary");
   }
+
+
+  document.querySelectorAll("dialog").forEach((dialog) => {
+    dialog.addEventListener("close", syncModalLock);
+    dialog.addEventListener("cancel", () => {
+      setTimeout(syncModalLock, 0);
+    });
+  });
 
   function updateConnection() {
     const badge = el("connectionBadge");

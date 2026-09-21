@@ -113,6 +113,7 @@
       <section id="appPanel" class="hidden">
         <nav class="mode-switch" aria-label="Travel planner mode">
           <button class="mode-btn active" type="button" data-mode="itinerary">Itinerary</button>
+          <button class="mode-btn" type="button" data-mode="summary">Summary</button>
           <button class="mode-btn" type="button" data-mode="budget">Budget</button>
         </nav>
 
@@ -159,6 +160,78 @@
             <p class="muted">Export one private trip file containing the itinerary, budget setup and spending history. The person you send it to can choose <strong>Import Trip</strong> on the opening screen.</p>
             <button id="quickExportBtn" class="secondary-btn" type="button">Export / Share Trip File</button>
             <p id="quickExportMessage" class="status-message" role="status"></p>
+          </section>
+        </section>
+
+
+        <section id="summaryMode" class="mode-panel" data-mode-panel="summary">
+          <div class="summary-hero">
+            <p class="metric-label">Priced itinerary total</p>
+            <p id="summaryTotalCost" class="summary-hero-value">$0.00</p>
+            <div class="summary-hero-meta">
+              <span id="summaryItemCount">0 itinerary items</span>
+              <span id="summaryDayCount">0 trip days</span>
+            </div>
+          </div>
+
+          <div class="summary-metrics">
+            <article class="summary-metric-card paid-card">
+              <p class="metric-label">Paid</p>
+              <p id="summaryPaid" class="summary-metric-value">$0.00</p>
+              <p id="summaryPaidPct" class="metric-note">0% of priced itinerary</p>
+            </article>
+
+            <article class="summary-metric-card outstanding-card">
+              <p class="metric-label">Still to pay</p>
+              <p id="summaryOutstanding" class="summary-metric-value">$0.00</p>
+              <p class="metric-note">Planned / unpaid priced items</p>
+            </article>
+
+            <article class="summary-metric-card">
+              <p class="metric-label">Unpriced items</p>
+              <p id="summaryUnpriced" class="summary-metric-value">0</p>
+              <p class="metric-note">No cost entered yet</p>
+            </article>
+
+            <article class="summary-metric-card">
+              <p class="metric-label">Priced items</p>
+              <p id="summaryPricedItems" class="summary-metric-value">0</p>
+              <p class="metric-note">Items included in totals</p>
+            </article>
+          </div>
+
+          <div class="summary-progress-wrap">
+            <div class="summary-progress-track">
+              <div id="summaryPaidProgress" class="summary-progress-bar"></div>
+            </div>
+            <div class="progress-labels">
+              <span>Payment progress</span>
+              <span id="summaryProgressText">0% paid</span>
+            </div>
+          </div>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">BY TYPE</p>
+                <h2>Where the itinerary cost sits</h2>
+              </div>
+            </div>
+            <div id="summaryBreakdown" class="summary-breakdown"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">OUTSTANDING</p>
+                <h2>Still to pay</h2>
+              </div>
+            </div>
+            <div id="summaryOutstandingList" class="summary-outstanding-list"></div>
+          </section>
+
+          <section class="summary-note">
+            Summary totals use the costs entered against itinerary items only. Items without a cost are listed separately and are not guessed.
           </section>
         </section>
 
@@ -464,6 +537,7 @@
             <option>Booked - paid</option>
             <option>Booked - unpaid</option>
             <option>Confirmed</option>
+            <option>Paid</option>
           </select>
         </label>
         <label>

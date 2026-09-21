@@ -1,46 +1,62 @@
-# Travel Planner v3
+# Travel Planner v4
 
-This version adds the full itinerary layer while keeping the existing offline budget tracker.
+Version 4 keeps the budget tracker intact and improves the itinerary experience.
 
-## Opening screen
+## Changes in v4
 
-A new user now sees only:
+### 1. Colour-coded itinerary
+Itinerary items are now colour coded automatically by type:
 
-- Create New Trip
-- Import Trip
+- Flight — blue
+- Accommodation — purple
+- Theme park — pink
+- Activity — amber
+- Travel — cyan
+- Food — orange
+- Shopping — green
+- Other — grey
 
-This makes it easy to send the public app link to somebody else. They open the link, choose **Import Trip**, and select the private `.trip.json` file you sent them.
+The same colours are reused in the Summary breakdown and outstanding-cost list.
 
-## Itinerary
+### 2. Better iPhone add/edit screens
+The itinerary item and day-edit screens become full-screen sheets on iPhone-sized displays.
 
-The top-level app switch is:
+They:
+- respect iPhone safe-area / notch insets
+- scroll themselves instead of scrolling the page behind them
+- lock background scrolling while open
+- keep the dialog heading/close control at the top
+
+### 3. New Summary tab
+Top-level modes are now:
 
 - Itinerary
+- Summary
 - Budget
 
-The itinerary is day-based and supports:
+Summary calculates only what is actually entered in itinerary items.
 
-- day headline / location / overnight hotel
-- timed items
-- duration
-- type
-- location
-- booking status
-- booking reference
-- total cost
-- adult cost per person
-- child cost per person
-- notes
-- edit / delete
-- free days
+It shows:
+- total priced itinerary cost
+- paid
+- still to pay
+- unpriced item count
+- priced item count
+- payment progress
+- cost breakdown by itinerary type
+- list of priced items still to pay
 
-No routing or maps are required.
+An itinerary item counts as paid when its status is `Booked - paid` or `Paid`.
+`Planned`, `Confirmed`, and `Booked - unpaid` are treated as still to pay.
 
-## Important privacy rule
+If a total cost is blank but per-adult / per-child costs exist, Summary can calculate the total using the trip's adult and child counts.
 
-Do NOT upload your private `.trip.json` file to the public GitHub repository.
+It never guesses missing prices.
 
-The GitHub repository should contain only the generic app files:
+## Updating GitHub Pages
+
+Upload/replace the generic app files in the repository root:
+
 - index.html
 - styles.css
 - app.js
@@ -50,15 +66,8 @@ The GitHub repository should contain only the generic app files:
 - icon-512.png
 - apple-touch-icon.png
 
-Keep your trip file in iPhone Files / iCloud Drive, or share it directly by AirDrop / Messages / email.
+Commit to `main`.
 
-## Updating GitHub Pages
+Do NOT upload private `.trip.json` files to the public repository.
 
-1. Export your existing trip first as a backup.
-2. Upload and replace the generic app files above in the root of the `travel-budget` repository.
-3. Commit to `main`.
-4. Open the live website once while online.
-5. Close and reopen the Home Screen app if the previous cached version appears first.
-6. Test Airplane Mode again.
-
-Existing v1/v2 local data is migrated automatically.
+Your existing v3 trip import file remains compatible with v4.
