@@ -2595,3 +2595,195 @@ html[data-theme="dark"] .family-sync-kpi {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+/* v24 — installed PWA Family Sync onboarding */
+.family-sync-onboarding-dialog {
+  width: min(92vw, 520px);
+  max-width: 520px;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--text);
+  overflow: hidden;
+}
+.family-sync-onboarding-dialog::backdrop {
+  background: rgba(2, 6, 23, .62);
+  backdrop-filter: blur(4px);
+}
+.family-sync-onboarding-form {
+  padding: 20px;
+}
+.family-sync-onboarding-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 16px;
+}
+.family-sync-onboarding-hero h2 {
+  margin: 2px 0 6px;
+}
+.family-sync-onboarding-hero .muted {
+  margin: 0;
+  line-height: 1.5;
+}
+.family-sync-onboarding-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+.family-sync-onboarding-dialog textarea {
+  min-height: 98px;
+  overflow-wrap: anywhere;
+}
+.family-sync-onboarding-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+  margin-top: 10px;
+}
+.family-sync-onboarding-actions button {
+  width: 100%;
+}
+.family-sync-onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.family-sync-onboarding-footer span {
+  color: var(--muted);
+  font-size: .67rem;
+  line-height: 1.4;
+  text-align: right;
+}
+html[data-theme="dark"] .family-sync-onboarding-dialog {
+  background: var(--surface);
+}
+@media (max-width: 520px) {
+  .family-sync-onboarding-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .family-sync-onboarding-form {
+    padding: 17px;
+  }
+  .family-sync-onboarding-actions {
+    grid-template-columns: 1fr;
+  }
+  .family-sync-onboarding-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .family-sync-onboarding-footer span {
+    text-align: left;
+  }
+}
+
+
+/* v25 — itinerary timeline notes */
+.itinerary-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.secondary-compact-btn {
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: .74rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.timeline-note-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px dashed #93c5fd;
+  border-radius: 14px;
+  background: #eff6ff;
+}
+.timeline-note-marker {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 1rem;
+  font-weight: 900;
+}
+.timeline-note-main { min-width: 0; }
+.timeline-note-topline {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 3px;
+}
+.timeline-note-time {
+  font-size: .72rem;
+  font-weight: 850;
+}
+.timeline-note-type {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: .58rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+.timeline-note-main h3 {
+  margin: 2px 0 4px;
+  font-size: .92rem;
+}
+.timeline-note-main p {
+  margin: 0;
+  color: var(--text);
+  font-size: .79rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.timeline-note-actions { align-self: center; }
+html[data-theme="dark"] .secondary-compact-btn {
+  background: var(--surface);
+  border-color: var(--line);
+}
+html[data-theme="dark"] .timeline-note-card {
+  background: #102847;
+  border-color: #315c86;
+}
+html[data-theme="dark"] .timeline-note-marker,
+html[data-theme="dark"] .timeline-note-type {
+  background: #173b63;
+  color: #93c5fd;
+}
+@media (max-width: 520px) {
+  .timeline-note-card {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+  .timeline-note-actions {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

@@ -1,4 +1,5 @@
 const FAMILY_SYNC_KEY = "travelPlanner.familySync.v1";
+const FAMILY_SYNC_ONBOARDING_KEY = "travelPlanner.familySync.onboarding.v1";
 const SNAPSHOT_PREFIX = "travelPlanner.familySync.snapshot.v1.";
 const FIREBASE_SDK_VERSION = "12.19.0";
 
@@ -20,6 +21,7 @@ const COLLECTIONS = [
   "travelInfo",
   "places",
   "reminders",
+  "timelineNotes",
   "dayMeta"
 ];
 
@@ -488,6 +490,7 @@ async function createFamilySync() {
     await ensureAuth();
     await pushLocalSnapshot();
     startCloudListener(syncId);
+    resetOnboardingDismissal();
     setStatus("online");
     setMessage("Family Sync created. Share the private invitation link with your wife.");
   } catch (error) {
@@ -545,6 +548,7 @@ async function joinFamilySync(value) {
       applyingRemote = false;
     }
 
+    resetOnboardingDismissal();
     markSynced(cloud);
     startCloudListener(syncId);
     setStatus("online");
@@ -642,6 +646,89 @@ async function shareInvite() {
   await copyInvite();
 }
 
+
+function isInstalledPwa() {
+  const standaloneMedia = window.matchMedia?.("(display-mode: standalone)")?.matches;
+  const iosStandalone = window.navigator.standalone === true;
+  return Boolean(standaloneMedia || iosStandalone);
+}
+
+function onboardingWasDismissed() {
+  try {
+    return localStorage.getItem(FAMILY_SYNC_ONBOARDING_KEY) === "dismissed";
+  } catch {
+    return false;
+  }
+}
+
+function dismissOnboarding() {
+  try {
+    localStorage.setItem(FAMILY_SYNC_ONBOARDING_KEY, "dismissed");
+  } catch {}
+  const dialog = $("familySyncOnboardingDialog");
+  if (dialog?.open) dialog.close();
+}
+
+function resetOnboardingDismissal() {
+  try {
+    localStorage.removeItem(FAMILY_SYNC_ONBOARDING_KEY);
+  } catch {}
+}
+
+function setOnboardingMessage(message) {
+  if ($("familySyncOnboardingMessage")) {
+    $("familySyncOnboardingMessage").textContent = message || "";
+  }
+}
+
+function showInstalledOnboardingIfNeeded() {
+  const cfg = readConfig();
+  if (!isInstalledPwa()) return;
+  if (cfg.enabled && cfg.syncId) return;
+  if (onboardingWasDismissed()) return;
+
+  const dialog = $("familySyncOnboardingDialog");
+  if (!dialog || dialog.open) return;
+
+  setOnboardingMessage("");
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  }
+}
+
+async function pasteOnboardingInvite() {
+  setOnboardingMessage("");
+  try {
+    if (!navigator.clipboard?.readText) {
+      throw new Error("Clipboard paste is not available here. Press and hold in the box and choose Paste.");
+    }
+    const text = await navigator.clipboard.readText();
+    if (!text.trim()) {
+      throw new Error("Your clipboard is empty.");
+    }
+    $("familySyncOnboardingInput").value = text.trim();
+    setOnboardingMessage("Invitation pasted. Tap Join family sync.");
+  } catch (error) {
+    setOnboardingMessage(error.message || "Could not read the clipboard. Paste the invitation manually.");
+  }
+}
+
+async function joinFromOnboarding() {
+  const value = $("familySyncOnboardingInput")?.value || "";
+  setOnboardingMessage("Connecting…");
+
+  const joined = await joinFamilySync(value);
+  if (joined) {
+    resetOnboardingDismissal();
+    const dialog = $("familySyncOnboardingDialog");
+    if (dialog?.open) dialog.close();
+    setMessage("Family Sync connected on this Home Screen app.");
+  } else {
+    const settingsMessage = $("familySyncMessage")?.textContent || "";
+    setOnboardingMessage(settingsMessage || "Could not join Family Sync.");
+  }
+}
+
 function bindUi() {
   $("familySyncCreateBtn")?.addEventListener("click", createFamilySync);
   $("familySyncJoinBtn")?.addEventListener("click", async () => {
@@ -654,7 +741,14 @@ function bindUi() {
   $("familySyncDisconnectBtn")?.addEventListener("click", async () => {
     if (window.confirm("Disconnect Family Sync on this device? The local trip will remain here.")) {
       await disconnect({ forget: true });
+      resetOnboardingDismissal();
     }
+  });
+
+  $("familySyncOnboardingPasteBtn")?.addEventListener("click", pasteOnboardingInvite);
+  $("familySyncOnboardingJoinBtn")?.addEventListener("click", joinFromOnboarding);
+  $("familySyncOnboardingLaterBtn")?.addEventListener("click", () => {
+    dismissOnboarding();
   });
 }
 
@@ -685,6 +779,10 @@ async function init() {
     setStatus("offline");
     await handleInviteHash();
 
+    setTimeout(() => {
+      showInstalledOnboardingIfNeeded();
+    }, 350);
+
     const cfg = readConfig();
     if (cfg.enabled && cfg.syncId) {
       if (navigator.onLine) connectExisting();
@@ -702,7 +800,8 @@ window.FamilySync = {
   localChanged,
   syncNow,
   disconnect,
-  renderStatus: () => setStatus(status)
+  renderStatus: () => setStatus(status),
+  showOnboarding: showInstalledOnboardingIfNeeded
 };
 
 init();

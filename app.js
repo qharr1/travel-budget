@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 23;
+  const APP_VERSION = 25;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -199,6 +199,7 @@
       travelInfo: [],
       places: [],
       reminders: [],
+      timelineNotes: [],
       dayNotes: {}
     };
   }
@@ -342,6 +343,18 @@
     };
   }
 
+  function normalizeTimelineNote(item) {
+    return {
+      id: String(item?.id || uid("timeline-note")),
+      date: String(item?.date || ""),
+      time: String(item?.time || ""),
+      title: String(item?.title || ""),
+      text: String(item?.text || ""),
+      createdAt: Number(item?.createdAt || Date.now()),
+      updatedAt: Number(item?.updatedAt || Date.now())
+    };
+  }
+
   function normalizeDayNote(item) {
     return {
       id: String(item?.id || uid("note")),
@@ -399,6 +412,7 @@
     trip.travelInfo = Array.isArray(raw?.travelInfo) ? raw.travelInfo.map(normalizeTravelInfo) : [];
     trip.places = Array.isArray(raw?.places) ? raw.places.map(normalizePlace) : [];
     trip.reminders = Array.isArray(raw?.reminders) ? raw.reminders.map(normalizeReminder) : [];
+    trip.timelineNotes = Array.isArray(raw?.timelineNotes) ? raw.timelineNotes.map(normalizeTimelineNote) : [];
     trip.dayNotes = raw?.dayNotes && typeof raw.dayNotes === "object"
       ? Object.fromEntries(Object.entries(raw.dayNotes).map(([date, notes]) => [
           date,
@@ -1136,6 +1150,62 @@
     return `https://waze.com/ul?q=${encodeURIComponent(destination)}&navigate=yes`;
   }
 
+  function timelineNoteMarkup(note) {
+    return `
+      <article class="timeline-note-card" data-timeline-note-id="${escapeHtml(note.id)}">
+        <div class="timeline-note-marker" aria-hidden="true">✎</div>
+        <div class="timeline-note-main">
+          <div class="timeline-note-topline">
+            <span class="timeline-note-time">${note.time ? escapeHtml(note.time) : "All day"}</span>
+            <span class="timeline-note-type">NOTE</span>
+          </div>
+          ${note.title ? `<h3>${escapeHtml(note.title)}</h3>` : ""}
+          <p>${escapeHtml(note.text)}</p>
+        </div>
+        <div class="timeline-note-actions">
+          <button class="mini-btn edit-timeline-note" type="button" data-id="${escapeHtml(note.id)}">Edit</button>
+        </div>
+      </article>`;
+  }
+
+  function timelineEntriesForDate(date) {
+    const activities = (state.trip?.itinerary || [])
+      .filter((item) => item.date === date)
+      .map((item) => ({
+        kind: "item",
+        time: item.startTime || "",
+        createdAt: Number(item.createdAt || 0),
+        value: item
+      }));
+
+    const notes = (state.trip?.timelineNotes || [])
+      .filter((note) => note.date === date)
+      .map((note) => ({
+        kind: "note",
+        time: note.time || "",
+        createdAt: Number(note.createdAt || 0),
+        value: note
+      }));
+
+    return [...activities, ...notes].sort((a, b) => {
+      const at = a.time || "00:00";
+      const bt = b.time || "00:00";
+      if (at !== bt) return at.localeCompare(bt);
+      if (a.kind !== b.kind) return a.kind === "item" ? -1 : 1;
+      return a.createdAt - b.createdAt;
+    });
+  }
+
+  function timelineEntryMarkup(entry) {
+    return entry.kind === "note" ? timelineNoteMarkup(entry.value) : itineraryItemMarkup(entry.value);
+  }
+
+  function bindTimelineNoteButtons(root = document) {
+    root.querySelectorAll(".edit-timeline-note").forEach((button) => {
+      button.addEventListener("click", () => openTimelineNoteDialog(button.dataset.id));
+    });
+  }
+
   function itineraryItemMarkup(item) {
     const duration = item.durationText || itemCalculatedDuration(item);
     const chips = [];
@@ -1277,9 +1347,7 @@
 
   function fullDayMarkup(date, index) {
     const meta = state.trip.dayMeta?.[date] || {};
-    const items = [...state.trip.itinerary]
-      .filter((x) => x.date === date)
-      .sort((a, b) => (a.startTime || "99:99").localeCompare(b.startTime || "99:99"));
+    const entries = timelineEntriesForDate(date);
     const todayClass = date === todayISO() ? "today-full-day" : "";
 
     return `
@@ -1288,13 +1356,13 @@
           <div class="full-day-title">
             <strong>Day ${index + 1} • ${escapeHtml(formatDate(date, { weekday: true }))}</strong>
             <span>${escapeHtml(meta.location || "")}</span>
-            <p class="full-day-headline">${escapeHtml(meta.headline || (items.length ? "Planned day" : "Nothing planned"))}</p>
+            <p class="full-day-headline">${escapeHtml(meta.headline || (entries.length ? "Planned day" : "Nothing planned"))}</p>
           </div>
           <button class="full-day-open" type="button" data-date="${date}">Open day</button>
         </div>
         <div class="full-day-body">
           ${meta.overnight ? `<p class="full-day-overnight">Overnight: ${escapeHtml(meta.overnight)}</p>` : ""}
-          ${items.length ? items.map(itineraryItemMarkup).join("") : `<div class="full-day-empty">Nothing planned</div>`}
+          ${entries.length ? entries.map(timelineEntryMarkup).join("") : `<div class="full-day-empty">Nothing planned</div>`}
         </div>
       </article>`;
   }
@@ -1329,6 +1397,8 @@
     el("fullItineraryList").querySelectorAll(".itinerary-reminder").forEach((button) => {
       button.addEventListener("click", () => openReminderDialog("", "itinerary", button.dataset.id));
     });
+
+    bindTimelineNoteButtons(el("fullItineraryList"));
   }
 
   function renderItineraryViewMode() {
@@ -1353,31 +1423,41 @@
     const items = [...state.trip.itinerary]
       .filter((x) => x.date === selectedItineraryDate)
       .sort((a, b) => (a.startTime || "99:99").localeCompare(b.startTime || "99:99"));
+    const timelineNotes = (state.trip.timelineNotes || []).filter((x) => x.date === selectedItineraryDate);
+    const entries = timelineEntriesForDate(selectedItineraryDate);
 
     el("itineraryDayLabel").textContent = `DAY ${dayIndex + 1} OF ${dates.length}`;
     el("itineraryDateTitle").textContent = formatDate(selectedItineraryDate, { weekday: true });
-    el("itineraryHeadline").textContent = meta.headline || (items.length ? "Planned day" : "Nothing planned");
+    el("itineraryHeadline").textContent = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
     el("itineraryLocation").textContent = meta.location || "";
     el("overnightBanner").classList.toggle("hidden", !meta.overnight);
     el("overnightBanner").textContent = meta.overnight ? `Overnight: ${meta.overnight}` : "";
     el("dayNotesBanner").classList.toggle("hidden", !meta.notes);
     el("dayNotesBanner").textContent = meta.notes || "";
-    el("dayItemsHeading").textContent = items.length ? `${items.length} planned item${items.length === 1 ? "" : "s"}` : "Itinerary";
+
+    if (items.length || timelineNotes.length) {
+      const parts = [];
+      if (items.length) parts.push(`${items.length} planned item${items.length === 1 ? "" : "s"}`);
+      if (timelineNotes.length) parts.push(`${timelineNotes.length} timeline note${timelineNotes.length === 1 ? "" : "s"}`);
+      el("dayItemsHeading").textContent = parts.join(" • ");
+    } else {
+      el("dayItemsHeading").textContent = "Itinerary";
+    }
 
     const buckets = [
-      ["All day", (x) => !x.startTime],
-      ["Morning", (x) => x.startTime && x.startTime < "12:00"],
-      ["Afternoon", (x) => x.startTime && x.startTime >= "12:00" && x.startTime < "17:00"],
-      ["Evening", (x) => x.startTime && x.startTime >= "17:00"]
+      ["All day", (x) => !x.time],
+      ["Morning", (x) => x.time && x.time < "12:00"],
+      ["Afternoon", (x) => x.time && x.time >= "12:00" && x.time < "17:00"],
+      ["Evening", (x) => x.time && x.time >= "17:00"]
     ];
 
-    el("itineraryItems").innerHTML = items.length
+    el("itineraryItems").innerHTML = entries.length
       ? buckets.map(([label, test]) => {
-          const group = items.filter(test);
+          const group = entries.filter(test);
           if (!group.length) return "";
-          return `<section class="day-part"><h3 class="day-part-heading">${label}</h3>${group.map(itineraryItemMarkup).join("")}</section>`;
+          return `<section class="day-part"><h3 class="day-part-heading">${label}</h3>${group.map(timelineEntryMarkup).join("")}</section>`;
         }).join("")
-      : `<div class="empty-day"><strong>Nothing planned</strong><br><span>Add something, or leave it as a free day.</span></div>`;
+      : `<div class="empty-day"><strong>Nothing planned</strong><br><span>Add an activity or timeline note, or leave it as a free day.</span></div>`;
 
     document.querySelectorAll(".edit-itinerary-item").forEach((button) => {
       button.addEventListener("click", () => openItineraryItemDialog(button.dataset.id));
@@ -1394,6 +1474,8 @@
     document.querySelectorAll(".itinerary-reminder").forEach((button) => {
       button.addEventListener("click", () => openReminderDialog("", "itinerary", button.dataset.id));
     });
+
+    bindTimelineNoteButtons(el("itineraryItems"));
 
     el("prevDayBtn").disabled = dayIndex <= 0;
     el("nextDayBtn").disabled = dayIndex >= dates.length - 1;
@@ -3287,6 +3369,22 @@
     });
   }
 
+  function openTimelineNoteDialog(id = "") {
+    if (!state.trip) return;
+    const note = id ? (state.trip.timelineNotes || []).find((x) => x.id === id) : null;
+    const date = note?.date || selectedItineraryDate || defaultSelectedDate();
+
+    el("timelineNoteId").value = note?.id || "";
+    el("timelineNoteDialogTitle").textContent = note ? "Edit timeline note" : "Add timeline note";
+    el("timelineNoteDate").value = date;
+    el("timelineNoteTime").value = note?.time || "";
+    el("timelineNoteTitle").value = note?.title || "";
+    el("timelineNoteText").value = note?.text || "";
+    el("timelineNoteError").textContent = "";
+    el("deleteTimelineNoteBtn").classList.toggle("hidden", !note);
+    showModalSafe(el("timelineNoteDialog"));
+  }
+
   function openDayNoteDialog(id = "") {
     if (!state.trip || !selectedItineraryDate) return;
     const notes = state.trip.dayNotes?.[selectedItineraryDate] || [];
@@ -3950,6 +4048,57 @@
     saveState();
     closeModalSafe(el("placeDialog"));
     renderPlaces();
+  });
+
+  el("addTimelineNoteBtn").addEventListener("click", () => openTimelineNoteDialog());
+  el("closeTimelineNoteDialogBtn").addEventListener("click", () => closeModalSafe(el("timelineNoteDialog")));
+
+  el("timelineNoteForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const id = el("timelineNoteId").value;
+    const date = el("timelineNoteDate").value;
+    const textValue = el("timelineNoteText").value.trim();
+
+    if (!date || dayNumber(date) < dayNumber(state.trip.startDate) || dayNumber(date) > dayNumber(state.trip.endDate)) {
+      el("timelineNoteError").textContent = "Choose a date within the trip.";
+      return;
+    }
+
+    if (!textValue) {
+      el("timelineNoteError").textContent = "Enter a note.";
+      return;
+    }
+
+    const existing = id ? (state.trip.timelineNotes || []).find((x) => x.id === id) : null;
+    const note = normalizeTimelineNote({
+      id: existing?.id || uid("timeline-note"),
+      date,
+      time: el("timelineNoteTime").value,
+      title: el("timelineNoteTitle").value.trim(),
+      text: textValue,
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now()
+    });
+
+    if (existing) state.trip.timelineNotes = state.trip.timelineNotes.map((x) => x.id === id ? note : x);
+    else state.trip.timelineNotes.push(note);
+
+    selectedItineraryDate = date;
+    saveState();
+    closeModalSafe(el("timelineNoteDialog"));
+    renderItinerary();
+  });
+
+  el("deleteTimelineNoteBtn").addEventListener("click", () => {
+    const id = el("timelineNoteId").value;
+    const note = (state.trip?.timelineNotes || []).find((x) => x.id === id);
+    if (!note || !window.confirm("Delete this timeline note?")) return;
+
+    state.trip.timelineNotes = state.trip.timelineNotes.filter((x) => x.id !== id);
+    saveState();
+    closeModalSafe(el("timelineNoteDialog"));
+    renderItinerary();
   });
 
   el("addDayNoteBtn").addEventListener("click", () => openDayNoteDialog());
@@ -4896,6 +5045,7 @@
       travelInfo: JSON.parse(JSON.stringify(state.trip.travelInfo || [])),
       places: JSON.parse(JSON.stringify(state.trip.places || [])),
       reminders: JSON.parse(JSON.stringify(state.trip.reminders || [])),
+      timelineNotes: JSON.parse(JSON.stringify(state.trip.timelineNotes || [])),
       dayMeta: JSON.parse(JSON.stringify(state.trip.dayMeta || {}))
     };
   }
@@ -4964,6 +5114,9 @@
       : [];
     state.trip.reminders = Array.isArray(shared.reminders)
       ? shared.reminders.map(normalizeReminder)
+      : [];
+    state.trip.timelineNotes = Array.isArray(shared.timelineNotes)
+      ? shared.timelineNotes.map(normalizeTimelineNote)
       : [];
     state.trip.dayMeta = shared.dayMeta && typeof shared.dayMeta === "object"
       ? JSON.parse(JSON.stringify(shared.dayMeta))

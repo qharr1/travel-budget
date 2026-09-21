@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=23" rel="manifest"/>
+<link href="./manifest.webmanifest?v=25" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=23" rel="stylesheet"/>
+</script><link href="./styles.css?v=25" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -243,8 +243,8 @@
 <p class="eyebrow">TODAY'S PLAN</p>
 <h2 id="dayItemsHeading">Itinerary</h2>
 </div>
-<button class="primary-compact-btn" id="addItineraryItemBtn" type="button">+ Add item</button>
-</div>
+
+<div class="itinerary-heading-actions"><button class="primary-compact-btn" id="addItineraryItemBtn" type="button">+ Add item</button><button class="secondary-compact-btn" id="addTimelineNoteBtn" type="button">+ Note</button></div></div>
 <div class="itinerary-list" id="itineraryItems"></div>
 </section>
 <details class="day-journal-panel">
@@ -821,7 +821,34 @@
 <span>Local-only data • Offline capable</span>
 </footer>
 </div>
-<dialog id="itineraryItemDialog">
+<dialog class="family-sync-onboarding-dialog" id="familySyncOnboardingDialog">
+<form class="dialog-form family-sync-onboarding-form" method="dialog">
+<div class="family-sync-onboarding-hero">
+<div aria-hidden="true" class="family-sync-onboarding-icon">↻</div>
+<div>
+<p class="eyebrow">FAMILY SYNC</p>
+<h2>Finish Family Sync setup</h2>
+<p class="muted">
+          This Home Screen app keeps its own local copy, separate from Safari.
+          Paste the private Family Sync invitation once and this installed app will stay connected.
+        </p>
+</div>
+</div>
+<label>
+      Family Sync invitation link
+      <textarea id="familySyncOnboardingInput" placeholder="Paste Family Sync invite link…" rows="4"></textarea>
+</label>
+<div class="family-sync-onboarding-actions">
+<button class="secondary-btn" id="familySyncOnboardingPasteBtn" type="button">Paste from clipboard</button>
+<button class="primary-btn" id="familySyncOnboardingJoinBtn" type="button">Join family sync</button>
+</div>
+<p class="status-message" id="familySyncOnboardingMessage" role="status"></p>
+<div class="family-sync-onboarding-footer">
+<button class="text-btn" id="familySyncOnboardingLaterBtn" type="button">Not now</button>
+<span>You can always connect later under Settings → Family Sync.</span>
+</div>
+</form>
+</dialog><dialog id="itineraryItemDialog">
 <form class="dialog-form" id="itineraryItemForm">
 <div class="section-heading">
 <div><p class="eyebrow">ITINERARY ITEM</p><h2 id="itemDialogTitle">Add item</h2></div>
@@ -1325,7 +1352,27 @@
 </div>
 </form>
 </dialog>
-<dialog id="dayNoteDialog">
+<dialog id="timelineNoteDialog">
+<form class="dialog-form" id="timelineNoteForm">
+<div class="section-heading">
+<div><p class="eyebrow">ITINERARY NOTE</p><h2 id="timelineNoteDialogTitle">Add timeline note</h2></div>
+<button class="text-btn" id="closeTimelineNoteDialogBtn" type="button">Close</button>
+</div>
+<input id="timelineNoteId" type="hidden"/>
+<div class="two-col">
+<label>Date<input id="timelineNoteDate" required="" type="date"/></label>
+<label>Time <span class="optional">(optional)</span><input id="timelineNoteTime" type="time"/></label>
+</div>
+<label>Heading <span class="optional">(optional)</span><input id="timelineNoteTitle" maxlength="140" placeholder="e.g. Grab lunch before teamLab" type="text"/></label>
+<label>Note<textarea id="timelineNoteText" maxlength="2000" placeholder="Add a quick note or instruction to the itinerary…" required="" rows="5"></textarea></label>
+<p class="muted small">Add a time to place this note between activities. Leave the time blank to show it in the All day section.</p>
+<p class="error" id="timelineNoteError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deleteTimelineNoteBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save note</button>
+</div>
+</form>
+</dialog><dialog id="dayNoteDialog">
 <form class="dialog-form" id="dayNoteForm">
 <div class="section-heading">
 <div><p class="eyebrow">DAY NOTE</p><h2 id="dayNoteDialogTitle">Add note</h2></div>
@@ -1396,6 +1443,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=23"></script><script src="./family-sync.js?v=23" type="module"></script>
+<script defer="" src="./app.js?v=25"></script><script src="./family-sync.js?v=25" type="module"></script>
 </body>
 </html>
