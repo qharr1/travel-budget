@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 16;
+  const APP_VERSION = 17;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],

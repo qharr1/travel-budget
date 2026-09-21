@@ -2243,3 +2243,97 @@ html[data-theme="dark"] .responsibility-special-card.unassigned-card {
     min-height: 62px;
   }
 }
+
+
+/* v17 — payment choices now reuse the proven "Who's going?" card component */
+.payment-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* Same geometry as .person-check in the attendee section. */
+.payment-mode-grid .payment-choice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  width: 100%;
+  min-height: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+/* Explicitly neutralise the global full-width input rule for the radio. */
+.payment-mode-grid .payment-choice > input[type="radio"] {
+  display: block;
+  flex: 0 0 auto;
+  width: 20px !important;
+  min-width: 20px !important;
+  max-width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  accent-color: var(--accent);
+}
+
+.payment-mode-grid .payment-choice > span {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.payment-mode-grid .payment-choice strong {
+  display: block;
+  margin: 0;
+  font-size: .8rem;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.payment-mode-grid .payment-choice small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: .67rem;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.payment-mode-grid .payment-choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+html[data-theme="dark"] .payment-mode-grid .payment-choice {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .payment-mode-grid .payment-choice:has(input:checked) {
+  background: #123c3a;
+  border-color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .payment-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-mode-grid .payment-choice {
+    min-height: 58px;
+    align-items: center;
+  }
+}

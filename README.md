@@ -1,56 +1,47 @@
-# Travel Planner v16 — Definitive iPhone payment-card fix
+# Travel Planner v17 — payment controls now use attendee-card layout
 
-## What was actually wrong
+## Why this version changes approach
 
-The app has a global form rule:
+The payment choices had their own `choice-card` component and it kept conflicting with
+the app-wide form styles on iPhone.
 
-`input { width: 100%; min-height: 48px; }`
+v17 stops trying to maintain a second card component.
 
-That is correct for normal form fields, but it was also applying to the radio
-buttons used by:
+The payment options now use the exact same proven card structure as:
 
-- Itinerary > Cost responsibility
-- Pre-trip > Cost responsibility
+`Who's going?`
 
-The radio input was therefore trying to occupy the full card width and leaving
-only a tiny sliver for the text. This caused the text to wrap vertically down
-the right edge.
+The only functional difference is:
+- attendance = checkboxes / multiple selections
+- payment mode = radio buttons / one selection
 
-## v16 fix
+## Payment choices
 
-Payment choice cards now use a fixed two-column layout:
-
-- 22px radio control
-- remaining card width for title + description
-
-The radio input explicitly overrides the global input sizing.
-
-On iPhone the options now render as normal full-width rows:
+Both itinerary items and pre-trip tasks now use the attendee-style cards for:
 
 - Not assigned
-  Track the event/task cost only
-
 - Individual
-  One adult pays the full cost
-
 - Split cost
-  Choose which adults are sharing it
 
-The same fix applies to itinerary items and pre-trip tasks.
+On iPhone these display as simple full-width rows with:
+- control on the left
+- title + description beside it
 
 ## Existing features retained
 
-v16 keeps:
-- traveller attendance
-- individual/split payment responsibility
-- pre-trip cost splitting
-- Who Pays What Summary
+v17 keeps:
+- named travellers
+- attendee selection
+- individual payer assignment
+- split costs
+- pre-trip split costs
+- Who Pays What summary
 - dark mode
 - Settings
 - offline caching
 - document vault
 - reminders
-- itinerary directions
+- directions
 
 ## GitHub update files
 

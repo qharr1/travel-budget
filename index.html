@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=16" rel="manifest"/>
+<link href="./manifest.webmanifest?v=17" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=16" rel="stylesheet"/>
+</script><link href="./styles.css?v=17" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -849,15 +849,15 @@
 </div>
 </div>
 <div class="payment-mode-grid">
-<label class="choice-card">
+<label class="person-check payment-choice">
 <input checked="" name="itemPaymentMode" type="radio" value="none"/>
 <span><strong>Not assigned</strong><small>Track the event cost only</small></span>
 </label>
-<label class="choice-card">
+<label class="person-check payment-choice">
 <input name="itemPaymentMode" type="radio" value="individual"/>
 <span><strong>Individual</strong><small>One adult pays the full cost</small></span>
 </label>
-<label class="choice-card">
+<label class="person-check payment-choice">
 <input name="itemPaymentMode" type="radio" value="split"/>
 <span><strong>Split cost</strong><small>Choose which adults share it</small></span>
 </label>
@@ -1016,15 +1016,15 @@
 </div>
 </div>
 <div class="payment-mode-grid">
-<label class="choice-card">
+<label class="person-check payment-choice">
 <input checked="" name="preTripPaymentMode" type="radio" value="none"/>
 <span><strong>Not assigned</strong><small>Track the task cost only</small></span>
 </label>
-<label class="choice-card">
+<label class="person-check payment-choice">
 <input name="preTripPaymentMode" type="radio" value="individual"/>
 <span><strong>Individual</strong><small>One adult pays the full cost</small></span>
 </label>
-<label class="choice-card">
+<label class="person-check payment-choice">
 <input name="preTripPaymentMode" type="radio" value="split"/>
 <span><strong>Split cost</strong><small>Choose which adults are sharing it</small></span>
 </label>
@@ -1245,6 +1245,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=16"></script>
+<script defer="" src="./app.js?v=17"></script>
 </body>
 </html>
