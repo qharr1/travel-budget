@@ -1,73 +1,45 @@
-# Travel Planner v4
+# Travel Planner v5
 
-Version 4 keeps the budget tracker intact and improves the itinerary experience.
+## New in v5
 
-## Changes in v4
+### Share links
+The Itinerary screen now has:
+- Share Itinerary Link
+- Share Full Trip Link
+- Export / Share Trip File
 
-### 1. Colour-coded itinerary
-Itinerary items are now colour coded automatically by type:
+A share link contains a compressed copy of the shared data after the `#` in the URL.
 
-- Flight — blue
-- Accommodation — purple
-- Theme park — pink
-- Activity — amber
-- Travel — cyan
-- Food — orange
-- Shopping — green
-- Other — grey
+`Share Itinerary Link` excludes expense history, the configured budget total, the Day 1 hard limit, and exchange rates.
 
-The same colours are reused in the Summary breakdown and outstanding-cost list.
+`Share Full Trip Link` includes itinerary, budget setup and expense history.
 
-### 2. Better iPhone add/edit screens
-The itinerary item and day-edit screens become full-screen sheets on iPhone-sized displays.
+Anyone who receives the complete shared link can import that shared copy, so treat the link itself as private.
 
-They:
-- respect iPhone safe-area / notch insets
-- scroll themselves instead of scrolling the page behind them
-- lock background scrolling while open
-- keep the dialog heading/close control at the top
+### Optional Day 1 hard limit
+The budget can reserve a fixed amount for Day 1.
 
-### 3. New Summary tab
-Top-level modes are now:
+Before and during Day 1, that amount is reserved rather than being redistributed prematurely.
+If Day 1 finishes under the limit, the unused amount rolls into the remaining days.
+If Day 1 exceeds the limit, future daily allowance is reduced.
 
-- Itinerary
-- Summary
-- Budget
+### Lower search-engine visibility
+The generic app now includes:
+- `noindex,nofollow,noarchive`
+- `robots.txt` with `Disallow: /`
 
-Summary calculates only what is actually entered in itinerary items.
+This discourages search-engine indexing, but it is not authentication and the GitHub Pages website remains public.
 
-It shows:
-- total priced itinerary cost
-- paid
-- still to pay
-- unpriced item count
-- priced item count
-- payment progress
-- cost breakdown by itinerary type
-- list of priced items still to pay
-
-An itinerary item counts as paid when its status is `Booked - paid` or `Paid`.
-`Planned`, `Confirmed`, and `Booked - unpaid` are treated as still to pay.
-
-If a total cost is blank but per-adult / per-child costs exist, Summary can calculate the total using the trip's adult and child counts.
-
-It never guesses missing prices.
-
-## Updating GitHub Pages
-
-Upload/replace the generic app files in the repository root:
-
+## GitHub update files
+Upload/replace:
 - index.html
 - styles.css
 - app.js
 - manifest.webmanifest
 - sw.js
+- robots.txt
 - icon-192.png
 - icon-512.png
 - apple-touch-icon.png
 
-Commit to `main`.
-
-Do NOT upload private `.trip.json` files to the public repository.
-
-Your existing v3 trip import file remains compatible with v4.
+Do not upload private `.trip.json` files.

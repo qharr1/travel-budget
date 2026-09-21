@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "tripBudgetApp.v1";
-  const APP_VERSION = 4;
+  const APP_VERSION = 5;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -48,7 +48,7 @@
       startDate: "",
       endDate: "",
       travellers: { adults: 0, children: 0 },
-      budget: { configured: false, totalBudget: null, destinations: [] },
+      budget: { configured: false, totalBudget: null, day1HardLimit: null, destinations: [] },
       dayMeta: {},
       itinerary: []
     };
@@ -121,6 +121,9 @@
     trip.budget = {
       configured: Boolean(raw?.budget?.configured),
       totalBudget: raw?.budget?.totalBudget === null || raw?.budget?.totalBudget === undefined ? null : Number(raw.budget.totalBudget),
+      day1HardLimit: raw?.budget?.day1HardLimit === null || raw?.budget?.day1HardLimit === "" || raw?.budget?.day1HardLimit === undefined
+        ? null
+        : Number(raw.budget.day1HardLimit),
       destinations: Array.isArray(raw?.budget?.destinations) ? raw.budget.destinations.map(normalizeDestination) : []
     };
     trip.dayMeta = raw?.dayMeta && typeof raw.dayMeta === "object" ? raw.dayMeta : {};
@@ -149,6 +152,7 @@
       trip.budget = {
         configured: true,
         totalBudget: Number(old.totalBudget || 0),
+        day1HardLimit: null,
         destinations: Array.isArray(old.destinations) ? old.destinations.map(normalizeDestination) : []
       };
       return {
@@ -167,6 +171,7 @@
       trip.budget = {
         configured: true,
         totalBudget: Number(old.totalBudget || 0),
+        day1HardLimit: null,
         destinations: [
           normalizeDestination({
             id: "legacy-china",
@@ -720,6 +725,7 @@
   function renderConfigureBudgetForm() {
     if (!state.trip) return;
     const destinations = state.trip.budget?.destinations || [];
+    el("configureDay1HardLimit").value = state.trip.budget?.day1HardLimit ?? "";
     el("configureBudgetDestinations").innerHTML = destinations.map((d, i) => destinationRowMarkup(d, "configure", i, true)).join("");
     el("configureBudgetDestinations").querySelectorAll(".destination-row").forEach((row) => {
       const index = Number(row.dataset.index);
@@ -767,6 +773,34 @@
     return endN - todayN;
   }
 
+  function configuredDay1HardLimit() {
+    const value = Number(state.trip?.budget?.day1HardLimit);
+    const total = Number(state.trip?.budget?.totalBudget);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    if (!Number.isFinite(total) || total <= 0) return null;
+    return Math.min(value, total);
+  }
+
+  function plannedFutureAllowanceWithDay1Limit(today, spentTotal, spentDay1) {
+    const hardLimit = configuredDay1HardLimit();
+    if (hardLimit === null || !state.trip) return null;
+
+    const startN = dayNumber(state.trip.startDate);
+    const endN = dayNumber(state.trip.endDate);
+    const todayN = dayNumber(today);
+    const totalDays = daysInclusive(state.trip.startDate, state.trip.endDate);
+    if (totalDays <= 1) return 0;
+
+    if (todayN < startN || todayN === startN) {
+      const otherRecorded = Math.max(0, spentTotal - spentDay1);
+      const reserve = Math.max(hardLimit, spentDay1);
+      return Math.max(0, Number(state.trip.budget.totalBudget) - otherRecorded - reserve) / (totalDays - 1);
+    }
+
+    if (todayN <= endN) return null;
+    return 0;
+  }
+
   function tripStats() {
     const trip = state.trip;
     if (!trip?.budget?.configured) return null;
@@ -794,7 +828,12 @@
       elapsedDays = dayIndex;
     }
 
-    const availablePerFutureDay = futureDays > 0 ? remaining / futureDays : 0;
+    const spentDay1 = totalSpent(expensesOn(trip.startDate));
+    const hardLimit = configuredDay1HardLimit();
+    const day1PlannedFutureAllowance = plannedFutureAllowanceWithDay1Limit(today, spent, spentDay1);
+    const availablePerFutureDay = day1PlannedFutureAllowance !== null
+      ? day1PlannedFutureAllowance
+      : (futureDays > 0 ? remaining / futureDays : 0);
     const originalDaily = totalDays > 0 ? Number(trip.budget.totalBudget) / totalDays : 0;
     const expectedSpent = originalDaily * elapsedDays;
     const pace = expectedSpent - spent;
@@ -802,7 +841,9 @@
     return {
       today, totalDays, spent, remaining, status, dayIndex, elapsedDays, futureDays,
       availablePerFutureDay, originalDaily, expectedSpent, pace,
-      spentToday: totalSpent(expensesOn(today))
+      spentToday: totalSpent(expensesOn(today)),
+      spentDay1,
+      hardLimit
     };
   }
 
@@ -854,6 +895,37 @@
     el("progressUsed").textContent = `${Math.max(0, spentPct).toFixed(0)}% used`;
     el("progressRemaining").textContent =
       stats.remaining >= 0 ? `${Math.max(0, 100 - spentPct).toFixed(0)}% left` : `${aud(Math.abs(stats.remaining))} over`;
+
+    const limitBanner = el("day1LimitBanner");
+    limitBanner.classList.add("hidden");
+    limitBanner.classList.remove("limit-good", "limit-over");
+
+    if (stats.hardLimit !== null) {
+      const startN = dayNumber(state.trip.startDate);
+      const todayN = dayNumber(stats.today);
+      const difference = stats.hardLimit - stats.spentDay1;
+      limitBanner.classList.remove("hidden");
+
+      if (todayN < startN) {
+        limitBanner.textContent = `Day 1 hard limit: ${aud(stats.hardLimit)}. That amount is reserved for Day 1.`;
+      } else if (todayN === startN) {
+        if (difference >= 0) {
+          limitBanner.classList.add("limit-good");
+          limitBanner.textContent = `Day 1 hard limit: ${aud(stats.hardLimit)} • Spent: ${aud(stats.spentDay1)} • ${aud(difference)} still available today.`;
+        } else {
+          limitBanner.classList.add("limit-over");
+          limitBanner.textContent = `Day 1 hard limit exceeded by ${aud(Math.abs(difference))}. Future daily allowance has been reduced.`;
+        }
+      } else {
+        if (difference >= 0) {
+          limitBanner.classList.add("limit-good");
+          limitBanner.textContent = `Day 1 limit: ${aud(stats.hardLimit)} • Actual: ${aud(stats.spentDay1)} • ${aud(difference)} rolled into the remaining trip.`;
+        } else {
+          limitBanner.classList.add("limit-over");
+          limitBanner.textContent = `Day 1 limit: ${aud(stats.hardLimit)} • Actual: ${aud(stats.spentDay1)} • ${aud(Math.abs(difference))} overspend was absorbed by the remaining trip.`;
+        }
+      }
+    }
 
     if (stats.status === "before") {
       const until = dayNumber(state.trip.startDate) - dayNumber(stats.today);
@@ -989,11 +1061,13 @@
 
   function dayBudgetRows() {
     if (!state.trip?.budget?.configured) return [];
+
     const totalDays = daysInclusive(state.trip.startDate, state.trip.endDate);
     const today = todayISO();
     const todayN = dayNumber(today);
     const startN = dayNumber(state.trip.startDate);
     const endN = dayNumber(state.trip.endDate);
+    const hardLimit = configuredDay1HardLimit();
     let remainingBudget = Number(state.trip.budget.totalBudget);
     let currentFutureAllocation = null;
     const rows = [];
@@ -1005,9 +1079,19 @@
       const spent = totalSpent(expensesOn(date));
       let allocation;
 
-      if (todayN < startN) allocation = totalDays > 0 ? Number(state.trip.budget.totalBudget) / totalDays : 0;
-      else if (todayN > endN || dateN <= todayN) allocation = remainingDaysAtStart > 0 ? remainingBudget / remainingDaysAtStart : 0;
-      else {
+      if (hardLimit !== null && i === 0) {
+        allocation = hardLimit;
+      } else if (hardLimit !== null && todayN <= startN && i > 0) {
+        const firstDaySpent = totalSpent(expensesOn(state.trip.startDate));
+        const reserve = Math.max(hardLimit, firstDaySpent);
+        allocation = totalDays > 1
+          ? Math.max(0, Number(state.trip.budget.totalBudget) - reserve) / (totalDays - 1)
+          : 0;
+      } else if (todayN < startN) {
+        allocation = totalDays > 0 ? Number(state.trip.budget.totalBudget) / totalDays : 0;
+      } else if (todayN > endN || dateN <= todayN) {
+        allocation = remainingDaysAtStart > 0 ? remainingBudget / remainingDaysAtStart : 0;
+      } else {
         if (currentFutureAllocation === null) {
           const futureDays = endN - todayN;
           currentFutureAllocation = futureDays > 0 ? remainingBudget / futureDays : 0;
@@ -1025,8 +1109,13 @@
         destinations: matches.map((d) => d.name)
       });
 
-      if (todayN > endN || dateN <= todayN) remainingBudget -= spent;
+      if (todayN > endN || dateN <= todayN) {
+        remainingBudget -= spent;
+      } else if (hardLimit !== null && i === 0 && todayN <= startN) {
+        remainingBudget -= Math.max(spent, hardLimit);
+      }
     }
+
     return rows;
   }
 
@@ -1058,6 +1147,7 @@
     el("settingsStartDate").value = state.trip.startDate;
     el("settingsEndDate").value = state.trip.endDate;
     el("settingsBudget").value = state.trip.budget.totalBudget;
+    el("settingsDay1HardLimit").value = state.trip.budget.day1HardLimit ?? "";
     if (settingsDraftDestinations.length === 0) {
       settingsDraftDestinations = cloneDestinations(state.trip.budget.destinations || []);
       renderDestinationDrafts("settings");
@@ -1135,6 +1225,142 @@
       if (messageElement) messageElement.textContent = "Trip imported.";
     } catch (error) {
       if (messageElement) messageElement.textContent = `Could not import trip: ${error.message}`;
+    }
+  }
+
+  function bytesToBase64Url(bytes) {
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+    }
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function base64UrlToBytes(value) {
+    let base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+    while (base64.length % 4) base64 += "=";
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  async function compressText(text) {
+    if (!("CompressionStream" in window)) {
+      return { method: "plain", bytes: new TextEncoder().encode(text) };
+    }
+    const stream = new Blob([text]).stream().pipeThrough(new CompressionStream("gzip"));
+    const buffer = await new Response(stream).arrayBuffer();
+    return { method: "gzip", bytes: new Uint8Array(buffer) };
+  }
+
+  async function decompressText(method, bytes) {
+    if (method === "plain") return new TextDecoder().decode(bytes);
+    if (!("DecompressionStream" in window)) throw new Error("This browser cannot open this compressed shared trip link.");
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return await new Response(stream).text();
+  }
+
+  function sharePayload(includeFullTrip) {
+    const clonedTrip = JSON.parse(JSON.stringify(state.trip));
+    const clonedExpenses = includeFullTrip ? JSON.parse(JSON.stringify(state.expenses)) : [];
+
+    if (!includeFullTrip) {
+      clonedTrip.budget = {
+        configured: false,
+        totalBudget: null,
+        day1HardLimit: null,
+        destinations: (clonedTrip.budget?.destinations || []).map((d) => ({ ...d, rate: null }))
+      };
+    }
+
+    return {
+      kind: "travel-planner-share",
+      version: APP_VERSION,
+      shareMode: includeFullTrip ? "full" : "itinerary",
+      createdAt: new Date().toISOString(),
+      trip: clonedTrip,
+      expenses: clonedExpenses
+    };
+  }
+
+  async function buildShareLink(includeFullTrip) {
+    const payload = JSON.stringify(sharePayload(includeFullTrip));
+    const packed = await compressText(payload);
+    const encoded = bytesToBase64Url(packed.bytes);
+    const cleanBase = `${location.origin}${location.pathname}`;
+    return `${cleanBase}#tripshare=${packed.method}.${encoded}`;
+  }
+
+  async function shareTripLink(includeFullTrip, messageElement) {
+    if (!state.trip) return;
+
+    try {
+      const url = await buildShareLink(includeFullTrip);
+      const text = `Open this link to import ${state.trip.name} into Travel Planner.`;
+
+      if (navigator.share) {
+        await navigator.share({ title: state.trip.name, text, url });
+        if (messageElement) messageElement.textContent = `${includeFullTrip ? "Full trip" : "Itinerary"} link shared.`;
+      } else {
+        window.prompt("Copy this private share link:", url);
+        if (messageElement) messageElement.textContent = "Share link created.";
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      if (messageElement) messageElement.textContent = `Could not create share link: ${error.message}`;
+    }
+  }
+
+  async function importSharedLinkFromHash() {
+    const rawHash = location.hash || "";
+    if (!rawHash.startsWith("#tripshare=")) return;
+
+    const packed = rawHash.slice("#tripshare=".length);
+    const dot = packed.indexOf(".");
+    if (dot <= 0) return;
+
+    try {
+      const method = packed.slice(0, dot);
+      const bytes = base64UrlToBytes(packed.slice(dot + 1));
+      const payload = JSON.parse(await decompressText(method, bytes));
+
+      if (payload?.kind !== "travel-planner-share" || !payload?.trip) {
+        throw new Error("Invalid shared trip link.");
+      }
+
+      const tripName = String(payload.trip.name || "this trip");
+      const modeLabel = payload.shareMode === "full"
+        ? "full trip, including budget data"
+        : "itinerary";
+
+      const promptText = state.trip
+        ? `Import ${tripName} (${modeLabel}) and replace the trip currently stored on this device?`
+        : `Import ${tripName} (${modeLabel})?`;
+
+      if (!window.confirm(promptText)) {
+        history.replaceState(null, "", `${location.pathname}${location.search}`);
+        return;
+      }
+
+      state = migrateState({
+        version: 5,
+        trip: payload.trip,
+        expenses: Array.isArray(payload.expenses) ? payload.expenses : []
+      });
+
+      setupVisible = false;
+      selectedItineraryDate = defaultSelectedDate();
+      settingsDraftDestinations = [];
+      saveState();
+
+      history.replaceState(null, "", `${location.pathname}${location.search}`);
+      render();
+      activateMode("itinerary");
+    } catch (error) {
+      history.replaceState(null, "", `${location.pathname}${location.search}`);
+      alert(`Could not import shared trip: ${error.message}`);
     }
   }
 
@@ -1261,6 +1487,12 @@
     el("setupError").textContent = error;
     if (error) return;
 
+    const day1HardLimit = el("day1HardLimit").value === "" ? null : Number(el("day1HardLimit").value);
+    if (day1HardLimit !== null && (!Number.isFinite(day1HardLimit) || day1HardLimit < 0 || day1HardLimit > Number(el("totalBudget").value))) {
+      el("setupError").textContent = "Day 1 hard limit must be between A$0 and the total trip budget.";
+      return;
+    }
+
     const trip = emptyTrip();
     trip.name = el("tripName").value.trim();
     trip.startDate = el("startDate").value;
@@ -1272,6 +1504,7 @@
     trip.budget = {
       configured: true,
       totalBudget: Number(el("totalBudget").value),
+      day1HardLimit,
       destinations
     };
 
@@ -1387,6 +1620,8 @@
     renderSummary();
   });
 
+  el("shareItineraryLinkBtn").addEventListener("click", () => shareTripLink(false, el("quickExportMessage")));
+  el("shareFullTripLinkBtn").addEventListener("click", () => shareTripLink(true, el("quickExportMessage")));
   el("quickExportBtn").addEventListener("click", () => exportTrip(el("quickExportMessage")));
   el("exportBtn").addEventListener("click", () => exportTrip(el("backupMessage")));
 
@@ -1401,8 +1636,15 @@
   el("configureBudgetForm").addEventListener("submit", (event) => {
     event.preventDefault();
     const total = Number(el("configureBudgetTotal").value);
+    const day1HardLimit = el("configureDay1HardLimit").value === "" ? null : Number(el("configureDay1HardLimit").value);
+
     if (!Number.isFinite(total) || total <= 0) {
       el("configureBudgetError").textContent = "Enter a budget greater than A$0.";
+      return;
+    }
+
+    if (day1HardLimit !== null && (!Number.isFinite(day1HardLimit) || day1HardLimit < 0 || day1HardLimit > total)) {
+      el("configureBudgetError").textContent = "Day 1 hard limit must be between A$0 and the total trip budget.";
       return;
     }
 
@@ -1415,6 +1657,7 @@
     }
 
     state.trip.budget.totalBudget = total;
+    state.trip.budget.day1HardLimit = day1HardLimit;
     state.trip.budget.configured = true;
     saveState();
     settingsDraftDestinations = [];
@@ -1543,11 +1786,17 @@
     const nextStart = el("settingsStartDate").value;
     const nextEnd = el("settingsEndDate").value;
     const nextBudget = Number(el("settingsBudget").value);
+    const nextDay1HardLimit = el("settingsDay1HardLimit").value === "" ? null : Number(el("settingsDay1HardLimit").value);
     const destinations = cloneDestinations(settingsDraftDestinations);
 
     const error = validateTripCreate(nextName, nextStart, nextEnd, nextBudget, destinations);
     el("settingsError").textContent = error;
     if (error) return;
+
+    if (nextDay1HardLimit !== null && (!Number.isFinite(nextDay1HardLimit) || nextDay1HardLimit < 0 || nextDay1HardLimit > nextBudget)) {
+      el("settingsError").textContent = "Day 1 hard limit must be between A$0 and the total trip budget.";
+      return;
+    }
 
     const destinationIds = new Set(destinations.map((d) => d.id));
     if (state.expenses.some((x) => x.destinationId && !destinationIds.has(x.destinationId))) {
@@ -1559,6 +1808,7 @@
     state.trip.startDate = nextStart;
     state.trip.endDate = nextEnd;
     state.trip.budget.totalBudget = nextBudget;
+    state.trip.budget.day1HardLimit = nextDay1HardLimit;
     state.trip.budget.destinations = destinations;
 
     state.expenses = state.expenses.map((item) => {
@@ -1620,4 +1870,5 @@
 
   updateConnection();
   render();
+  importSharedLinkFromHash();
 })();

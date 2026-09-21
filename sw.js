@@ -1,4 +1,4 @@
-const CACHE_NAME = "travel-planner-v4";
+const CACHE_NAME = "travel-planner-v5";
 
 const ASSETS = [
   "./",
@@ -8,7 +8,8 @@ const ASSETS = [
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
-  "./apple-touch-icon.png"
+  "./apple-touch-icon.png",
+  "./robots.txt"
 ];
 
 self.addEventListener("install", (event) => {
