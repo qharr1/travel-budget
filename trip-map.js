@@ -27,6 +27,8 @@ let hasAutoLocated = false;
 let activatedOnce = false;
 let enginePromise = null;
 let mapPromise = null;
+let flightPathMarkers = [];
+let flightPathsVisible = localStorage.getItem("travelPlanner.map.flightPaths.v1") !== "off";
 
 const $ = (id) => document.getElementById(id);
 
@@ -402,6 +404,178 @@ function markerMeta(record) {
   };
 }
 
+function validRouteCoords(route) {
+  const values = [route?.originLatitude, route?.originLongitude, route?.destinationLatitude, route?.destinationLongitude];
+  if (values.some((value) => value === null || value === undefined || value === "")) return false;
+  const [lat1, lng1, lat2, lng2] = values.map(Number);
+  return Number.isFinite(lat1) && Number.isFinite(lng1) &&
+    Number.isFinite(lat2) && Number.isFinite(lng2) &&
+    Math.abs(lat1) <= 90 && Math.abs(lat2) <= 90 &&
+    Math.abs(lng1) <= 180 && Math.abs(lng2) <= 180 &&
+    !(lat1 === 0 && lng1 === 0) && !(lat2 === 0 && lng2 === 0);
+}
+
+function flightRoutes() {
+  return bridge?.getFlightRoutes?.() || [];
+}
+
+function unwrapLongitude(startLng, endLng) {
+  let result = endLng;
+  while (result - startLng > 180) result -= 360;
+  while (result - startLng < -180) result += 360;
+  return result;
+}
+
+function wrapLongitude(lng) {
+  let result = lng;
+  while (result > 180) result -= 360;
+  while (result < -180) result += 360;
+  return result;
+}
+
+function curvedRouteCoordinates(route) {
+  const x0 = Number(route.originLongitude);
+  const y0 = Number(route.originLatitude);
+  const x1 = unwrapLongitude(x0, Number(route.destinationLongitude));
+  const y1 = Number(route.destinationLatitude);
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+  const arc = Math.min(18, Math.max(2.2, distance * 0.16));
+  const nx = -dy / distance;
+  const ny = dx / distance;
+  const controlX = (x0 + x1) / 2 + nx * arc;
+  const controlY = Math.max(-78, Math.min(78, (y0 + y1) / 2 + ny * arc));
+
+  const points = [];
+  const steps = 72;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const mt = 1 - t;
+    const x = mt * mt * x0 + 2 * mt * t * controlX + t * t * x1;
+    const y = mt * mt * y0 + 2 * mt * t * controlY + t * t * y1;
+    points.push([wrapLongitude(x), y]);
+  }
+  return points;
+}
+
+function flightRouteGeoJson() {
+  return {
+    type: "FeatureCollection",
+    features: flightRoutes().filter(validRouteCoords).map((route) => ({
+      type: "Feature",
+      properties: { id: route.id, sequence: route.sequence, title: route.title },
+      geometry: { type: "LineString", coordinates: curvedRouteCoordinates(route) }
+    }))
+  };
+}
+
+function clearFlightPathMarkers() {
+  flightPathMarkers.forEach((marker) => marker.remove());
+  flightPathMarkers = [];
+}
+
+function routeMidpoint(route) {
+  const points = curvedRouteCoordinates(route);
+  return points[Math.floor(points.length / 2)];
+}
+
+function flightRoutePopupHtml(route) {
+  const from = route.originCode ? `${route.originCode} • ${route.origin}` : route.origin;
+  const to = route.destinationCode ? `${route.destinationCode} • ${route.destination}` : route.destination;
+  const timing = [route.date || "", route.startTime || "", route.endTime ? `→ ${route.endTime}` : ""].filter(Boolean).join(" ");
+
+  return `
+    <div class="trip-map-popup flight-route-popup">
+      <span class="trip-map-popup-type">✈ Flight ${route.sequence}</span>
+      <strong>${escapeHtml(route.title || `Flight ${route.sequence}`)}</strong>
+      <small>${escapeHtml(timing)}</small>
+      <p>${escapeHtml(from)}<br>→ ${escapeHtml(to)}</p>
+      <div class="trip-map-popup-actions single-action">
+        <button type="button" data-flight-open="${escapeHtml(route.id)}">Open itinerary</button>
+      </div>
+    </div>
+  `;
+}
+
+function refreshFlightPaths() {
+  if (!map || !mapReady || !maplibregl) return;
+
+  const sourceData = flightRouteGeoJson();
+  let source = map.getSource("trip-flight-paths");
+  if (!source) {
+    map.addSource("trip-flight-paths", { type: "geojson", data: sourceData });
+    source = map.getSource("trip-flight-paths");
+  } else {
+    source.setData(sourceData);
+  }
+
+  if (!map.getLayer("trip-flight-path-shadow")) {
+    map.addLayer({
+      id: "trip-flight-path-shadow",
+      type: "line",
+      source: "trip-flight-paths",
+      layout: { "line-cap": "round", "line-join": "round", visibility: flightPathsVisible ? "visible" : "none" },
+      paint: { "line-color": "#ffffff", "line-width": 6, "line-opacity": 0.72 }
+    });
+  }
+
+  if (!map.getLayer("trip-flight-path-line")) {
+    map.addLayer({
+      id: "trip-flight-path-line",
+      type: "line",
+      source: "trip-flight-paths",
+      layout: { "line-cap": "round", "line-join": "round", visibility: flightPathsVisible ? "visible" : "none" },
+      paint: { "line-color": "#2563eb", "line-width": 3.5, "line-opacity": 0.9 }
+    });
+  }
+
+  for (const layerId of ["trip-flight-path-shadow", "trip-flight-path-line"]) {
+    if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", flightPathsVisible ? "visible" : "none");
+  }
+
+  clearFlightPathMarkers();
+
+  if (flightPathsVisible) {
+    for (const route of flightRoutes().filter(validRouteCoords)) {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = "flight-path-plane-marker";
+      element.innerHTML = `<span>✈</span><strong>${route.sequence}</strong>`;
+
+      const popup = new maplibregl.Popup({offset:22,closeButton:true,maxWidth:"300px"})
+        .setHTML(flightRoutePopupHtml(route));
+
+      const marker = new maplibregl.Marker({element,anchor:"center"})
+        .setLngLat(routeMidpoint(route))
+        .setPopup(popup)
+        .addTo(map);
+
+      popup.on("open", () => {
+        popup.getElement()?.querySelector("[data-flight-open]")?.addEventListener("click", () => {
+          popup.remove();
+          bridge.openRecord?.("itinerary", route.id);
+        });
+      });
+
+      flightPathMarkers.push(marker);
+    }
+  }
+
+  const toggle = $("mapFlightPathsToggle");
+  if (toggle) {
+    toggle.classList.toggle("active", flightPathsVisible);
+    toggle.setAttribute("aria-pressed", String(flightPathsVisible));
+    toggle.textContent = flightPathsVisible ? "✈ Flight paths on" : "✈ Flight paths off";
+  }
+}
+
+function toggleFlightPaths() {
+  flightPathsVisible = !flightPathsVisible;
+  localStorage.setItem("travelPlanner.map.flightPaths.v1", flightPathsVisible ? "on" : "off");
+  refreshFlightPaths();
+}
+
 function markerElement(record) {
   const wrapper = document.createElement("button");
   wrapper.type = "button";
@@ -484,6 +658,8 @@ function refreshMarkers() {
 
     markerEntries.push({ marker, record });
   }
+
+  refreshFlightPaths();
 }
 
 function renderStatusCounts() {
@@ -782,6 +958,7 @@ function bindUi() {
     button.addEventListener("click", () => setFilter(button.dataset.mapFilter));
   });
 
+  $("mapFlightPathsToggle")?.addEventListener("click", toggleFlightPaths);
   $("mapFitTripBtn")?.addEventListener("click", () => fitTrip(true));
   $("mapLocateMissingBtn")?.addEventListener("click", locateAllMissing);
   $("mapRebuildPinsBtn")?.addEventListener("click", rebuildAllPins);
