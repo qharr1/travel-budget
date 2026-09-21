@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 29;
+  const APP_VERSION = 30;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -5071,6 +5071,12 @@
     return target;
   }
 
+  function mapCoordinateValue(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
   function mapLocationRecords() {
     if (!state.trip) return [];
 
@@ -5087,8 +5093,8 @@
         time: item.startTime || "",
         location: item.location || "",
         query: mapRecordQuery(item.location, item.date),
-        latitude: Number.isFinite(Number(item.latitude)) ? Number(item.latitude) : null,
-        longitude: Number.isFinite(Number(item.longitude)) ? Number(item.longitude) : null,
+        latitude: mapCoordinateValue(item.latitude),
+        longitude: mapCoordinateValue(item.longitude),
         geocodeLabel: item.geocodeLabel || "",
         isHotel: String(item.type || "").toLowerCase() === "accommodation",
         isWishlist: false
@@ -5107,8 +5113,8 @@
         time: "",
         location: place.location || "",
         query: mapRecordQuery(place.location),
-        latitude: Number.isFinite(Number(place.latitude)) ? Number(place.latitude) : null,
-        longitude: Number.isFinite(Number(place.longitude)) ? Number(place.longitude) : null,
+        latitude: mapCoordinateValue(place.latitude),
+        longitude: mapCoordinateValue(place.longitude),
         geocodeLabel: place.geocodeLabel || "",
         isHotel: String(place.category || "").toLowerCase() === "hotel",
         isWishlist: String(place.status || "").toLowerCase() === "wishlist"
@@ -5138,6 +5144,37 @@
     saveState();
     window.TripMap?.dataChanged?.();
     return true;
+  }
+
+  function clearAllMapCoordinates() {
+    if (!state.trip) return 0;
+
+    let cleared = 0;
+    for (const item of state.trip.itinerary || []) {
+      if (String(item.location || "").trim()) {
+        item.latitude = null;
+        item.longitude = null;
+        item.geocodeLabel = "";
+        item.geocodedAt = null;
+        item.updatedAt = Date.now();
+        cleared += 1;
+      }
+    }
+
+    for (const place of state.trip.places || []) {
+      if (String(place.location || "").trim()) {
+        place.latitude = null;
+        place.longitude = null;
+        place.geocodeLabel = "";
+        place.geocodedAt = null;
+        place.updatedAt = Date.now();
+        cleared += 1;
+      }
+    }
+
+    saveState();
+    window.TripMap?.dataChanged?.();
+    return cleared;
   }
 
   function clearMapCoordinates(kind, id) {
@@ -5193,6 +5230,7 @@
     getRecords: mapLocationRecords,
     updateCoordinates: updateMapCoordinates,
     clearCoordinates: clearMapCoordinates,
+    clearAllCoordinates: clearAllMapCoordinates,
     openRecord: openMapRecord,
     directions: directionsForMapRecord,
     tripName: () => state.trip?.name || "Trip"
