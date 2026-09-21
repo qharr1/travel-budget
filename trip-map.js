@@ -182,10 +182,25 @@ async function waitForBridge() {
 }
 
 function validCoords(record) {
-  return Number.isFinite(Number(record?.latitude)) &&
-    Number.isFinite(Number(record?.longitude)) &&
-    Math.abs(Number(record.latitude)) <= 90 &&
-    Math.abs(Number(record.longitude)) <= 180;
+  if (
+    record?.latitude === null ||
+    record?.latitude === undefined ||
+    record?.latitude === "" ||
+    record?.longitude === null ||
+    record?.longitude === undefined ||
+    record?.longitude === ""
+  ) return false;
+
+  const lat = Number(record.latitude);
+  const lng = Number(record.longitude);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return false;
+
+  // 0,0 is the classic missing-coordinate sentinel. Treat it as unmapped.
+  if (lat === 0 && lng === 0) return false;
+
+  return true;
 }
 
 function records() {
@@ -617,6 +632,31 @@ function locateAllMissing() {
   processQueue();
 }
 
+async function rebuildAllPins() {
+  if (geocoding) return;
+
+  const all = records();
+  if (!all.length) {
+    setStatus("There are no itinerary/place locations to rebuild.");
+    return;
+  }
+
+  const ok = window.confirm(
+    `Rebuild all ${all.length} map pin${all.length === 1 ? "" : "s"}? This clears saved coordinates and locates every saved location again.`
+  );
+  if (!ok) return;
+
+  const cleared = bridge?.clearAllCoordinates?.() || 0;
+  hasAutoLocated = true;
+  queued = records()
+    .filter((record) => String(record.location || "").trim())
+    .map((record) => ({ kind: record.kind, id: record.id }));
+
+  setStatus(`Cleared ${cleared} saved coordinate${cleared === 1 ? "" : "s"}. Re-locating the trip…`);
+  refreshMarkers();
+  await processQueue();
+}
+
 function setFilter(filter) {
   activeFilter = filter;
 
@@ -661,6 +701,7 @@ function bindUi() {
 
   $("mapFitTripBtn")?.addEventListener("click", () => fitTrip(true));
   $("mapLocateMissingBtn")?.addEventListener("click", locateAllMissing);
+  $("mapRebuildPinsBtn")?.addEventListener("click", rebuildAllPins);
 
   window.addEventListener("online", () => {
     if (activatedOnce && !mapReady) activate();
