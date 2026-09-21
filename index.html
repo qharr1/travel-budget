@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-title" content="Travel Planner">
   <meta name="format-detection" content="telephone=no">
   <title>Travel Planner</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=7">
+  <link rel="manifest" href="./manifest.webmanifest?v=8">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=7">
+  <link rel="stylesheet" href="./styles.css?v=8">
 </head>
 <body>
   <div class="app-shell">
@@ -714,6 +714,61 @@
     </form>
   </dialog>
 
+  <dialog id="directionsDialog" class="directions-dialog">
+    <div class="directions-sheet">
+      <div class="directions-handle" aria-hidden="true"></div>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">DIRECTIONS</p>
+          <h2 id="directionsDialogTitle">Open directions</h2>
+        </div>
+        <button id="closeDirectionsDialogBtn" class="text-btn" type="button">Close</button>
+      </div>
+
+      <div class="directions-destination-box">
+        <span class="directions-destination-label">Destination</span>
+        <strong id="directionsDestinationText"></strong>
+      </div>
+
+      <div class="directions-app-list">
+        <button id="openAppleMapsBtn" class="map-app-btn" type="button">
+          <span>
+            <strong>Apple Maps</strong>
+            <small>Open directions from your current location</small>
+          </span>
+          <span class="map-app-arrow">›</span>
+        </button>
+
+        <button id="openGoogleMapsBtn" class="map-app-btn" type="button">
+          <span>
+            <strong>Google Maps</strong>
+            <small>Uses the app when iOS hands the link to it</small>
+          </span>
+          <span class="map-app-arrow">›</span>
+        </button>
+
+        <button id="openWazeBtn" class="map-app-btn" type="button">
+          <span>
+            <strong>Waze</strong>
+            <small>Uses Waze if installed, otherwise opens the web version</small>
+          </span>
+          <span class="map-app-arrow">›</span>
+        </button>
+
+        <button id="copyDirectionsDestinationBtn" class="map-app-btn" type="button">
+          <span>
+            <strong>Copy location</strong>
+            <small>Copy the destination to your clipboard</small>
+          </span>
+          <span class="map-app-arrow">›</span>
+        </button>
+      </div>
+
+      <p id="directionsMessage" class="status-message" role="status"></p>
+      <p class="muted small directions-privacy-note">Travel Planner does not ask for or transmit your current location. Your chosen maps app handles routing.</p>
+    </div>
+  </dialog>
+
   <dialog id="preTripTaskDialog">
     <form id="preTripTaskForm" class="dialog-form">
       <div class="section-heading">
@@ -789,6 +844,6 @@
     </form>
   </dialog>
 
-  <script src="./app.js?v=7" defer></script>
+  <script src="./app.js?v=8" defer></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "tripBudgetApp.v1";
-  const APP_VERSION = 7;
+  const APP_VERSION = 8;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -34,6 +34,7 @@
   let itineraryViewMode = "day";
   let setupVisible = false;
   let lastObservedCalendarDate = todayISO();
+  let directionsTarget = "";
 
   function uid(prefix = "id") {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -570,6 +571,50 @@
     return "All day";
   }
 
+  function directionsDestination(item) {
+    const raw = String(item?.location || "").trim();
+    if (!raw) return "";
+
+    if (raw.includes("→")) {
+      const parts = raw.split("→");
+      return parts[parts.length - 1].trim();
+    }
+
+    if (raw.includes("->")) {
+      const parts = raw.split("->");
+      return parts[parts.length - 1].trim();
+    }
+
+    return raw;
+  }
+
+  function openDirectionsChooser(destination, title = "") {
+    directionsTarget = String(destination || "").trim();
+    if (!directionsTarget) return;
+
+    el("directionsDialogTitle").textContent = title ? `Directions to ${title}` : "Open directions";
+    el("directionsDestinationText").textContent = directionsTarget;
+    el("directionsMessage").textContent = "";
+    showModalSafe(el("directionsDialog"));
+  }
+
+  function openExternalMap(url) {
+    closeModalSafe(el("directionsDialog"));
+    window.location.href = url;
+  }
+
+  function appleMapsUrl(destination) {
+    return `https://maps.apple.com/directions?destination=${encodeURIComponent(destination)}`;
+  }
+
+  function googleMapsUrl(destination) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+  }
+
+  function wazeUrl(destination) {
+    return `https://waze.com/ul?q=${encodeURIComponent(destination)}&navigate=yes`;
+  }
+
   function itineraryItemMarkup(item) {
     const duration = item.durationText || durationFromTimes(item.startTime, item.endTime);
     const chips = [];
@@ -603,6 +648,9 @@
           ${item.notes ? `<p class="item-notes">${escapeHtml(item.notes)}</p>` : ""}
         </div>
         <div class="item-actions">
+          ${directionsDestination(item)
+            ? `<button class="directions-btn itinerary-directions" type="button" data-id="${escapeHtml(item.id)}">Directions</button>`
+            : ""}
           <button class="mini-btn edit-itinerary-item" type="button" data-id="${escapeHtml(item.id)}">Edit</button>
         </div>
       </article>`;
@@ -734,6 +782,14 @@
     el("fullItineraryList").querySelectorAll(".edit-itinerary-item").forEach((button) => {
       button.addEventListener("click", () => openItineraryItemDialog(button.dataset.id));
     });
+
+    el("fullItineraryList").querySelectorAll(".itinerary-directions").forEach((button) => {
+      button.addEventListener("click", () => {
+        const item = state.trip?.itinerary.find((x) => x.id === button.dataset.id);
+        if (!item) return;
+        openDirectionsChooser(directionsDestination(item), item.title);
+      });
+    });
   }
 
   function renderItineraryViewMode() {
@@ -787,6 +843,14 @@
 
     document.querySelectorAll(".edit-itinerary-item").forEach((button) => {
       button.addEventListener("click", () => openItineraryItemDialog(button.dataset.id));
+    });
+
+    document.querySelectorAll(".itinerary-directions").forEach((button) => {
+      button.addEventListener("click", () => {
+        const item = state.trip?.itinerary.find((x) => x.id === button.dataset.id);
+        if (!item) return;
+        openDirectionsChooser(directionsDestination(item), item.title);
+      });
     });
 
     el("prevDayBtn").disabled = dayIndex <= 0;
@@ -1935,6 +1999,44 @@
     if (index >= 0 && index < dates.length - 1) {
       selectedItineraryDate = dates[index + 1];
       renderItinerary();
+    }
+  });
+
+  el("closeDirectionsDialogBtn").addEventListener("click", () => {
+    closeModalSafe(el("directionsDialog"));
+  });
+
+  el("openAppleMapsBtn").addEventListener("click", () => {
+    if (directionsTarget) openExternalMap(appleMapsUrl(directionsTarget));
+  });
+
+  el("openGoogleMapsBtn").addEventListener("click", () => {
+    if (directionsTarget) openExternalMap(googleMapsUrl(directionsTarget));
+  });
+
+  el("openWazeBtn").addEventListener("click", () => {
+    if (directionsTarget) openExternalMap(wazeUrl(directionsTarget));
+  });
+
+  el("copyDirectionsDestinationBtn").addEventListener("click", async () => {
+    if (!directionsTarget) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(directionsTarget);
+      } else {
+        const area = document.createElement("textarea");
+        area.value = directionsTarget;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+      }
+      el("directionsMessage").textContent = "Location copied.";
+    } catch {
+      el("directionsMessage").textContent = "Could not copy automatically. Press and hold the destination above to copy it.";
     }
   });
 

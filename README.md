@@ -1,48 +1,39 @@
-# Travel Planner v7
+# Travel Planner v8
 
-## New itinerary views
+## Directions from itinerary items
 
-The Itinerary tab now defaults to `Day view`.
+Any itinerary item with a location/address now shows:
 
-- Before the trip: Day 1 is selected.
-- During the trip: the current trip date/day is selected automatically.
-- If the app remains open overnight, returning to it on the next calendar day automatically moves the itinerary to that new day.
-- After the trip: the final trip day is selected.
+- Directions
+- Edit
 
-A second `Full trip` view displays every day and every itinerary item in one continuous list. Each full-list day has an `Open day` action that returns to the normal Day view.
+Tapping `Directions` opens an iPhone-friendly map chooser with:
 
-## Pre-trip
+- Apple Maps
+- Google Maps
+- Waze
+- Copy location
 
-The Itinerary tab now has a collapsible `Pre-trip` section.
+The Travel Planner PWA cannot reliably inspect which map apps are installed on an iPhone, so the app does not pretend to auto-detect installed apps.
 
-Pre-trip tasks support:
-- task title
-- due date
-- category
-- status
-- optional AUD cost
-- notes
-- quick `Mark done`
-- add / edit / delete
+Instead, the user chooses the maps service.
 
-Pre-trip tasks are included in:
-- exported trip files
-- itinerary share links
-- full-trip share links
-- Summary cost calculations
+The links are HTTPS map/deep links:
+- Apple Maps receives a destination
+- Google Maps receives a directions URL with no fixed origin, allowing Google Maps to use the device's relevant current location
+- Waze receives a navigate/search deep link and can open Waze when installed or the web version otherwise
 
-The Summary now includes a `Pre-trip` category when pre-trip tasks have entered costs.
+For itinerary locations written as a route such as:
 
-## Private pre-trip update import
+`Tokyo Station → Shin-Osaka`
 
-The Pre-trip section includes `Import pre-trip tasks`.
+the Directions button uses only:
 
-This accepts a `travel-planner-pretrip-update` JSON file and merges matching tasks into the current trip without replacing:
-- itinerary
-- budget
-- exchange rates
-- Day 1 hard limit
-- expenses
+`Shin-Osaka`
+
+as the destination.
+
+Travel Planner itself does not request the user's live GPS location; the chosen maps app handles routing.
 
 ## GitHub update files
 
@@ -57,4 +48,4 @@ Replace/upload:
 - icon-512.png
 - apple-touch-icon.png
 
-Existing v6 local trip data migrates automatically.
+Existing v7 trip data remains compatible.
