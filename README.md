@@ -1,43 +1,59 @@
-# Travel Planner v18 — Light appearance by default
+# Travel Planner v19 — Foreign-currency cost conversion
 
-## Appearance default
+## Fixed bug
 
-New devices / new local UI settings now default to:
+Foreign itinerary costs are no longer treated as AUD.
 
-`Light`
+Example:
+- JPY 16,000
+- planning rate 110 JPY per A$1
+- Summary uses about A$145.45
 
-The available choices remain:
+The original JPY 16,000 remains visible on the itinerary item.
 
-- Light
-- Dark
-- Use iPhone setting
+## Planning exchange rates
 
-## Existing users
+Settings > Trip & budget > Destinations & currencies now clearly treats each
+stored destination rate as a planning exchange rate.
 
-If a device already has an appearance preference saved in `travelPlanner.ui.v1`,
-that saved preference is respected.
+These rates are used for:
+- itinerary costs
+- pre-trip costs
+- Summary totals
+- Who Pays What
+- outstanding payments
+- pre-trip outstanding totals
 
-This avoids unexpectedly changing somebody who deliberately selected Dark or
-Use iPhone setting.
+## Snapshot behaviour
 
-## Launch behaviour
+When a priced itinerary or pre-trip item is saved, v19 stores:
+- original local cost
+- local currency
+- rate used
+- AUD equivalent
+- timestamp of the rate snapshot
 
-The early pre-stylesheet theme bootstrap also defaults to Light, preventing the
-app from initially following iOS Dark Mode before Travel Planner settings load.
+Later Settings rate changes do not silently rewrite already-saved booking values.
 
-## Existing features retained
+## Item editor
 
-v18 keeps:
-- attendee-style payment controls from v17
-- named travellers
-- individual / split costs
-- pre-trip cost assignment
-- Who Pays What Summary
-- Settings
-- offline caching
-- document vault
-- reminders
-- directions
+Foreign-currency items show:
+- planning rate used
+- AUD equivalent
+
+The rate can be manually changed before saving.
+
+New itinerary items prefer the destination currency that matches the itinerary date.
+
+## Existing foreign-currency items
+
+Legacy JPY/CNY/etc items without a saved AUD snapshot are converted using the
+current matching planning rate from Settings. Once edited and saved, the AUD
+value/rate become fixed to the item.
+
+## Offline
+
+No live FX API is required. The stored rate and snapshots work in Airplane Mode.
 
 ## GitHub update files
 

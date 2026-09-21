@@ -2337,3 +2337,70 @@ html[data-theme="dark"] .payment-mode-grid .payment-choice:has(input:checked) {
     align-items: center;
   }
 }
+
+
+/* v19 — planning FX snapshots and AUD-equivalent previews */
+.fx-snapshot-box {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+.fx-preview-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 70px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+}
+.fx-preview-label {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.fx-preview-card strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+.fx-preview-card small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.35;
+}
+.pretrip-fx-row { margin-top: 8px; }
+.pretrip-fx-preview { margin-top: 8px; }
+.aud-equivalent-line {
+  margin-top: 4px;
+  color: var(--accent);
+  font-size: .7rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+.pretrip-aud-equivalent { margin: 7px 0 0; }
+
+html[data-theme="dark"] .fx-snapshot-box {
+  background: #0b1728;
+  border-color: var(--line);
+}
+html[data-theme="dark"] .fx-preview-card {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+@media (max-width: 520px) {
+  .fx-snapshot-box .two-col,
+  .pretrip-fx-row {
+    grid-template-columns: 1fr;
+  }
+}

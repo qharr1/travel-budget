@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 18;
+  const APP_VERSION = 19;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -238,6 +238,9 @@
       bookingRef: String(item?.bookingRef || ""),
       costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined ? null : Number(item.costTotal),
       costCurrency: String(item?.costCurrency || "AUD").toUpperCase(),
+      costAud: item?.costAud === null || item?.costAud === "" || item?.costAud === undefined ? null : Number(item.costAud),
+      fxRate: item?.fxRate === null || item?.fxRate === "" || item?.fxRate === undefined ? null : Number(item.fxRate),
+      fxRateCapturedAt: String(item?.fxRateCapturedAt || ""),
       adultCost: item?.adultCost === null || item?.adultCost === "" || item?.adultCost === undefined ? null : Number(item.adultCost),
       childCost: item?.childCost === null || item?.childCost === "" || item?.childCost === undefined ? null : Number(item.childCost),
       participants: String(item?.participants || ""),
@@ -261,6 +264,9 @@
         ? null
         : Number(item.costTotal),
       costCurrency: String(item?.costCurrency || "AUD").toUpperCase(),
+      costAud: item?.costAud === null || item?.costAud === "" || item?.costAud === undefined ? null : Number(item.costAud),
+      fxRate: item?.fxRate === null || item?.fxRate === "" || item?.fxRate === undefined ? null : Number(item.fxRate),
+      fxRateCapturedAt: String(item?.fxRateCapturedAt || ""),
       paymentMode: ["none", "individual", "split"].includes(item?.paymentMode) ? item.paymentMode : "none",
       payerIds: Array.isArray(item?.payerIds) ? item.payerIds.map(String) : [],
       notes: String(item?.notes || ""),
@@ -613,7 +619,7 @@
   }
 
   function itemPaymentText(item) {
-    const total = itemEffectiveCost(item);
+    const total = itemLocalCost(item);
     if (total === null || !Number.isFinite(total) || total <= 0) return "";
 
     const payers = travellerNames(item?.payerIds || []);
@@ -655,7 +661,7 @@
     };
   }
 
-  function itemEffectiveCost(item) {
+  function itemLocalCost(item) {
     const explicit = Number(item?.costTotal);
     if (item?.costTotal !== null && item?.costTotal !== "" && item?.costTotal !== undefined && Number.isFinite(explicit)) {
       return explicit;
@@ -672,6 +678,84 @@
     if (!hasAdult && !hasChild) return null;
 
     return (hasAdult ? adults * adultCost : 0) + (hasChild ? children * childCost : 0);
+  }
+
+
+  function planningRateFor(currency, dateStr = "") {
+    const code = String(currency || "AUD").toUpperCase();
+    if (code === "AUD") return 1;
+
+    const destinations = state.trip?.budget?.destinations || [];
+    const valid = (d) =>
+      d.currency === code &&
+      Number.isFinite(Number(d.rate)) &&
+      Number(d.rate) > 0;
+
+    if (dateStr) {
+      const dated = destinations.find((d) =>
+        valid(d) &&
+        dayNumber(dateStr) >= dayNumber(d.startDate) &&
+        dayNumber(dateStr) <= dayNumber(d.endDate)
+      );
+      if (dated) return Number(dated.rate);
+    }
+
+    const any = destinations.find(valid);
+    return any ? Number(any.rate) : null;
+  }
+
+  function preferredCurrencyForDate(dateStr) {
+    if (!dateStr) return "AUD";
+    const matches = matchingDestinationsForDate(dateStr).filter((d) => d.currency && d.currency !== "AUD");
+    return matches.length ? matches[0].currency : "AUD";
+  }
+
+  function audFromLocalCost(localAmount, currency, dateStr = "", snapshotRate = null) {
+    if (localAmount === null || localAmount === "" || localAmount === undefined) return null;
+    const amount = Number(localAmount);
+    if (!Number.isFinite(amount)) return null;
+
+    const code = String(currency || "AUD").toUpperCase();
+    if (code === "AUD") return amount;
+
+    const savedRate = Number(snapshotRate);
+    const rate = Number.isFinite(savedRate) && savedRate > 0
+      ? savedRate
+      : planningRateFor(code, dateStr);
+
+    if (!Number.isFinite(rate) || rate <= 0) return null;
+    return amount / rate;
+  }
+
+  function itemEffectiveCost(item) {
+    const local = itemLocalCost(item);
+    if (local === null || !Number.isFinite(local)) return null;
+
+    const captured = Number(item?.costAud);
+    if (item?.costAud !== null && item?.costAud !== "" && item?.costAud !== undefined && Number.isFinite(captured)) {
+      return captured;
+    }
+
+    return audFromLocalCost(local, item?.costCurrency || "AUD", item?.date || "", item?.fxRate);
+  }
+
+  function preTripEffectiveCost(task) {
+    const local = task?.costTotal === null || task?.costTotal === "" || task?.costTotal === undefined
+      ? null
+      : Number(task.costTotal);
+    if (local === null || !Number.isFinite(local)) return null;
+
+    const captured = Number(task?.costAud);
+    if (task?.costAud !== null && task?.costAud !== "" && task?.costAud !== undefined && Number.isFinite(captured)) {
+      return captured;
+    }
+
+    return audFromLocalCost(local, task?.costCurrency || "AUD", "", task?.fxRate);
+  }
+
+  function rateLabelFor(currency) {
+    const code = String(currency || "AUD").toUpperCase();
+    return code === "AUD" ? "AUD cost — no conversion needed" : `${code} per A$1`;
   }
 
   function isPaidStatus(status) {
@@ -756,7 +840,7 @@
   function destinationRowMarkup(item, mode, index, readOnlyDates = false) {
     const rateDisabled = item.currency === "AUD" ? "disabled" : "";
     const rateValue = item.currency === "AUD" ? "1" : (Number.isFinite(Number(item.rate)) ? Number(item.rate) : "");
-    const rateLabel = item.currency === "AUD" ? "AUD per A$1" : `${item.currency} per A$1`;
+    const rateLabel = item.currency === "AUD" ? "Planning rate" : `Planning rate: ${item.currency} per A$1`;
 
     return `
       <div class="destination-row" data-mode="${mode}" data-index="${index}">
@@ -971,6 +1055,7 @@
           ${hasCosts ? `
             <div class="item-cost-box">
               ${Number.isFinite(Number(item.costTotal)) ? `<strong>Total: ${escapeHtml(money(item.costTotal, costCurrency))}</strong>` : ""}
+              ${costCurrency !== "AUD" && itemEffectiveCost(item) !== null ? `<div class="aud-equivalent-line">≈ ${escapeHtml(aud(itemEffectiveCost(item)))} AUD${Number.isFinite(Number(item.fxRate)) ? ` • saved at 1 AUD = ${escapeHtml(String(item.fxRate))} ${escapeHtml(costCurrency)}` : ""}</div>` : ""}
               <div class="per-person">
                 ${Number.isFinite(Number(item.adultCost)) ? `Adult ticket: ${escapeHtml(money(item.adultCost, costCurrency))} each` : ""}
                 ${Number.isFinite(Number(item.adultCost)) && Number.isFinite(Number(item.childCost)) ? ` • ` : ""}
@@ -1023,6 +1108,7 @@
             </div>
             <div class="pretrip-card-cost">${escapeHtml(cost)}</div>
           </div>
+          ${task.costCurrency !== "AUD" && preTripEffectiveCost(task) !== null ? `<div class="aud-equivalent-line pretrip-aud-equivalent">≈ ${escapeHtml(aud(preTripEffectiveCost(task)))} AUD${Number.isFinite(Number(task.fxRate)) ? ` • saved at 1 AUD = ${escapeHtml(String(task.fxRate))} ${escapeHtml(task.costCurrency)}` : ""}</div>` : ""}
           ${preTripPaymentText(task) ? `<div class="item-payment-line pretrip-payment-line"><strong>${task.paymentMode === "split" ? "Split:" : "Responsible:"}</strong> ${escapeHtml(preTripPaymentText(task))}</div>` : ""}
           ${task.notes ? `<p class="pretrip-card-notes">${escapeHtml(task.notes)}</p>` : ""}
           <div class="pretrip-card-actions">
@@ -1046,8 +1132,8 @@
     const complete = tasks.filter((x) => isPreTripComplete(x.status)).length;
     const outstandingCost = tasks.reduce((sum, task) => {
       if (isPreTripComplete(task.status)) return sum;
-      const cost = Number(task.costTotal);
-      return task.costTotal !== null && Number.isFinite(cost) ? sum + cost : sum;
+      const cost = preTripEffectiveCost(task);
+      return cost !== null && Number.isFinite(cost) ? sum + cost : sum;
     }, 0);
 
     el("preTripSummaryText").textContent = tasks.length
@@ -1272,9 +1358,7 @@
     }
 
     for (const task of state.trip.preTripTasks || []) {
-      const cost = task.costTotal === null || task.costTotal === "" || task.costTotal === undefined
-        ? null
-        : Number(task.costTotal);
+      const cost = preTripEffectiveCost(task);
       if (cost === null || !Number.isFinite(cost) || cost <= 0) continue;
       allocate(cost, task.paymentMode || "none", task.payerIds || [], isPreTripComplete(task.status));
     }
@@ -1349,9 +1433,7 @@
     }
 
     for (const task of preTripTasks) {
-      const cost = task.costTotal === null || task.costTotal === "" || task.costTotal === undefined
-        ? null
-        : Number(task.costTotal);
+      const cost = preTripEffectiveCost(task);
       const summaryItem = {
         kind: "pretrip",
         type: "Pre-trip",
@@ -2130,8 +2212,8 @@
     const candidates = [];
 
     for (const task of state.trip.preTripTasks || []) {
-      const cost = Number(task.costTotal);
-      if (!isPreTripComplete(task.status) && task.costTotal !== null && Number.isFinite(cost) && cost > 0) {
+      const cost = preTripEffectiveCost(task);
+      if (!isPreTripComplete(task.status) && cost !== null && Number.isFinite(cost) && cost > 0) {
         candidates.push({
           title: task.title,
           date: task.dueDate || "9999-12-31",
@@ -3074,7 +3156,7 @@
   function updatePreTripPaymentControls() {
     const mode = document.querySelector('input[name="preTripPaymentMode"]:checked')?.value || "none";
     const total = el("preTripCost").value === "" ? null : Number(el("preTripCost").value);
-    const currency = "AUD";
+    const currency = el("preTripCostCurrency").value || "AUD";
 
     el("preTripIndividualPayerWrap").classList.toggle("hidden", mode !== "individual");
     el("preTripSplitPayersWrap").classList.toggle("hidden", mode !== "split");
@@ -3126,9 +3208,17 @@
       task?.costTotal !== null && task?.costTotal !== undefined && Number.isFinite(Number(task.costTotal))
         ? task.costTotal
         : "";
+    const currencies = new Set(["AUD"]);
+    (state.trip.budget?.destinations || []).forEach((d) => currencies.add(d.currency));
+    el("preTripCostCurrency").innerHTML = [...currencies].map((code) => `<option value="${code}">${code}</option>`).join("");
+    el("preTripCostCurrency").value = task?.costCurrency && currencies.has(task.costCurrency) ? task.costCurrency : "AUD";
+    const startingRate = task?.fxRate ?? planningRateFor(el("preTripCostCurrency").value);
+    el("preTripFxRate").value = startingRate ? String(startingRate) : "";
+
     el("preTripNotes").value = task?.notes || "";
     el("preTripTaskError").textContent = "";
     el("deletePreTripTaskBtn").classList.toggle("hidden", !task);
+    updatePreTripFxPreview(false);
     renderPreTripPeopleControls(task);
 
     showModalSafe(el("preTripTaskDialog"));
@@ -3191,6 +3281,90 @@
     } catch (error) {
       el("preTripImportMessage").textContent = `Could not import pre-trip tasks: ${error.message}`;
     }
+  }
+
+
+  function itemFormLocalCost() {
+    const explicit = el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value);
+    if (explicit !== null && Number.isFinite(explicit)) return explicit;
+
+    const adults = Number(state.trip?.travellers?.adults || 0);
+    const children = Number(state.trip?.travellers?.children || 0);
+    const adultCost = el("itemAdultCost").value === "" ? null : Number(el("itemAdultCost").value);
+    const childCost = el("itemChildCost").value === "" ? null : Number(el("itemChildCost").value);
+
+    const hasAdult = adultCost !== null && Number.isFinite(adultCost);
+    const hasChild = childCost !== null && Number.isFinite(childCost);
+    if (!hasAdult && !hasChild) return null;
+
+    return (hasAdult ? adults * adultCost : 0) + (hasChild ? children * childCost : 0);
+  }
+
+  function updateItemFxPreview(resetRate = false) {
+    const currency = el("itemCostCurrency").value || "AUD";
+    const date = el("itemDate").value;
+    const local = itemFormLocalCost();
+
+    el("itemFxRateLabel").textContent = rateLabelFor(currency);
+    el("itemFxRateWrap").classList.toggle("hidden", currency === "AUD");
+
+    if (currency === "AUD") {
+      el("itemFxRate").value = "1";
+    } else if (resetRate || !Number.isFinite(Number(el("itemFxRate").value)) || Number(el("itemFxRate").value) <= 0) {
+      const planned = planningRateFor(currency, date);
+      el("itemFxRate").value = planned ? String(planned) : "";
+    }
+
+    const rate = currency === "AUD" ? 1 : Number(el("itemFxRate").value);
+    const converted = audFromLocalCost(local, currency, date, rate);
+
+    if (local === null || !Number.isFinite(local)) {
+      el("itemAudPreview").textContent = "—";
+      el("itemFxPreviewNote").textContent = "Enter a cost to preview.";
+    } else if (currency !== "AUD" && (!Number.isFinite(rate) || rate <= 0)) {
+      el("itemAudPreview").textContent = "Rate needed";
+      el("itemFxPreviewNote").textContent = `Add a ${currency} planning rate here or in Settings.`;
+    } else {
+      el("itemAudPreview").textContent = aud(converted);
+      el("itemFxPreviewNote").textContent = currency === "AUD"
+        ? "Already in AUD."
+        : `${money(local, currency)} at 1 AUD = ${rate} ${currency}`;
+    }
+
+    updateItemPaymentControls();
+  }
+
+  function updatePreTripFxPreview(resetRate = false) {
+    const currency = el("preTripCostCurrency").value || "AUD";
+    const local = el("preTripCost").value === "" ? null : Number(el("preTripCost").value);
+
+    el("preTripFxRateLabel").textContent = rateLabelFor(currency);
+    el("preTripFxRateWrap").classList.toggle("hidden", currency === "AUD");
+
+    if (currency === "AUD") {
+      el("preTripFxRate").value = "1";
+    } else if (resetRate || !Number.isFinite(Number(el("preTripFxRate").value)) || Number(el("preTripFxRate").value) <= 0) {
+      const planned = planningRateFor(currency);
+      el("preTripFxRate").value = planned ? String(planned) : "";
+    }
+
+    const rate = currency === "AUD" ? 1 : Number(el("preTripFxRate").value);
+    const converted = audFromLocalCost(local, currency, "", rate);
+
+    if (local === null || !Number.isFinite(local)) {
+      el("preTripAudPreview").textContent = "—";
+      el("preTripFxPreviewNote").textContent = "Enter a cost to preview.";
+    } else if (currency !== "AUD" && (!Number.isFinite(rate) || rate <= 0)) {
+      el("preTripAudPreview").textContent = "Rate needed";
+      el("preTripFxPreviewNote").textContent = `Add a ${currency} planning rate here or in Settings.`;
+    } else {
+      el("preTripAudPreview").textContent = aud(converted);
+      el("preTripFxPreviewNote").textContent = currency === "AUD"
+        ? "Already in AUD."
+        : `${money(local, currency)} at 1 AUD = ${rate} ${currency}`;
+    }
+
+    updatePreTripPaymentControls();
   }
 
   function renderItemPeopleControls(item = null) {
@@ -3351,7 +3525,14 @@
     const currencies = new Set(["AUD"]);
     (state.trip.budget?.destinations || []).forEach((d) => currencies.add(d.currency));
     el("itemCostCurrency").innerHTML = [...currencies].map((code) => `<option value="${code}">${code}</option>`).join("");
-    el("itemCostCurrency").value = item?.costCurrency || "AUD";
+
+    const itemDate = el("itemDate").value;
+    const startingCurrency = item?.costCurrency || preferredCurrencyForDate(itemDate) || "AUD";
+    el("itemCostCurrency").value = currencies.has(startingCurrency) ? startingCurrency : "AUD";
+
+    const startingRate = item?.fxRate ?? planningRateFor(el("itemCostCurrency").value, itemDate);
+    el("itemFxRate").value = startingRate ? String(startingRate) : "";
+    updateItemFxPreview(false);
     renderItemPeopleControls(item);
 
     const dialog = el("itineraryItemDialog");
@@ -3926,14 +4107,20 @@
     radio.addEventListener("change", updateItemPaymentControls);
   });
   el("itemIndividualPayer").addEventListener("change", updateItemPaymentControls);
-  el("itemCostTotal").addEventListener("input", updateItemPaymentControls);
-  el("itemCostCurrency").addEventListener("change", updateItemPaymentControls);
+  el("itemCostTotal").addEventListener("input", () => updateItemFxPreview(false));
+  el("itemAdultCost").addEventListener("input", () => updateItemFxPreview(false));
+  el("itemChildCost").addEventListener("input", () => updateItemFxPreview(false));
+  el("itemCostCurrency").addEventListener("change", () => updateItemFxPreview(true));
+  el("itemDate").addEventListener("change", () => updateItemFxPreview(true));
+  el("itemFxRate").addEventListener("input", () => updateItemFxPreview(false));
 
   document.querySelectorAll('input[name="preTripPaymentMode"]').forEach((radio) => {
     radio.addEventListener("change", updatePreTripPaymentControls);
   });
   el("preTripIndividualPayer").addEventListener("change", updatePreTripPaymentControls);
-  el("preTripCost").addEventListener("input", updatePreTripPaymentControls);
+  el("preTripCost").addEventListener("input", () => updatePreTripFxPreview(false));
+  el("preTripCostCurrency").addEventListener("change", () => updatePreTripFxPreview(true));
+  el("preTripFxRate").addEventListener("input", () => updatePreTripFxPreview(false));
 
   el("addPreTripTaskBtn").addEventListener("click", () => openPreTripTaskDialog());
   el("closePreTripDialogBtn").addEventListener("click", () => closeModalSafe(el("preTripTaskDialog")));
@@ -3950,6 +4137,17 @@
 
     const paymentMode = document.querySelector('input[name="preTripPaymentMode"]:checked')?.value || "none";
     const taskCost = el("preTripCost").value === "" ? null : Number(el("preTripCost").value);
+    const costCurrency = el("preTripCostCurrency").value || "AUD";
+    const fxRate = costCurrency === "AUD" ? 1 : Number(el("preTripFxRate").value);
+
+    if (taskCost !== null && Number.isFinite(taskCost) && costCurrency !== "AUD" && (!Number.isFinite(fxRate) || fxRate <= 0)) {
+      el("preTripTaskError").textContent = `Enter a valid ${costCurrency} planning exchange rate.`;
+      return;
+    }
+
+    const capturedAudCost = taskCost === null
+      ? null
+      : audFromLocalCost(taskCost, costCurrency, "", fxRate);
 
     if (taskCost !== null && Number.isFinite(taskCost) && taskCost > 0 && paymentMode === "individual" && !el("preTripIndividualPayer").value) {
       el("preTripTaskError").textContent = "Choose the adult responsible for this cost.";
@@ -3972,7 +4170,10 @@
       category: el("preTripCategory").value,
       status: el("preTripStatus").value,
       costTotal: taskCost,
-      costCurrency: "AUD",
+      costCurrency,
+      costAud: capturedAudCost,
+      fxRate: taskCost === null ? null : fxRate,
+      fxRateCapturedAt: taskCost === null ? "" : new Date().toISOString(),
       paymentMode,
       payerIds: paymentMode === "individual"
         ? (el("preTripIndividualPayer").value ? [el("preTripIndividualPayer").value] : [])
@@ -4037,6 +4238,18 @@
 
     const paymentMode = document.querySelector('input[name="itemPaymentMode"]:checked')?.value || "none";
     const eventCost = el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value);
+    const localEffectiveCost = itemFormLocalCost();
+    const costCurrency = el("itemCostCurrency").value || "AUD";
+    const fxRate = costCurrency === "AUD" ? 1 : Number(el("itemFxRate").value);
+
+    if (localEffectiveCost !== null && Number.isFinite(localEffectiveCost) && costCurrency !== "AUD" && (!Number.isFinite(fxRate) || fxRate <= 0)) {
+      el("itemError").textContent = `Enter a valid ${costCurrency} planning exchange rate.`;
+      return;
+    }
+
+    const capturedAudCost = localEffectiveCost === null
+      ? null
+      : audFromLocalCost(localEffectiveCost, costCurrency, date, fxRate);
 
     if (eventCost !== null && Number.isFinite(eventCost) && eventCost > 0 && paymentMode === "individual" && !el("itemIndividualPayer").value) {
       el("itemError").textContent = "Choose the adult responsible for this cost.";
@@ -4066,7 +4279,10 @@
       costTotal: el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value),
       adultCost: el("itemAdultCost").value === "" ? null : Number(el("itemAdultCost").value),
       childCost: el("itemChildCost").value === "" ? null : Number(el("itemChildCost").value),
-      costCurrency: el("itemCostCurrency").value,
+      costCurrency,
+      costAud: capturedAudCost,
+      fxRate: localEffectiveCost === null ? null : fxRate,
+      fxRateCapturedAt: localEffectiveCost === null ? "" : new Date().toISOString(),
       attendeeIds: [...document.querySelectorAll("[data-item-attendee]:checked")].map((input) => input.value),
       paymentMode,
       payerIds: paymentMode === "individual"

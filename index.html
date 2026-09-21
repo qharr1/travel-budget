@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=18" rel="manifest"/>
+<link href="./manifest.webmanifest?v=19" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=18" rel="stylesheet"/>
+</script><link href="./styles.css?v=19" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -705,7 +705,7 @@
 <div><p class="eyebrow">DESTINATIONS &amp; CURRENCIES</p><h3>Trip periods</h3></div>
 <button class="text-btn" id="addSettingsDestinationBtn" type="button">+ Add</button>
 </div>
-<p class="muted small">Changing a rate only affects new or edited expenses. Existing expenses keep their recorded AUD value.</p>
+<p class="muted small">These are your planning exchange rates. They are used for new expenses and to convert new itinerary / pre-trip costs to AUD. Priced bookings save the rate used at the time.</p>
 <div class="destination-list" id="settingsDestinations"></div>
 </section>
 <p class="error" id="settingsError" role="alert"></p>
@@ -831,7 +831,19 @@
         <select id="itemCostCurrency">
 <option value="AUD">AUD</option>
 </select>
+</label><div class="fx-snapshot-box" id="itemFxSection">
+<div class="two-col">
+<label id="itemFxRateWrap">
+<span id="itemFxRateLabel">Planning rate</span>
+<input id="itemFxRate" inputmode="decimal" min="0.000001" step="0.000001" type="number"/>
 </label>
+<div class="fx-preview-card">
+<span class="fx-preview-label">AUD equivalent</span>
+<strong id="itemAudPreview">—</strong>
+<small id="itemFxPreviewNote">Enter a cost to preview.</small>
+</div>
+</div>
+</div>
 <section class="itinerary-people-section">
 <div class="section-heading compact-heading">
 <div>
@@ -1004,9 +1016,24 @@
 </select>
 </label>
 <label>
-          Cost (AUD) <span class="optional">(optional)</span>
+          Cost <span class="optional">(optional)</span>
 <input id="preTripCost" inputmode="decimal" min="0" step="0.01" type="number"/>
 </label>
+</div><div class="two-col pretrip-fx-row">
+<label>
+    Cost currency
+    <select id="preTripCostCurrency">
+<option value="AUD">AUD</option>
+</select>
+</label>
+<label id="preTripFxRateWrap">
+<span id="preTripFxRateLabel">Planning rate</span>
+<input id="preTripFxRate" inputmode="decimal" min="0.000001" step="0.000001" type="number"/>
+</label>
+</div><div class="fx-preview-card pretrip-fx-preview">
+<span class="fx-preview-label">AUD equivalent</span>
+<strong id="preTripAudPreview">—</strong>
+<small id="preTripFxPreviewNote">Enter a cost to preview.</small>
 </div>
 <section class="itinerary-people-section" id="preTripPaymentSection">
 <div class="section-heading compact-heading">
@@ -1245,6 +1272,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=18"></script>
+<script defer="" src="./app.js?v=19"></script>
 </body>
 </html>
