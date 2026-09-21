@@ -2171,3 +2171,75 @@ html[data-theme="dark"] .responsibility-special-card.unassigned-card {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v16 — definitive iPhone radio-card fix
+   The global input rule is intentionally full-width for form fields, but radio
+   inputs inside payment choice cards must never inherit that sizing. */
+.payment-mode-grid .choice-card {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 12px;
+  row-gap: 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.payment-mode-grid .choice-card > input[type="radio"] {
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  padding: 0 !important;
+  margin: 1px 0 0 0 !important;
+  box-sizing: border-box;
+  align-self: start;
+  accent-color: var(--accent);
+}
+
+.payment-mode-grid .choice-card > span {
+  display: block;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.payment-mode-grid .choice-card > span > strong,
+.payment-mode-grid .choice-card > span > small {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+.payment-mode-grid .choice-card > span > strong {
+  font-size: .84rem;
+  line-height: 1.25;
+}
+
+.payment-mode-grid .choice-card > span > small {
+  margin-top: 3px;
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 520px) {
+  .payment-mode-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .payment-mode-grid .choice-card {
+    grid-template-columns: 24px minmax(0, 1fr);
+    min-height: 62px;
+  }
+}

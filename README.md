@@ -1,57 +1,59 @@
-# Travel Planner v15 — Who Pays What
+# Travel Planner v16 — Definitive iPhone payment-card fix
 
-## Summary > Cost responsibility
+## What was actually wrong
 
-The Summary now has a new visual `Who pays what` section.
+The app has a global form rule:
 
-### Per-adult cards
-Every adult traveller gets a card showing:
-- Still owing
-- Total responsibility
-- Already paid
-- Number of assigned priced items
+`input { width: 100%; min-height: 48px; }`
 
-Individual costs count fully against the selected adult.
-Split costs count only that adult's share.
+That is correct for normal form fields, but it was also applying to the radio
+buttons used by:
 
-### Shared costs
-Shows the full value of every item using `Split cost`.
+- Itinerary > Cost responsibility
+- Pre-trip > Cost responsibility
 
-It also shows:
-- number of split items
-- how much of those shared costs is still unpaid
+The radio input was therefore trying to occupy the full card width and leaving
+only a tiny sliver for the text. This caused the text to wrap vertically down
+the right edge.
 
-### Unassigned costs
-Shows priced itinerary and pre-trip items that do not currently have a valid adult payer assignment.
+## v16 fix
 
-This makes it easy to spot costs that still need to be allocated.
+Payment choice cards now use a fixed two-column layout:
 
-### Paid vs owing
-For itinerary items:
-- Paid / Booked - paid = already paid
-- other statuses = still owing
+- 22px radio control
+- remaining card width for title + description
 
-For pre-trip tasks, the app follows the existing pre-trip completion/paid status logic.
+The radio input explicitly overrides the global input sizing.
 
-## Settings
-Settings > Summary now includes:
-- `Who pays what`
+On iPhone the options now render as normal full-width rows:
 
-It can be shown or hidden just like the other Summary widgets.
+- Not assigned
+  Track the event/task cost only
 
-## Coverage
-The calculation includes:
-- itinerary costs
-- pre-trip costs
-- individual payer assignments
-- split payer assignments
+- Individual
+  One adult pays the full cost
 
-Children never receive financial responsibility.
+- Split cost
+  Choose which adults are sharing it
 
-## Offline
-v15 keeps the existing offline, dark mode, settings and local-data architecture.
+The same fix applies to itinerary items and pre-trip tasks.
+
+## Existing features retained
+
+v16 keeps:
+- traveller attendance
+- individual/split payment responsibility
+- pre-trip cost splitting
+- Who Pays What Summary
+- dark mode
+- Settings
+- offline caching
+- document vault
+- reminders
+- itinerary directions
 
 ## GitHub update files
+
 Replace/upload:
 - index.html
 - styles.css
