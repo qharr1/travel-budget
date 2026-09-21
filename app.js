@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 13;
+  const APP_VERSION = 15;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -65,6 +65,7 @@
         priced: true,
         progress: true,
         breakdown: true,
+        costResponsibility: true,
         outstandingList: true
       }
     };
@@ -120,6 +121,7 @@
       summaryPricedWidget: uiSettings.summaryWidgets.priced,
       summaryProgressWidget: uiSettings.summaryWidgets.progress,
       summaryBreakdownWidget: uiSettings.summaryWidgets.breakdown,
+      summaryCostResponsibilityWidget: uiSettings.summaryWidgets.costResponsibility,
       summaryOutstandingListWidget: uiSettings.summaryWidgets.outstandingList
     };
     Object.entries(map).forEach(([id, visible]) => setHiddenByPreference(id, visible));
@@ -259,6 +261,8 @@
         ? null
         : Number(item.costTotal),
       costCurrency: String(item?.costCurrency || "AUD").toUpperCase(),
+      paymentMode: ["none", "individual", "split"].includes(item?.paymentMode) ? item.paymentMode : "none",
+      payerIds: Array.isArray(item?.payerIds) ? item.payerIds.map(String) : [],
       notes: String(item?.notes || ""),
       createdAt: Number(item?.createdAt || Date.now()),
       updatedAt: Number(item?.updatedAt || Date.now())
@@ -620,6 +624,23 @@
     if (item?.paymentMode === "split" && payers.length >= 2) {
       const share = total / payers.length;
       return `${payers.join(" + ")} • ${money(share, item.costCurrency || "AUD")} each`;
+    }
+
+    return "";
+  }
+
+  function preTripPaymentText(task) {
+    const total = Number(task?.costTotal);
+    if (task?.costTotal === null || !Number.isFinite(total) || total <= 0) return "";
+
+    const payers = travellerNames(task?.payerIds || []);
+    if (task?.paymentMode === "individual" && payers.length === 1) {
+      return `${payers[0]} • ${money(total, task.costCurrency || "AUD")}`;
+    }
+
+    if (task?.paymentMode === "split" && payers.length >= 2) {
+      const share = total / payers.length;
+      return `${payers.join(" + ")} • ${money(share, task.costCurrency || "AUD")} each`;
     }
 
     return "";
@@ -1002,6 +1023,7 @@
             </div>
             <div class="pretrip-card-cost">${escapeHtml(cost)}</div>
           </div>
+          ${preTripPaymentText(task) ? `<div class="item-payment-line pretrip-payment-line"><strong>${task.paymentMode === "split" ? "Split:" : "Responsible:"}</strong> ${escapeHtml(preTripPaymentText(task))}</div>` : ""}
           ${task.notes ? `<p class="pretrip-card-notes">${escapeHtml(task.notes)}</p>` : ""}
           <div class="pretrip-card-actions">
             ${!isPreTripComplete(task.status) ? `<button class="mini-btn complete-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Mark done</button>` : ""}
@@ -1183,6 +1205,117 @@
   }
 
 
+  function renderCostResponsibilitySummary() {
+    if (!state.trip || !el("summaryPayerCards") || !el("summaryResponsibilityTotals")) return;
+
+    const adults = adultTravellers();
+    const totals = new Map(
+      adults.map((person) => [
+        person.id,
+        {
+          person,
+          total: 0,
+          owing: 0,
+          paid: 0,
+          itemCount: 0
+        }
+      ])
+    );
+
+    let sharedTotal = 0;
+    let sharedOwing = 0;
+    let sharedCount = 0;
+
+    let unassignedTotal = 0;
+    let unassignedOwing = 0;
+    let unassignedCount = 0;
+
+    function allocate(cost, paymentMode, payerIds, isPaid) {
+      if (!Number.isFinite(cost) || cost <= 0) return;
+
+      const validPayerIds = [...new Set((payerIds || []).filter((id) => totals.has(id)))];
+
+      if (paymentMode === "individual" && validPayerIds.length === 1) {
+        const row = totals.get(validPayerIds[0]);
+        row.total += cost;
+        row.itemCount += 1;
+        if (isPaid) row.paid += cost;
+        else row.owing += cost;
+        return;
+      }
+
+      if (paymentMode === "split" && validPayerIds.length >= 2) {
+        sharedTotal += cost;
+        sharedCount += 1;
+        if (!isPaid) sharedOwing += cost;
+
+        const share = cost / validPayerIds.length;
+        validPayerIds.forEach((id) => {
+          const row = totals.get(id);
+          row.total += share;
+          row.itemCount += 1;
+          if (isPaid) row.paid += share;
+          else row.owing += share;
+        });
+        return;
+      }
+
+      unassignedTotal += cost;
+      unassignedCount += 1;
+      if (!isPaid) unassignedOwing += cost;
+    }
+
+    for (const item of state.trip.itinerary || []) {
+      const cost = itemEffectiveCost(item);
+      if (cost === null || !Number.isFinite(cost) || cost <= 0) continue;
+      allocate(cost, item.paymentMode || "none", item.payerIds || [], isPaidStatus(item.status));
+    }
+
+    for (const task of state.trip.preTripTasks || []) {
+      const cost = task.costTotal === null || task.costTotal === "" || task.costTotal === undefined
+        ? null
+        : Number(task.costTotal);
+      if (cost === null || !Number.isFinite(cost) || cost <= 0) continue;
+      allocate(cost, task.paymentMode || "none", task.payerIds || [], isPreTripComplete(task.status));
+    }
+
+    el("summaryPayerCards").innerHTML = adults.length
+      ? adults.map((person) => {
+          const row = totals.get(person.id);
+          return `
+            <article class="responsibility-person-card">
+              <div class="responsibility-card-head">
+                <span class="responsibility-avatar" aria-hidden="true">${escapeHtml(person.name.slice(0, 1).toUpperCase())}</span>
+                <div>
+                  <strong>${escapeHtml(person.name)}</strong>
+                  <span>${row.itemCount} assigned item${row.itemCount === 1 ? "" : "s"}</span>
+                </div>
+              </div>
+              <p class="responsibility-label">Still owing</p>
+              <p class="responsibility-value ${row.owing > 0 ? "has-owing" : "all-paid"}">${escapeHtml(aud(row.owing))}</p>
+              <div class="responsibility-foot">
+                <span><strong>${escapeHtml(aud(row.total))}</strong> total responsibility</span>
+                <span><strong>${escapeHtml(aud(row.paid))}</strong> already paid</span>
+              </div>
+            </article>
+          `;
+        }).join("")
+      : `<p class="expense-empty">Add adult travellers in Settings to assign trip costs.</p>`;
+
+    el("summaryResponsibilityTotals").innerHTML = `
+      <article class="responsibility-special-card shared-card">
+        <p class="metric-label">Shared costs</p>
+        <p class="responsibility-special-value">${escapeHtml(aud(sharedTotal))}</p>
+        <p class="metric-note">${sharedCount} split item${sharedCount === 1 ? "" : "s"} • ${escapeHtml(aud(sharedOwing))} still unpaid</p>
+      </article>
+      <article class="responsibility-special-card unassigned-card">
+        <p class="metric-label">Unassigned costs</p>
+        <p class="responsibility-special-value">${escapeHtml(aud(unassignedTotal))}</p>
+        <p class="metric-note">${unassignedCount} item${unassignedCount === 1 ? "" : "s"} • ${escapeHtml(aud(unassignedOwing))} still unpaid</p>
+      </article>
+    `;
+  }
+
   function renderSummary() {
     if (!state.trip) return;
 
@@ -1298,6 +1431,7 @@
         `).join("")
       : `<p class="expense-empty">Nothing priced is currently marked as unpaid.</p>`;
 
+    renderCostResponsibilitySummary();
     applySummaryWidgetVisibility();
   }
 
@@ -2906,6 +3040,78 @@
     showModalSafe(el("reminderDialog"));
   }
 
+  function renderPreTripPeopleControls(task = null) {
+    const adults = adultTravellers();
+    const payerSet = new Set(task?.payerIds || []);
+
+    el("preTripIndividualPayer").innerHTML = adults.length
+      ? `<option value="">Choose adult</option>` + adults.map((person) =>
+          `<option value="${escapeHtml(person.id)}" ${payerSet.has(person.id) ? "selected" : ""}>${escapeHtml(person.name)}</option>`
+        ).join("")
+      : `<option value="">No adults added</option>`;
+
+    el("preTripSplitPayerOptions").innerHTML = adults.length
+      ? adults.map((person) => `
+          <label class="person-check">
+            <input type="checkbox" value="${escapeHtml(person.id)}" data-pretrip-split-payer ${payerSet.has(person.id) ? "checked" : ""}>
+            <span><strong>${escapeHtml(person.name)}</strong><small>Adult</small></span>
+          </label>
+        `).join("")
+      : `<p class="muted small">Add adult travellers in Settings first.</p>`;
+
+    const mode = task?.paymentMode || "none";
+    document.querySelectorAll('input[name="preTripPaymentMode"]').forEach((radio) => {
+      radio.checked = radio.value === mode;
+    });
+
+    document.querySelectorAll("[data-pretrip-split-payer]").forEach((input) => {
+      input.addEventListener("change", updatePreTripPaymentControls);
+    });
+
+    updatePreTripPaymentControls();
+  }
+
+  function updatePreTripPaymentControls() {
+    const mode = document.querySelector('input[name="preTripPaymentMode"]:checked')?.value || "none";
+    const total = el("preTripCost").value === "" ? null : Number(el("preTripCost").value);
+    const currency = "AUD";
+
+    el("preTripIndividualPayerWrap").classList.toggle("hidden", mode !== "individual");
+    el("preTripSplitPayersWrap").classList.toggle("hidden", mode !== "split");
+
+    if (total === null || !Number.isFinite(total) || total <= 0) {
+      el("preTripPaymentHelp").textContent = "Enter a task cost above before assigning who pays.";
+      el("preTripSplitPreview").innerHTML = "";
+      return;
+    }
+
+    if (mode === "none") {
+      el("preTripPaymentHelp").textContent = "The task cost is tracked, but not assigned to a traveller.";
+      el("preTripSplitPreview").innerHTML = "";
+      return;
+    }
+
+    if (mode === "individual") {
+      const payer = travellerById(el("preTripIndividualPayer").value);
+      el("preTripPaymentHelp").textContent = payer
+        ? `${payer.name} is responsible for ${money(total, currency)}.`
+        : "Choose the adult responsible for the full cost.";
+      el("preTripSplitPreview").innerHTML = "";
+      return;
+    }
+
+    const payerIds = [...document.querySelectorAll("[data-pretrip-split-payer]:checked")].map((input) => input.value);
+    if (payerIds.length >= 2) {
+      const share = total / payerIds.length;
+      el("preTripSplitPreview").innerHTML =
+        `<strong>${escapeHtml(money(share, currency))} each</strong><span>${payerIds.length} adults splitting ${escapeHtml(money(total, currency))}</span>`;
+      el("preTripPaymentHelp").textContent = "";
+    } else {
+      el("preTripSplitPreview").innerHTML = "";
+      el("preTripPaymentHelp").textContent = "Choose at least two adults to split this cost.";
+    }
+  }
+
   function openPreTripTaskDialog(id = "") {
     if (!state.trip) return;
     const task = id ? state.trip.preTripTasks.find((x) => x.id === id) : null;
@@ -2923,6 +3129,7 @@
     el("preTripNotes").value = task?.notes || "";
     el("preTripTaskError").textContent = "";
     el("deletePreTripTaskBtn").classList.toggle("hidden", !task);
+    renderPreTripPeopleControls(task);
 
     showModalSafe(el("preTripTaskDialog"));
   }
@@ -3472,6 +3679,14 @@
           if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
           return { ...item, payerIds, paymentMode };
         });
+
+        state.trip.preTripTasks = state.trip.preTripTasks.map((task) => {
+          const payerIds = (task.payerIds || []).filter((payerId) => payerId !== id);
+          let paymentMode = task.paymentMode || "none";
+          if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
+          if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
+          return { ...task, payerIds, paymentMode };
+        });
       }
     } else {
       state.trip.travellerProfiles.push(person);
@@ -3498,6 +3713,14 @@
       if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
       if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
       return { ...item, attendeeIds, payerIds, paymentMode };
+    });
+
+    state.trip.preTripTasks = state.trip.preTripTasks.map((task) => {
+      const payerIds = (task.payerIds || []).filter((personId) => personId !== id);
+      let paymentMode = task.paymentMode || "none";
+      if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
+      if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
+      return { ...task, payerIds, paymentMode };
     });
 
     syncTravellerCounts();
@@ -3706,6 +3929,12 @@
   el("itemCostTotal").addEventListener("input", updateItemPaymentControls);
   el("itemCostCurrency").addEventListener("change", updateItemPaymentControls);
 
+  document.querySelectorAll('input[name="preTripPaymentMode"]').forEach((radio) => {
+    radio.addEventListener("change", updatePreTripPaymentControls);
+  });
+  el("preTripIndividualPayer").addEventListener("change", updatePreTripPaymentControls);
+  el("preTripCost").addEventListener("input", updatePreTripPaymentControls);
+
   el("addPreTripTaskBtn").addEventListener("click", () => openPreTripTaskDialog());
   el("closePreTripDialogBtn").addEventListener("click", () => closeModalSafe(el("preTripTaskDialog")));
 
@@ -3719,6 +3948,22 @@
       return;
     }
 
+    const paymentMode = document.querySelector('input[name="preTripPaymentMode"]:checked')?.value || "none";
+    const taskCost = el("preTripCost").value === "" ? null : Number(el("preTripCost").value);
+
+    if (taskCost !== null && Number.isFinite(taskCost) && taskCost > 0 && paymentMode === "individual" && !el("preTripIndividualPayer").value) {
+      el("preTripTaskError").textContent = "Choose the adult responsible for this cost.";
+      return;
+    }
+
+    if (taskCost !== null && Number.isFinite(taskCost) && taskCost > 0 && paymentMode === "split") {
+      const selectedSplitPayers = document.querySelectorAll("[data-pretrip-split-payer]:checked").length;
+      if (selectedSplitPayers < 2) {
+        el("preTripTaskError").textContent = "Choose at least two adults to split this cost.";
+        return;
+      }
+    }
+
     const existing = id ? state.trip.preTripTasks.find((x) => x.id === id) : null;
     const task = normalizePreTripTask({
       id: existing?.id || uid("pre"),
@@ -3726,8 +3971,14 @@
       dueDate: el("preTripDueDate").value,
       category: el("preTripCategory").value,
       status: el("preTripStatus").value,
-      costTotal: el("preTripCost").value === "" ? null : Number(el("preTripCost").value),
+      costTotal: taskCost,
       costCurrency: "AUD",
+      paymentMode,
+      payerIds: paymentMode === "individual"
+        ? (el("preTripIndividualPayer").value ? [el("preTripIndividualPayer").value] : [])
+        : paymentMode === "split"
+          ? [...document.querySelectorAll("[data-pretrip-split-payer]:checked")].map((input) => input.value)
+          : [],
       notes: el("preTripNotes").value.trim(),
       createdAt: existing?.createdAt || Date.now(),
       updatedAt: Date.now()

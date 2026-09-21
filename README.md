@@ -1,71 +1,57 @@
-# Travel Planner v13 — Travellers, Attendance & Event Cost Splitting
+# Travel Planner v15 — Who Pays What
 
-## Travellers
+## Summary > Cost responsibility
 
-Settings now has a dedicated Travellers section.
+The Summary now has a new visual `Who pays what` section.
 
-Each traveller has:
-- Name
-- Adult or Child
+### Per-adult cards
+Every adult traveller gets a card showing:
+- Still owing
+- Total responsibility
+- Already paid
+- Number of assigned priced items
 
-Adults can attend events and can be assigned event costs.
-Children can attend events but are never shown as payers.
+Individual costs count fully against the selected adult.
+Split costs count only that adult's share.
 
-For existing trips that only have traveller counts, v13 creates editable placeholders:
-- Adult 1, Adult 2, etc.
-- Child 1, Child 2, etc.
+### Shared costs
+Shows the full value of every item using `Split cost`.
 
-Rename them in Settings.
+It also shows:
+- number of split items
+- how much of those shared costs is still unpaid
 
-## Itinerary attendance
+### Unassigned costs
+Shows priced itinerary and pre-trip items that do not currently have a valid adult payer assignment.
 
-Every itinerary item now has `Who's going?`
+This makes it easy to spot costs that still need to be allocated.
 
-New itinerary items default to all named travellers attending.
-Existing legacy items that were marked as `All travellers` also preselect everyone.
+### Paid vs owing
+For itinerary items:
+- Paid / Booked - paid = already paid
+- other statuses = still owing
 
-The itinerary card shows the attendee names.
+For pre-trip tasks, the app follows the existing pre-trip completion/paid status logic.
 
-## Event cost responsibility
+## Settings
+Settings > Summary now includes:
+- `Who pays what`
 
-An itinerary item with a total cost can use:
+It can be shown or hidden just like the other Summary widgets.
 
-### Not assigned
-Track the event cost, but don't assign payment responsibility.
+## Coverage
+The calculation includes:
+- itinerary costs
+- pre-trip costs
+- individual payer assignments
+- split payer assignments
 
-### Individual
-Choose one adult responsible for the full event cost.
-
-### Split cost
-Choose at least two adults who are splitting the event.
-Travel Planner calculates the equal per-adult share automatically.
-
-Children are intentionally excluded from payment responsibility.
-
-A child can still have a child ticket price. `Kids don't pay` here means the child is never financially responsible for settling the event cost.
-
-## Traveller changes
-
-If an adult is changed to Child, or a traveller is deleted:
-- attendance links are cleaned up
-- payer links are cleaned up
-- invalid Individual/Split assignments are reset
-
-## Data fields added
-
-- `trip.travellerProfiles[]`
-- `itinerary[].attendeeIds[]`
-- `itinerary[].paymentMode`
-- `itinerary[].payerIds[]`
-
-Existing v12 data migrates automatically.
+Children never receive financial responsibility.
 
 ## Offline
-
-v13 retains the corrected offline service-worker architecture from v10+ and the v12 appearance settings.
+v15 keeps the existing offline, dark mode, settings and local-data architecture.
 
 ## GitHub update files
-
 Replace/upload:
 - index.html
 - styles.css

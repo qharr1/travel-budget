@@ -1999,3 +1999,175 @@ html[data-theme="dark"] .split-preview {
 html[data-theme="dark"] .split-preview span {
   color: #6ee7b7;
 }
+
+
+/* v14 — iPhone payment card wrapping + pre-trip split-cost support */
+.choice-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.choice-card span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.choice-card strong,
+.choice-card small {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.pretrip-payment-line {
+  margin-top: 8px;
+}
+@media (max-width: 520px) {
+  .choice-card {
+    align-items: flex-start;
+  }
+  .choice-card strong {
+    font-size: .82rem;
+    line-height: 1.25;
+  }
+  .choice-card small {
+    font-size: .72rem;
+    line-height: 1.35;
+  }
+}
+
+
+/* v15 — visual cost responsibility summary */
+.responsibility-payer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.responsibility-person-card,
+.responsibility-special-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.responsibility-person-card {
+  padding: 14px;
+}
+.responsibility-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 14px;
+}
+.responsibility-card-head > div {
+  min-width: 0;
+}
+.responsibility-card-head strong,
+.responsibility-card-head span {
+  display: block;
+}
+.responsibility-card-head strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .9rem;
+}
+.responsibility-card-head span:not(.responsibility-avatar) {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .68rem;
+}
+.responsibility-avatar {
+  display: grid !important;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: .9rem;
+  font-weight: 850;
+}
+.responsibility-label {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: .7rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.responsibility-value {
+  margin: 0;
+  font-size: clamp(1.45rem, 7vw, 2rem);
+  font-weight: 850;
+  letter-spacing: -.04em;
+  overflow-wrap: anywhere;
+}
+.responsibility-value.has-owing {
+  color: var(--warn);
+}
+.responsibility-value.all-paid {
+  color: var(--good);
+}
+.responsibility-foot {
+  display: grid;
+  gap: 5px;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+.responsibility-foot span {
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.35;
+}
+.responsibility-foot strong {
+  color: var(--text);
+}
+.responsibility-special-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.responsibility-special-card {
+  padding: 14px;
+}
+.responsibility-special-value {
+  margin: 3px 0 4px;
+  font-size: 1.35rem;
+  font-weight: 850;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+.responsibility-special-card.shared-card {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.responsibility-special-card.unassigned-card {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.responsibility-note {
+  margin: 12px 2px 0;
+  line-height: 1.45;
+}
+
+html[data-theme="dark"] .responsibility-person-card {
+  background: var(--surface);
+  border-color: var(--line);
+}
+html[data-theme="dark"] .responsibility-special-card.shared-card {
+  background: #102847;
+  border-color: #1d4f7a;
+}
+html[data-theme="dark"] .responsibility-special-card.unassigned-card {
+  background: #3a2514;
+  border-color: #70441e;
+}
+
+@media (max-width: 430px) {
+  .responsibility-payer-grid,
+  .responsibility-special-grid {
+    grid-template-columns: 1fr;
+  }
+}

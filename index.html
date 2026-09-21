@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=13" rel="manifest"/>
+<link href="./manifest.webmanifest?v=15" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=13" rel="stylesheet"/>
+</script><link href="./styles.css?v=15" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -342,7 +342,20 @@
 </div>
 <div class="summary-breakdown" id="summaryBreakdown"></div>
 </section>
-<section class="panel" id="summaryOutstandingListWidget">
+<section class="panel" id="summaryCostResponsibilityWidget">
+<div class="section-heading">
+<div>
+<p class="eyebrow">WHO PAYS WHAT</p>
+<h2>Cost responsibility</h2>
+</div>
+</div>
+<div class="responsibility-payer-grid" id="summaryPayerCards"></div>
+<div class="responsibility-special-grid" id="summaryResponsibilityTotals"></div>
+<p class="muted small responsibility-note">
+    Shared costs show the full value of split items. Each adult's card includes only that person's share.
+    Unassigned costs have a price but no adult responsible yet.
+  </p>
+</section><section class="panel" id="summaryOutstandingListWidget">
 <div class="section-heading">
 <div>
 <p class="eyebrow">OUTSTANDING</p>
@@ -626,7 +639,13 @@
 <label class="settings-toggle"><span><strong>Priced items</strong><small>Number included in totals</small></span><input data-summary-widget="priced" id="setSummaryPriced" type="checkbox"/></label>
 <label class="settings-toggle"><span><strong>Payment progress</strong><small>Paid percentage bar</small></span><input data-summary-widget="progress" id="setSummaryProgress" type="checkbox"/></label>
 <label class="settings-toggle"><span><strong>Cost by type</strong><small>Flights, hotels, activities and pre-trip</small></span><input data-summary-widget="breakdown" id="setSummaryBreakdown" type="checkbox"/></label>
-<label class="settings-toggle"><span><strong>Outstanding list</strong><small>Priced items still to pay</small></span><input data-summary-widget="outstandingList" id="setSummaryOutstandingList" type="checkbox"/></label></div></div></details>
+<label class="settings-toggle">
+<span>
+<strong>Who pays what</strong>
+<small>Adult responsibility, shared costs and unassigned costs</small>
+</span>
+<input data-summary-widget="costResponsibility" id="setSummaryCostResponsibility" type="checkbox"/>
+</label><label class="settings-toggle"><span><strong>Outstanding list</strong><small>Priced items still to pay</small></span><input data-summary-widget="outstandingList" id="setSummaryOutstandingList" type="checkbox"/></label></div></div></details>
 <details class="settings-group" id="settingsTravellersGroup">
 <summary>
 <div>
@@ -989,7 +1008,40 @@
 <input id="preTripCost" inputmode="decimal" min="0" step="0.01" type="number"/>
 </label>
 </div>
+<section class="itinerary-people-section" id="preTripPaymentSection">
+<div class="section-heading compact-heading">
+<div>
+<p class="eyebrow">COST RESPONSIBILITY</p>
+<h3>Who is paying?</h3>
+</div>
+</div>
+<div class="payment-mode-grid">
+<label class="choice-card">
+<input checked="" name="preTripPaymentMode" type="radio" value="none"/>
+<span><strong>Not assigned</strong><small>Track the task cost only</small></span>
+</label>
+<label class="choice-card">
+<input name="preTripPaymentMode" type="radio" value="individual"/>
+<span><strong>Individual</strong><small>One adult pays the full cost</small></span>
+</label>
+<label class="choice-card">
+<input name="preTripPaymentMode" type="radio" value="split"/>
+<span><strong>Split cost</strong><small>Choose which adults are sharing it</small></span>
+</label>
+</div>
+<div class="hidden" id="preTripIndividualPayerWrap">
 <label>
+      Adult responsible
+      <select id="preTripIndividualPayer"></select>
+</label>
+</div>
+<div class="hidden" id="preTripSplitPayersWrap">
+<p class="muted small">Select at least two adults. Children are never assigned payment responsibility.</p>
+<div class="person-check-grid" id="preTripSplitPayerOptions"></div>
+<div class="split-preview" id="preTripSplitPreview"></div>
+</div>
+<p class="muted small" id="preTripPaymentHelp"></p>
+</section><label>
         Notes
         <textarea id="preTripNotes" maxlength="2000" placeholder="Booking link, phone number, reminder, instructions…" rows="5"></textarea>
 </label>
@@ -1193,6 +1245,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=13"></script>
+<script defer="" src="./app.js?v=15"></script>
 </body>
 </html>
