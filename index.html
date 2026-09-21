@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=21" rel="manifest"/>
+<link href="./manifest.webmanifest?v=23" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=21" rel="stylesheet"/>
+</script><link href="./styles.css?v=23" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -719,7 +719,72 @@
 </div>
 <button class="secondary-btn" id="enableNotificationsBtn" type="button">Enable notifications</button>
 </section><p class="muted small">Local-only limitation: without a push server, reminders are checked when the app is open or returns to the foreground. The app cannot reliably wake itself from a fully closed/suspended state at a scheduled time.</p><div class="settings-inline-action"><p class="muted small">Create and edit individual reminders under More → Reminders. This section controls the iPhone notification permission.</p><button class="secondary-btn" id="settingsOpenRemindersBtn" type="button">Open reminders</button></div></div></details>
-<details class="settings-group"><summary><div><span class="settings-group-title">Backup, data &amp; privacy</span><span class="settings-group-sub">Export, import, local storage and reset</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsDataBody"><section class="settings-embedded-section">
+<details class="settings-group" id="familySyncSettingsGroup">
+<summary>
+<div>
+<span class="settings-group-title">Family Sync</span>
+<span class="settings-group-sub" id="familySyncSummary">Keep the itinerary updated across family devices</span>
+</div>
+<span class="pretrip-chevron">⌄</span>
+</summary>
+<div class="settings-group-body">
+<section class="family-sync-status-card">
+<div>
+<p class="eyebrow">LIVE SYNC</p>
+<h2 id="familySyncStatusTitle">Not connected</h2>
+<p class="muted small" id="familySyncStatusText">Create a private family sync or join one using an invite link.</p>
+</div>
+<span aria-hidden="true" class="family-sync-dot offline" id="familySyncDot"></span>
+</section>
+<div id="familySyncDisconnected">
+<p class="muted small">
+        Family Sync automatically shares itinerary changes between your PC and family iPhones.
+        Your spending budget and expense history stay local to each device.
+      </p>
+<div class="stack-actions">
+<button class="primary-btn" id="familySyncCreateBtn" type="button">Create family sync</button>
+</div>
+<div class="link-import-box family-sync-join-box">
+<div class="link-import-heading">
+<strong>Join an existing family sync</strong>
+<span>Paste the private Family Sync invitation link from another device.</span>
+</div>
+<textarea id="familySyncJoinInput" placeholder="Paste Family Sync invite link…" rows="3"></textarea>
+<button class="secondary-btn" id="familySyncJoinBtn" type="button">Join family sync</button>
+</div>
+</div>
+<div class="hidden" id="familySyncConnected">
+<div class="family-sync-device-grid">
+<div class="family-sync-kpi">
+<span>Status</span>
+<strong id="familySyncConnectionLabel">Connecting…</strong>
+</div>
+<div class="family-sync-kpi">
+<span>Last sync</span>
+<strong id="familySyncLastSync">Not yet</strong>
+</div>
+</div>
+<label>
+        Private family invitation link
+        <textarea id="familySyncInviteLink" readonly="" rows="4"></textarea>
+</label>
+<p class="field-help">
+        Anyone with the complete invitation link can join this shared trip. Keep it within your family.
+      </p>
+<div class="family-sync-actions">
+<button class="secondary-btn" id="familySyncShareBtn" type="button">Share invite</button>
+<button class="secondary-btn" id="familySyncCopyBtn" type="button">Copy invite</button>
+<button class="secondary-btn" id="familySyncNowBtn" type="button">Sync now</button>
+</div>
+<button class="text-btn family-sync-disconnect" id="familySyncDisconnectBtn" type="button">Disconnect this device</button>
+</div>
+<p class="status-message" id="familySyncMessage" role="status"></p>
+<p class="muted small family-sync-note">
+      Synced: itinerary, travellers, pre-trip tasks, day details, places, reminders, travel info and document metadata.
+      Not synced: spending budget, expenses, UI preferences or attached PDF/image files.
+    </p>
+</div>
+</details><details class="settings-group"><summary><div><span class="settings-group-title">Backup, data &amp; privacy</span><span class="settings-group-sub">Export, import, local storage and reset</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsDataBody"><section class="settings-embedded-section">
 <div class="section-heading">
 <div><p class="eyebrow">YOUR DATA</p><h2>Export / import</h2></div>
 </div>
@@ -765,7 +830,7 @@
 <input id="itineraryItemId" type="hidden"/>
 <div class="two-col">
 <label>
-          Date
+          Start date
           <input id="itemDate" required="" type="date"/>
 </label>
 <label>
@@ -795,6 +860,57 @@
           End time
           <input id="itemEndTime" type="time"/>
 </label>
+</div><div class="timezone-editor">
+<div class="two-col">
+<label>
+      Arrival / end date <span class="optional">(if different)</span>
+<input id="itemEndDate" type="date"/>
+</label>
+<div class="timezone-help-card">
+<strong>Crossing time zones?</strong>
+<span>Add the departure and arrival zones below so duration is calculated from the real elapsed time.</span>
+</div>
+</div>
+<div class="two-col timezone-zone-row">
+<label>
+      Start time zone <span class="optional">(optional)</span>
+<input autocomplete="off" id="itemStartTimeZone" list="timeZoneSuggestions" placeholder="Australia/Brisbane" type="text"/>
+</label>
+<label>
+      End time zone <span class="optional">(optional)</span>
+<input autocomplete="off" id="itemEndTimeZone" list="timeZoneSuggestions" placeholder="Asia/Tokyo" type="text"/>
+</label>
+</div>
+<datalist id="timeZoneSuggestions">
+<option value="Australia/Brisbane"></option>
+<option value="Australia/Sydney"></option>
+<option value="Australia/Melbourne"></option>
+<option value="Australia/Adelaide"></option>
+<option value="Australia/Perth"></option>
+<option value="Asia/Shanghai"></option>
+<option value="Asia/Tokyo"></option>
+<option value="Asia/Seoul"></option>
+<option value="Asia/Hong_Kong"></option>
+<option value="Asia/Singapore"></option>
+<option value="Asia/Bangkok"></option>
+<option value="Asia/Kuala_Lumpur"></option>
+<option value="Asia/Jakarta"></option>
+<option value="Pacific/Auckland"></option>
+<option value="Pacific/Honolulu"></option>
+<option value="America/Los_Angeles"></option>
+<option value="America/New_York"></option>
+<option value="America/Chicago"></option>
+<option value="America/Denver"></option>
+<option value="Europe/London"></option>
+<option value="Europe/Paris"></option>
+<option value="Europe/Rome"></option>
+<option value="Europe/Berlin"></option>
+<option value="Asia/Dubai"></option>
+<option value="Asia/Kolkata"></option>
+</datalist>
+<p class="muted small timezone-editor-note" id="itemTimeZoneHelp">
+    For normal same-city activities you can leave these blank. For flights and long-distance travel, use IANA zones such as Australia/Brisbane, Asia/Shanghai or Asia/Tokyo.
+  </p>
 </div>
 <label>
         Duration <span class="optional">(optional override)</span>
@@ -1280,6 +1396,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=21"></script>
+<script defer="" src="./app.js?v=23"></script><script src="./family-sync.js?v=23" type="module"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 21;
+  const APP_VERSION = 23;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -185,6 +185,7 @@
   function emptyTrip() {
     return {
       id: uid("trip"),
+      updatedAt: Date.now(),
       name: "",
       startDate: "",
       endDate: "",
@@ -232,6 +233,9 @@
       title: String(item?.title || "Itinerary item"),
       startTime: String(item?.startTime || ""),
       endTime: String(item?.endTime || ""),
+      endDate: String(item?.endDate || ""),
+      startTimeZone: String(item?.startTimeZone || ""),
+      endTimeZone: String(item?.endTimeZone || ""),
       durationText: String(item?.durationText || ""),
       location: String(item?.location || ""),
       status: String(item?.status || "Planned"),
@@ -371,6 +375,7 @@
   function normalizeTrip(raw) {
     const trip = emptyTrip();
     trip.id = String(raw?.id || uid("trip"));
+    trip.updatedAt = Number(raw?.updatedAt || Date.now());
     trip.name = String(raw?.name || "Trip");
     trip.startDate = String(raw?.startDate || "");
     trip.endDate = String(raw?.endDate || "");
@@ -512,9 +517,12 @@
     }
   }
 
-  function saveState() {
+  function saveState(options = {}) {
     state.version = APP_VERSION;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (!options.skipFamilySync && state.trip) {
+      window.FamilySync?.localChanged?.();
+    }
   }
 
   function escapeHtml(value) {
@@ -967,13 +975,74 @@
     });
   }
 
-  function durationFromTimes(start, end) {
-    if (!start || !end) return "";
-    const [sh, sm] = start.split(":").map(Number);
-    const [eh, em] = end.split(":").map(Number);
-    if (![sh, sm, eh, em].every(Number.isFinite)) return "";
-    let mins = (eh * 60 + em) - (sh * 60 + sm);
-    if (mins < 0) mins += 24 * 60;
+  function validTimeZone(value) {
+    const zone = String(value || "").trim();
+    if (!zone) return false;
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: zone }).format(new Date());
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function timeZoneCityLabel(value) {
+    const zone = String(value || "").trim();
+    if (!zone) return "";
+    const part = zone.split("/").pop() || zone;
+    return part.replace(/_/g, " ");
+  }
+
+  function timeZoneOffsetAt(timeZone, epochMs) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23"
+    }).formatToParts(new Date(epochMs));
+
+    const values = {};
+    parts.forEach((part) => {
+      if (part.type !== "literal") values[part.type] = Number(part.value);
+    });
+
+    const asUtc = Date.UTC(
+      values.year,
+      values.month - 1,
+      values.day,
+      values.hour,
+      values.minute,
+      values.second
+    );
+
+    return asUtc - epochMs;
+  }
+
+  function zonedLocalToEpoch(dateStr, timeStr, timeZone) {
+    if (!dateStr || !timeStr || !validTimeZone(timeZone)) return NaN;
+
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const [hour, minute] = timeStr.split(":").map(Number);
+    if (![year, month, day, hour, minute].every(Number.isFinite)) return NaN;
+
+    const utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0);
+    let offset = timeZoneOffsetAt(timeZone, utcGuess);
+    let result = utcGuess - offset;
+
+    // Re-check at the resulting instant to handle DST offset changes.
+    const correctedOffset = timeZoneOffsetAt(timeZone, result);
+    if (correctedOffset !== offset) result = utcGuess - correctedOffset;
+
+    return result;
+  }
+
+  function durationLabelFromMinutes(totalMinutes) {
+    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return "";
+    const mins = Math.round(totalMinutes);
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     if (h && m) return `${h} h ${m} min`;
@@ -981,10 +1050,46 @@
     return `${m} min`;
   }
 
+  function itemCalculatedDuration(item) {
+    if (!item?.startTime || !item?.endTime) return "";
+
+    const startDate = item.date;
+    let endDate = item.endDate || item.date;
+
+    if (validTimeZone(item.startTimeZone) && validTimeZone(item.endTimeZone)) {
+      const startMs = zonedLocalToEpoch(startDate, item.startTime, item.startTimeZone);
+      const endMs = zonedLocalToEpoch(endDate, item.endTime, item.endTimeZone);
+      const diff = endMs - startMs;
+      if (Number.isFinite(diff) && diff >= 0) return durationLabelFromMinutes(diff / 60000);
+    }
+
+    const [sh, sm] = item.startTime.split(":").map(Number);
+    const [eh, em] = item.endTime.split(":").map(Number);
+    if (![sh, sm, eh, em].every(Number.isFinite)) return "";
+
+    let dayDiff = 0;
+    if (startDate && endDate) dayDiff = dayNumber(endDate) - dayNumber(startDate);
+
+    let mins = dayDiff * 24 * 60 + (eh * 60 + em) - (sh * 60 + sm);
+    if (!item.endDate && mins < 0) mins += 24 * 60;
+    return durationLabelFromMinutes(mins);
+  }
+
   function itemTimeLabel(item) {
-    if (item.startTime && item.endTime) return `${item.startTime} – ${item.endTime}`;
-    if (item.startTime) return item.startTime;
-    return "All day";
+    if (!item.startTime) return "All day";
+
+    const startZone = timeZoneCityLabel(item.startTimeZone);
+    const endZone = timeZoneCityLabel(item.endTimeZone);
+    const startLabel = `${item.startTime}${startZone ? ` ${startZone}` : ""}`;
+
+    if (!item.endTime) return startLabel;
+
+    let endLabel = `${item.endTime}${endZone ? ` ${endZone}` : ""}`;
+    if (item.endDate && item.endDate !== item.date) {
+      endLabel += ` ${formatDate(item.endDate, { year: false })}`;
+    }
+
+    return `${startLabel} → ${endLabel}`;
   }
 
   function directionsDestination(item) {
@@ -1032,9 +1137,14 @@
   }
 
   function itineraryItemMarkup(item) {
-    const duration = item.durationText || durationFromTimes(item.startTime, item.endTime);
+    const duration = item.durationText || itemCalculatedDuration(item);
     const chips = [];
     if (duration) chips.push(duration);
+    if (item.startTimeZone && item.endTimeZone && item.startTimeZone !== item.endTimeZone) {
+      chips.push(`${timeZoneCityLabel(item.startTimeZone)} time → ${timeZoneCityLabel(item.endTimeZone)} time`);
+    } else if (item.startTimeZone) {
+      chips.push(`${timeZoneCityLabel(item.startTimeZone)} time`);
+    }
     if (item.status) chips.push(item.status);
     if (itemAttendeeText(item)) chips.push(`Attending: ${itemAttendeeText(item)}`);
     if (item.bookingRef) chips.push(`Ref: ${item.bookingRef}`);
@@ -2777,6 +2887,7 @@
       };
     }
 
+    window.FamilySync?.disconnect?.({ forget: true, silent: true });
     state = imported;
     return {
       sameTrip: false,
@@ -3630,6 +3741,9 @@
     el("itemTitle").value = item?.title || prefill?.title || "";
     el("itemStartTime").value = item?.startTime || "";
     el("itemEndTime").value = item?.endTime || "";
+    el("itemEndDate").value = item?.endDate || "";
+    el("itemStartTimeZone").value = item?.startTimeZone || "";
+    el("itemEndTimeZone").value = item?.endTimeZone || "";
     el("itemDurationText").value = item?.durationText || "";
     el("itemLocation").value = item?.location || prefill?.location || "";
     el("itemStatus").value = item?.status || "Planned";
@@ -4232,6 +4346,16 @@
   el("itemCostCurrency").addEventListener("change", () => updateItemFxPreview(true));
   el("itemDate").addEventListener("change", () => updateItemFxPreview(true));
   el("itemFxRate").addEventListener("input", () => updateItemFxPreview(false));
+  el("itemStartTimeZone").addEventListener("change", () => {
+    if (!el("itemEndTimeZone").value.trim()) {
+      el("itemEndTimeZone").value = el("itemStartTimeZone").value.trim();
+    }
+  });
+  el("itemDate").addEventListener("change", () => {
+    if (el("itemEndDate").value && dayNumber(el("itemEndDate").value) < dayNumber(el("itemDate").value)) {
+      el("itemEndDate").value = "";
+    }
+  });
 
   document.querySelectorAll('input[name="preTripPaymentMode"]').forEach((radio) => {
     radio.addEventListener("change", updatePreTripPaymentControls);
@@ -4355,6 +4479,30 @@
       return;
     }
 
+    const endDate = el("itemEndDate").value;
+    const startTimeZone = el("itemStartTimeZone").value.trim();
+    const endTimeZone = el("itemEndTimeZone").value.trim();
+
+    if (endDate && dayNumber(endDate) < dayNumber(date)) {
+      el("itemError").textContent = "Arrival / end date cannot be before the start date.";
+      return;
+    }
+
+    if (startTimeZone && !validTimeZone(startTimeZone)) {
+      el("itemError").textContent = "Start time zone is not valid. Use a zone such as Australia/Brisbane or Asia/Tokyo.";
+      return;
+    }
+
+    if (endTimeZone && !validTimeZone(endTimeZone)) {
+      el("itemError").textContent = "End time zone is not valid. Use a zone such as Asia/Shanghai or Asia/Tokyo.";
+      return;
+    }
+
+    if ((startTimeZone && !endTimeZone) || (!startTimeZone && endTimeZone)) {
+      el("itemError").textContent = "For timezone-aware timing, enter both the start and end time zones.";
+      return;
+    }
+
     const paymentMode = document.querySelector('input[name="itemPaymentMode"]:checked')?.value || "none";
     const eventCost = el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value);
     const localEffectiveCost = itemFormLocalCost();
@@ -4391,6 +4539,9 @@
       title,
       startTime: el("itemStartTime").value,
       endTime: el("itemEndTime").value,
+      endDate,
+      startTimeZone,
+      endTimeZone,
       durationText: el("itemDurationText").value.trim(),
       location: el("itemLocation").value.trim(),
       status: el("itemStatus").value,
@@ -4452,7 +4603,8 @@
       headline: el("dayHeadline").value.trim(),
       location: el("dayLocation").value.trim(),
       overnight: el("dayOvernight").value.trim(),
-      notes: el("dayNotes").value.trim()
+      notes: el("dayNotes").value.trim(),
+      updatedAt: Date.now()
     };
     saveState();
     closeModalSafe(el("dayDialog"));
@@ -4653,6 +4805,7 @@
     state.trip.name = nextName;
     state.trip.startDate = nextStart;
     state.trip.endDate = nextEnd;
+    state.trip.updatedAt = Date.now();
     state.trip.budget.totalBudget = nextBudget;
     state.trip.budget.day1HardLimit = nextDay1HardLimit;
     state.trip.budget.destinations = destinations;
@@ -4679,6 +4832,7 @@
   });
 
   function resetAll() {
+    window.FamilySync?.disconnect?.({ forget: true, silent: true });
     clearVaultAttachments();
     state = blankState();
     localStorage.removeItem(STORAGE_KEY);
@@ -4715,6 +4869,139 @@
       renderItinerary();
     }
   }
+
+
+  function familySharedState() {
+    if (!state.trip) return null;
+
+    const documents = (state.trip.documents || []).map((doc) => ({
+      ...doc,
+      attachmentId: ""
+    }));
+
+    return {
+      schema: 1,
+      core: {
+        id: state.trip.id,
+        name: state.trip.name,
+        startDate: state.trip.startDate,
+        endDate: state.trip.endDate,
+        updatedAt: Number(state.trip.updatedAt || Date.now())
+      },
+      bootstrapDestinations: JSON.parse(JSON.stringify(state.trip.budget?.destinations || [])),
+      travellerProfiles: JSON.parse(JSON.stringify(state.trip.travellerProfiles || [])),
+      itinerary: JSON.parse(JSON.stringify(state.trip.itinerary || [])),
+      preTripTasks: JSON.parse(JSON.stringify(state.trip.preTripTasks || [])),
+      documents: JSON.parse(JSON.stringify(documents)),
+      travelInfo: JSON.parse(JSON.stringify(state.trip.travelInfo || [])),
+      places: JSON.parse(JSON.stringify(state.trip.places || [])),
+      reminders: JSON.parse(JSON.stringify(state.trip.reminders || [])),
+      dayMeta: JSON.parse(JSON.stringify(state.trip.dayMeta || {}))
+    };
+  }
+
+  function familyApplySharedState(shared) {
+    if (!shared?.core?.id) return false;
+
+    const currentTrip = state.trip;
+    const sameTrip = Boolean(currentTrip?.id && currentTrip.id === shared.core.id);
+    const preservedBudget = sameTrip && currentTrip?.budget
+      ? JSON.parse(JSON.stringify(currentTrip.budget))
+      : null;
+    const preservedExpenses = sameTrip
+      ? JSON.parse(JSON.stringify(state.expenses || []))
+      : [];
+    const existingDocuments = new Map(
+      (sameTrip ? currentTrip.documents || [] : []).map((doc) => [doc.id, doc])
+    );
+    const preservedDayNotes = sameTrip
+      ? JSON.parse(JSON.stringify(currentTrip.dayNotes || {}))
+      : {};
+
+    if (!sameTrip) {
+      state = blankState();
+      state.trip = emptyTrip();
+      state.expenses = [];
+    }
+
+    state.trip.id = String(shared.core.id);
+    state.trip.name = String(shared.core.name || "Shared trip");
+    state.trip.startDate = String(shared.core.startDate || "");
+    state.trip.endDate = String(shared.core.endDate || "");
+    state.trip.updatedAt = Number(shared.core.updatedAt || Date.now());
+
+    state.trip.travellerProfiles = Array.isArray(shared.travellerProfiles)
+      ? shared.travellerProfiles.map(normalizeTravellerProfile)
+      : [];
+    syncTravellerCounts();
+
+    state.trip.itinerary = Array.isArray(shared.itinerary)
+      ? shared.itinerary.map(normalizeItineraryItem)
+      : [];
+    state.trip.preTripTasks = Array.isArray(shared.preTripTasks)
+      ? shared.preTripTasks.map(normalizePreTripTask)
+      : [];
+
+    state.trip.documents = Array.isArray(shared.documents)
+      ? shared.documents.map((raw) => {
+          const incoming = normalizeDocument(raw);
+          const local = existingDocuments.get(incoming.id);
+          if (!local) return incoming;
+          return {
+            ...incoming,
+            attachmentId: local.attachmentId || "",
+            attachmentName: local.attachmentName || incoming.attachmentName || "",
+            attachmentType: local.attachmentType || incoming.attachmentType || ""
+          };
+        })
+      : [];
+
+    state.trip.travelInfo = Array.isArray(shared.travelInfo)
+      ? shared.travelInfo.map(normalizeTravelInfo)
+      : [];
+    state.trip.places = Array.isArray(shared.places)
+      ? shared.places.map(normalizePlace)
+      : [];
+    state.trip.reminders = Array.isArray(shared.reminders)
+      ? shared.reminders.map(normalizeReminder)
+      : [];
+    state.trip.dayMeta = shared.dayMeta && typeof shared.dayMeta === "object"
+      ? JSON.parse(JSON.stringify(shared.dayMeta))
+      : {};
+
+    // Journal notes remain device-local in v23.
+    state.trip.dayNotes = preservedDayNotes;
+
+    if (preservedBudget) {
+      state.trip.budget = preservedBudget;
+      state.expenses = preservedExpenses;
+    } else {
+      state.trip.budget = {
+        configured: false,
+        totalBudget: null,
+        day1HardLimit: null,
+        destinations: Array.isArray(shared.bootstrapDestinations)
+          ? shared.bootstrapDestinations.map(normalizeDestination)
+          : []
+      };
+      state.expenses = [];
+    }
+
+    saveState({ skipFamilySync: true });
+    selectedItineraryDate = defaultSelectedDate();
+    settingsDraftDestinations = [];
+    render();
+    return true;
+  }
+
+  window.TravelPlannerSyncBridge = {
+    hasTrip: () => Boolean(state.trip),
+    getTripId: () => state.trip?.id || "",
+    getTripName: () => state.trip?.name || "",
+    getSharedState: familySharedState,
+    applySharedState: familyApplySharedState,
+    render: () => render()
+  };
 
   const onSystemThemeChange = () => {
     if (uiSettings.appearance === "system") applyAppearance();

@@ -1,59 +1,83 @@
-# Travel Planner v21 — Same-trip imports preserve the local budget
+# Travel Planner v23 — Family Sync
 
-## New import behaviour
+## Family Sync
 
-When an imported trip has the same trip ID as the trip already stored on the
-device, Travel Planner now treats it as an update rather than a total overwrite.
+Travel Planner can now keep shared trip-planning data automatically updated
+between the PC and family iPhones using Firebase Realtime Database.
 
-The incoming copy updates the trip-planning data, while the current device keeps:
+### Shared automatically
+
+- trip name and dates
+- named travellers
+- itinerary
+- pre-trip tasks
+- day details
+- places / wishlist
+- reminders
+- travel information
+- document metadata
+- cost responsibility fields attached to shared itinerary/pre-trip items
+
+### Kept local to each device
 
 - total spending budget
 - Day 1 hard limit
-- destination/currency periods
-- planning exchange rates
-- expense history
+- live expense history
+- UI/layout preferences
+- day journal notes
+- actual PDF/image attachment bytes
 
-This applies to:
-- Import from file
-- Import using a share link
-- Full Trip links
-- Itinerary-only links
+For a brand-new joining device, destination/currency periods are copied once as
+bootstrap information so itinerary currencies still make sense. They do not
+overwrite an established device budget later.
 
-## Why
+## Setup
 
-This supports the intended workflow:
+Settings > Family Sync:
 
-1. Export/share the trip from iPhone
-2. Import it on PC
-3. Edit the itinerary on PC
-4. Export/share the updated trip
-5. Import it back on iPhone
+1. On the main device, tap `Create family sync`.
+2. Share the generated private invitation link.
+3. On the other device, open the link or paste it into `Join an existing family sync`.
+4. From then on, shared trip changes sync automatically.
 
-The iPhone's live spending budget and expenses are not replaced by the older
-copy that was edited on the PC.
+## Conflict handling
 
-## Different-trip imports
+v23 stores shared collections by item ID and uses each item's `updatedAt` value.
 
-If the incoming trip has a different trip ID, it is still treated as a different
-trip and can replace the current one after confirmation.
+Firebase `runTransaction()` merges the local and cloud copy before writing, so
+different changes from two devices are preserved rather than simply replacing
+the entire itinerary.
 
-If there is no trip currently stored on the device, all data from the imported
-trip is imported normally.
+Deleted items are tracked with local/cloud tombstones so they do not immediately
+reappear from another device.
 
-## Other features retained
+## Offline behaviour
 
-v21 keeps:
-- link import
-- foreign-currency conversion and booking-rate snapshots
-- named travellers / attendance
-- individual and split cost responsibility
-- pre-trip costs
-- Who Pays What summary
-- light-mode default
-- offline caching
-- document vault
-- reminders
-- directions
+The PWA still works locally with no internet.
+
+When internet returns:
+- the local copy is transactionally merged with the cloud copy
+- newer changes are retained
+- all connected devices receive the merged result through Realtime Database
+
+Firebase SDK modules are loaded only when Family Sync needs an internet
+connection, so failure to reach Firebase does not stop the core offline app.
+
+## Security model
+
+v23 uses:
+- Firebase Anonymous Authentication
+- a cryptographically random 256-bit Family Sync ID
+- Realtime Database rules that require an authenticated Firebase session
+
+The private Family Sync invitation is effectively the family access key. Anyone
+with the full link can join the shared trip, so keep it private.
+
+## Firebase project used
+
+- Project: travel-planner-sync
+- Database region: Singapore / asia-southeast1
+- Database: travel-planner-sync-default-rtdb.asia-southeast1.firebasedatabase.app
 
 ## GitHub update files
 
@@ -61,6 +85,7 @@ Replace/upload:
 - index.html
 - styles.css
 - app.js
+- family-sync.js
 - manifest.webmanifest
 - sw.js
 - robots.txt

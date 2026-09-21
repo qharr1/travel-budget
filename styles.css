@@ -2444,3 +2444,154 @@ html[data-theme="dark"] .link-import-box {
   background: #0b1728;
   border-color: var(--line);
 }
+
+
+/* v22 — timezone-aware itinerary timing */
+.timezone-editor {
+  margin-top: 9px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f8fafc;
+}
+.timezone-zone-row {
+  margin-top: 9px;
+}
+.timezone-help-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+}
+.timezone-help-card strong {
+  font-size: .78rem;
+}
+.timezone-help-card span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.4;
+}
+.timezone-editor-note {
+  margin: 9px 1px 0;
+  line-height: 1.45;
+}
+html[data-theme="dark"] .timezone-editor {
+  background: #0b1728;
+  border-color: var(--line);
+}
+html[data-theme="dark"] .timezone-help-card {
+  background: var(--surface);
+  border-color: var(--line);
+}
+@media (max-width: 520px) {
+  .timezone-editor .two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* v23 — Family Sync */
+.family-sync-status-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #f8fafc;
+}
+.family-sync-status-card h2 {
+  margin: 2px 0 4px;
+}
+.family-sync-dot {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #94a3b8;
+  box-shadow: 0 0 0 5px rgba(148, 163, 184, .14);
+}
+.family-sync-dot.online {
+  background: #16a34a;
+  box-shadow: 0 0 0 5px rgba(22, 163, 74, .14);
+}
+.family-sync-dot.syncing {
+  background: #d97706;
+  box-shadow: 0 0 0 5px rgba(217, 119, 6, .14);
+}
+.family-sync-dot.offline {
+  background: #94a3b8;
+}
+.family-sync-device-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 12px;
+}
+.family-sync-kpi {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+}
+.family-sync-kpi span,
+.family-sync-kpi strong {
+  display: block;
+}
+.family-sync-kpi span {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.family-sync-kpi strong {
+  margin-top: 3px;
+  font-size: .82rem;
+  overflow-wrap: anywhere;
+}
+.family-sync-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.family-sync-actions .secondary-btn {
+  width: 100%;
+}
+.family-sync-disconnect {
+  margin-top: 12px;
+}
+.family-sync-note {
+  margin-top: 12px;
+  line-height: 1.45;
+}
+.family-sync-join-box {
+  margin-top: 12px;
+}
+#familySyncInviteLink {
+  font-size: .72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+html[data-theme="dark"] .family-sync-status-card,
+html[data-theme="dark"] .family-sync-kpi {
+  background: var(--surface);
+  border-color: var(--line);
+}
+@media (max-width: 520px) {
+  .family-sync-actions {
+    grid-template-columns: 1fr;
+  }
+  .family-sync-device-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -1,11 +1,12 @@
-const CACHE_NAME = "travel-planner-v21";
+const CACHE_NAME = "travel-planner-v23";
 
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=21",
-  "./app.js?v=21",
-  "./manifest.webmanifest?v=21",
+  "./styles.css?v=23",
+  "./app.js?v=23",
+  "./family-sync.js?v=23",
+  "./manifest.webmanifest?v=23",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
@@ -105,6 +106,7 @@ self.addEventListener("fetch", (event) => {
 
   const isCoreAsset =
     requestUrl.pathname.endsWith("/app.js") ||
+    requestUrl.pathname.endsWith("/family-sync.js") ||
     requestUrl.pathname.endsWith("/styles.css") ||
     requestUrl.pathname.endsWith("/manifest.webmanifest");
 
