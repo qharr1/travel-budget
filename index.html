@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=31" rel="manifest"/>
+<link href="./manifest.webmanifest?v=32" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=31" rel="stylesheet"/>
+</script><link href="./styles.css?v=32" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -305,7 +305,7 @@
 <button class="map-filter active" data-map-filter="all" type="button">All</button>
 <button class="map-filter" data-map-filter="hotel" type="button">Hotels</button>
 <button class="map-filter" data-map-filter="itinerary" type="button">Itinerary</button>
-<button class="map-filter" data-map-filter="places" type="button">Places</button>
+<button class="map-filter" data-map-filter="places" type="button">Places</button><button aria-pressed="true" class="map-filter active" id="mapFlightPathsToggle" type="button">✈ Flight paths</button>
 </div>
 <div class="map-action-row">
 <button class="secondary-btn" id="mapFitTripBtn" type="button">Fit whole trip</button>
@@ -323,7 +323,7 @@
 </div>
 <div class="trip-map-legend">
 <span><span class="legend-hotel">🏨</span> Accommodation</span>
-<span><span class="legend-pin"></span> Itinerary / places</span>
+<span><span class="legend-pin"></span> Itinerary / places</span><span><span class="legend-flight-line"></span> Flight path</span>
 </div>
 </section>
 <details class="map-missing-panel" id="mapMissingPanel">
@@ -989,11 +989,26 @@
     For normal same-city activities you can leave these blank. For flights and long-distance travel, use IANA zones such as Australia/Brisbane, Asia/Shanghai or Asia/Tokyo.
   </p>
 </div>
+<section class="flight-route-editor hidden" id="flightRouteEditor">
+<div class="section-heading compact-heading">
+<div><p class="eyebrow">FLIGHT ROUTE</p><h3>Departure → arrival</h3></div>
+<span class="flight-route-hint">Used for the map flight path</span>
+</div>
+<div class="two-col flight-route-location-row">
+<label>From<input id="itemFlightOrigin" maxlength="180" placeholder="Brisbane Airport" type="text"/></label>
+<label>To<input id="itemFlightDestination" maxlength="180" placeholder="Shanghai Pudong International Airport" type="text"/></label>
+</div>
+<div class="two-col">
+<label>From airport code <span class="optional">(optional)</span><input id="itemFlightOriginCode" maxlength="4" placeholder="BNE" type="text"/></label>
+<label>To airport code <span class="optional">(optional)</span><input id="itemFlightDestinationCode" maxlength="4" placeholder="PVG" type="text"/></label>
+</div>
+<p class="muted small">Travel Planner saves both airport coordinates. The Map uses them to draw the curved flight path and number flights in chronological order.</p>
+</section>
 <label>
         Duration <span class="optional">(optional override)</span>
 <input id="itemDurationText" maxlength="40" placeholder="2 h 25 min" type="text"/>
 </label>
-<label>
+<label id="itemLocationWrap">
         Location
         <input id="itemLocation" maxlength="160" type="text"/>
 </label>
@@ -1493,6 +1508,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=31"></script><script src="./family-sync.js?v=31" type="module"></script><script src="./trip-map.js?v=31" type="module"></script>
+<script defer="" src="./app.js?v=32"></script><script src="./family-sync.js?v=32" type="module"></script><script src="./trip-map.js?v=32" type="module"></script>
 </body>
 </html>
