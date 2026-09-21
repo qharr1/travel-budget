@@ -3266,3 +3266,44 @@ html[data-theme="dark"] .map-source-status span[data-state="WebGL1"] {
     flex: 1 1 auto;
   }
 }
+
+
+/* v32 — flight editor and curved flight paths */
+.flight-route-editor {
+  margin: 12px 0;
+  padding: 13px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+}
+.flight-route-editor .section-heading { margin-bottom: 10px; }
+.flight-route-hint { color: #1d4ed8; font-size: .65rem; font-weight: 800; }
+.flight-route-card { font-weight: 720; }
+.legend-flight-line {
+  display: inline-block;
+  width: 24px;
+  height: 0;
+  border-top: 3px solid #60a5fa;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.65);
+}
+.flight-path-plane-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 38px;
+  height: 28px;
+  padding: 0 7px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,.35);
+  font: inherit;
+  cursor: pointer;
+}
+.flight-path-plane-marker span { font-size: .9rem; line-height: 1; }
+.flight-path-plane-marker strong { font-size: .67rem; line-height: 1; }
+.flight-route-popup .single-action { grid-template-columns: 1fr; }
+html[data-theme="dark"] .flight-route-editor { border-color: #315c86; background: #102847; }
+html[data-theme="dark"] .flight-route-hint { color: #93c5fd; }
