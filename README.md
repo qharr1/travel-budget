@@ -1,54 +1,68 @@
-# Travel Planner v12 — Dark Mode
+# Travel Planner v13 — Travellers, Attendance & Event Cost Splitting
 
-## Appearance
+## Travellers
 
-Settings > App & display now includes:
+Settings now has a dedicated Travellers section.
 
-- Use iPhone setting
-- Light
-- Dark
+Each traveller has:
+- Name
+- Adult or Child
 
-`Use iPhone setting` follows the iPhone's appearance automatically. If iOS switches between Light and Dark while Travel Planner is open, the app follows it.
+Adults can attend events and can be assigned event costs.
+Children can attend events but are never shown as payers.
 
-Light or Dark can be forced for Travel Planner independently of the phone.
+For existing trips that only have traveller counts, v13 creates editable placeholders:
+- Adult 1, Adult 2, etc.
+- Child 1, Child 2, etc.
 
-## No bright launch flash
+Rename them in Settings.
 
-The appearance preference is applied before the main stylesheet loads, reducing the bright white flash that can otherwise occur when opening an installed PWA in Dark Mode.
+## Itinerary attendance
 
-## What Dark Mode covers
+Every itinerary item now has `Who's going?`
 
-Dark styling is applied across:
+New itinerary items default to all named travellers attending.
+Existing legacy items that were marked as `All travellers` also preselect everyone.
 
-- Home
-- Itinerary and day chips
-- Summary
-- Budget
-- More
-- Settings
-- forms and dialogs
-- directions chooser
-- reminders
-- document vault
-- day notes
-- paid / outstanding / warning states
-- online / offline badge
+The itinerary card shows the attendee names.
 
-Itinerary category colours remain distinct.
+## Event cost responsibility
 
-## Device preference
+An itinerary item with a total cost can use:
 
-Appearance is stored in `travelPlanner.ui.v1`, alongside the other device-only layout choices.
+### Not assigned
+Track the event cost, but don't assign payment responsibility.
 
-It is not part of the shared trip, so different family members can use different themes.
+### Individual
+Choose one adult responsible for the full event cost.
+
+### Split cost
+Choose at least two adults who are splitting the event.
+Travel Planner calculates the equal per-adult share automatically.
+
+Children are intentionally excluded from payment responsibility.
+
+A child can still have a child ticket price. `Kids don't pay` here means the child is never financially responsible for settling the event cost.
+
+## Traveller changes
+
+If an adult is changed to Child, or a traveller is deleted:
+- attendance links are cleaned up
+- payer links are cleaned up
+- invalid Individual/Split assignments are reset
+
+## Data fields added
+
+- `trip.travellerProfiles[]`
+- `itinerary[].attendeeIds[]`
+- `itinerary[].paymentMode`
+- `itinerary[].payerIds[]`
+
+Existing v12 data migrates automatically.
 
 ## Offline
 
-v12 keeps the corrected offline caching introduced in v10:
-- complete matching app shell cached
-- cached versioned CSS/JS/manifest
-- offline navigation fallback
-- old app caches removed during activation
+v13 retains the corrected offline service-worker architecture from v10+ and the v12 appearance settings.
 
 ## GitHub update files
 
@@ -62,5 +76,3 @@ Replace/upload:
 - icon-192.png
 - icon-512.png
 - apple-touch-icon.png
-
-Existing trip data and Settings preferences migrate automatically.

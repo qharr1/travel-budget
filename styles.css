@@ -1859,3 +1859,143 @@ html[data-theme="dark"] .tool-panel-body,
 html[data-theme="dark"] .day-journal-body {
   border-color: var(--line);
 }
+
+
+/* v13 — named travellers, attendance and event cost responsibility */
+.itinerary-people-section {
+  margin-top: 10px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #f8fafc;
+}
+.person-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.person-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.person-check input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+.person-check span {
+  min-width: 0;
+}
+.person-check strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: .8rem;
+}
+.person-check small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: .67rem;
+}
+.payment-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.choice-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+}
+.choice-card input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+.choice-card strong,
+.choice-card small {
+  display: block;
+}
+.choice-card strong {
+  font-size: .76rem;
+}
+.choice-card small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .64rem;
+  line-height: 1.3;
+}
+.split-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  color: #065f46;
+}
+.split-preview:empty {
+  display: none;
+}
+.split-preview strong {
+  font-size: .86rem;
+}
+.split-preview span {
+  color: #047857;
+  font-size: .68rem;
+  text-align: right;
+}
+.item-payment-line {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(100, 116, 139, .2);
+  color: var(--muted);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+.item-payment-line strong {
+  color: var(--text);
+}
+
+@media (max-width: 520px) {
+  .person-check-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .payment-mode-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+html[data-theme="dark"] .itinerary-people-section {
+  background: #0b1728;
+  border-color: var(--line);
+}
+html[data-theme="dark"] .person-check,
+html[data-theme="dark"] .choice-card {
+  background: var(--surface);
+  border-color: var(--line);
+}
+html[data-theme="dark"] .split-preview {
+  background: #0d3024;
+  color: #86efac;
+}
+html[data-theme="dark"] .split-preview span {
+  color: #6ee7b7;
+}

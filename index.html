@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=12" rel="manifest"/>
+<link href="./manifest.webmanifest?v=13" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=12" rel="stylesheet"/>
+</script><link href="./styles.css?v=13" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -627,7 +627,27 @@
 <label class="settings-toggle"><span><strong>Payment progress</strong><small>Paid percentage bar</small></span><input data-summary-widget="progress" id="setSummaryProgress" type="checkbox"/></label>
 <label class="settings-toggle"><span><strong>Cost by type</strong><small>Flights, hotels, activities and pre-trip</small></span><input data-summary-widget="breakdown" id="setSummaryBreakdown" type="checkbox"/></label>
 <label class="settings-toggle"><span><strong>Outstanding list</strong><small>Priced items still to pay</small></span><input data-summary-widget="outstandingList" id="setSummaryOutstandingList" type="checkbox"/></label></div></div></details>
-<details class="settings-group" id="settingsTripBudgetGroup"><summary><div><span class="settings-group-title">Trip &amp; budget</span><span class="settings-group-sub">Dates, total budget, Day 1 limit and currencies</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsTripBudgetBody"><section class="settings-embedded-section">
+<details class="settings-group" id="settingsTravellersGroup">
+<summary>
+<div>
+<span class="settings-group-title">Travellers</span>
+<span class="settings-group-sub" id="travellersSettingsSummary">No named travellers yet</span>
+</div>
+<span aria-hidden="true" class="pretrip-chevron">⌄</span>
+</summary>
+<div class="settings-group-body">
+<div class="section-heading">
+<div>
+<p class="eyebrow">WHO'S TRAVELLING</p>
+<h2>Trip travellers</h2>
+</div>
+<button class="primary-compact-btn" id="addTravellerBtn" type="button">+ Add traveller</button>
+</div>
+<p class="muted small">Adults can be assigned event costs. Children can attend itinerary items but are never offered as payers.</p>
+<div class="tool-list" id="travellerList"></div>
+<p class="status-message" id="travellerSettingsMessage" role="status"></p>
+</div>
+</details><details class="settings-group" id="settingsTripBudgetGroup"><summary><div><span class="settings-group-title">Trip &amp; budget</span><span class="settings-group-sub">Dates, total budget, Day 1 limit and currencies</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsTripBudgetBody"><section class="settings-embedded-section">
 <div class="section-heading">
 <div><p class="eyebrow">TRIP SETTINGS</p><h2>Budget &amp; dates</h2></div>
 </div>
@@ -793,7 +813,49 @@
 <option value="AUD">AUD</option>
 </select>
 </label>
+<section class="itinerary-people-section">
+<div class="section-heading compact-heading">
+<div>
+<p class="eyebrow">ATTENDING</p>
+<h3>Who's going?</h3>
+</div>
+</div>
+<div class="person-check-grid" id="itemAttendeeOptions"></div>
+<p class="muted small" id="itemAttendeeHelp">Add named travellers in Settings to select attendees.</p>
+</section><section class="itinerary-people-section" id="itemPaymentSection">
+<div class="section-heading compact-heading">
+<div>
+<p class="eyebrow">COST RESPONSIBILITY</p>
+<h3>Who is paying?</h3>
+</div>
+</div>
+<div class="payment-mode-grid">
+<label class="choice-card">
+<input checked="" name="itemPaymentMode" type="radio" value="none"/>
+<span><strong>Not assigned</strong><small>Track the event cost only</small></span>
+</label>
+<label class="choice-card">
+<input name="itemPaymentMode" type="radio" value="individual"/>
+<span><strong>Individual</strong><small>One adult pays the full cost</small></span>
+</label>
+<label class="choice-card">
+<input name="itemPaymentMode" type="radio" value="split"/>
+<span><strong>Split cost</strong><small>Choose which adults share it</small></span>
+</label>
+</div>
+<div class="hidden" id="itemIndividualPayerWrap">
 <label>
+      Adult responsible
+      <select id="itemIndividualPayer"></select>
+</label>
+</div>
+<div class="hidden" id="itemSplitPayersWrap">
+<p class="muted small">Select at least two adults. Children can attend but cannot be assigned payment responsibility.</p>
+<div class="person-check-grid" id="itemSplitPayerOptions"></div>
+<div class="split-preview" id="itemSplitPreview"></div>
+</div>
+<p class="muted small" id="itemPaymentHelp"></p>
+</section><label>
         Notes
         <textarea id="itemNotes" maxlength="1500" placeholder="Booking notes, ticket instructions, reminders…" rows="4"></textarea>
 </label>
@@ -1096,7 +1158,32 @@
 </div>
 </form>
 </dialog>
-<dialog id="confirmDialog">
+<dialog id="travellerDialog">
+<form class="dialog-form" id="travellerForm">
+<div class="section-heading">
+<div><p class="eyebrow">TRAVELLER</p><h2 id="travellerDialogTitle">Add traveller</h2></div>
+<button class="text-btn" id="closeTravellerDialogBtn" type="button">Close</button>
+</div>
+<input id="travellerId" type="hidden"/>
+<label>
+      Name
+      <input id="travellerName" maxlength="80" placeholder="Traveller name" required="" type="text"/>
+</label>
+<label>
+      Traveller type
+      <select id="travellerType">
+<option value="adult">Adult</option>
+<option value="child">Child</option>
+</select>
+</label>
+<p class="muted small">Children can be marked as attending events, but they never appear in the event payer list.</p>
+<p class="error" id="travellerError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deleteTravellerBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save traveller</button>
+</div>
+</form>
+</dialog><dialog id="confirmDialog">
 <form method="dialog">
 <h2>Erase local trip?</h2>
 <p>This removes the trip, itinerary and expenses from this device and returns to the opening screen.</p>
@@ -1106,6 +1193,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=12"></script>
+<script defer="" src="./app.js?v=13"></script>
 </body>
 </html>

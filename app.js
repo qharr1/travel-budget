@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 12;
+  const APP_VERSION = 13;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -187,6 +187,7 @@
       startDate: "",
       endDate: "",
       travellers: { adults: 0, children: 0 },
+      travellerProfiles: [],
       budget: { configured: false, totalBudget: null, day1HardLimit: null, destinations: [] },
       dayMeta: {},
       itinerary: [],
@@ -196,6 +197,17 @@
       places: [],
       reminders: [],
       dayNotes: {}
+    };
+  }
+
+  function normalizeTravellerProfile(item) {
+    const type = String(item?.type || "adult").toLowerCase() === "child" ? "child" : "adult";
+    return {
+      id: String(item?.id || uid("person")),
+      name: String(item?.name || (type === "child" ? "Child" : "Adult")).trim() || (type === "child" ? "Child" : "Adult"),
+      type,
+      createdAt: Number(item?.createdAt || Date.now()),
+      updatedAt: Number(item?.updatedAt || Date.now())
     };
   }
 
@@ -227,6 +239,9 @@
       adultCost: item?.adultCost === null || item?.adultCost === "" || item?.adultCost === undefined ? null : Number(item.adultCost),
       childCost: item?.childCost === null || item?.childCost === "" || item?.childCost === undefined ? null : Number(item.childCost),
       participants: String(item?.participants || ""),
+      attendeeIds: Array.isArray(item?.attendeeIds) ? item.attendeeIds.map(String) : [],
+      paymentMode: ["none", "individual", "split"].includes(item?.paymentMode) ? item.paymentMode : "none",
+      payerIds: Array.isArray(item?.payerIds) ? item.payerIds.map(String) : [],
       notes: String(item?.notes || ""),
       createdAt: Number(item?.createdAt || Date.now()),
       updatedAt: Number(item?.updatedAt || Date.now())
@@ -363,6 +378,7 @@
     };
     trip.dayMeta = raw?.dayMeta && typeof raw.dayMeta === "object" ? raw.dayMeta : {};
     trip.itinerary = Array.isArray(raw?.itinerary) ? raw.itinerary.map(normalizeItineraryItem) : [];
+    trip.travellerProfiles = Array.isArray(raw?.travellerProfiles) ? raw.travellerProfiles.map(normalizeTravellerProfile) : [];
     trip.preTripTasks = Array.isArray(raw?.preTripTasks) ? raw.preTripTasks.map(normalizePreTripTask) : [];
     trip.documents = Array.isArray(raw?.documents) ? raw.documents.map(normalizeDocument) : [];
     trip.travelInfo = Array.isArray(raw?.travelInfo) ? raw.travelInfo.map(normalizeTravelInfo) : [];
@@ -377,13 +393,38 @@
     return trip;
   }
 
+  function ensureTravellerProfiles(trip) {
+    if (!trip) return trip;
+    if (!Array.isArray(trip.travellerProfiles)) trip.travellerProfiles = [];
+    if (trip.travellerProfiles.length > 0) return trip;
+
+    const adults = Math.max(0, Number(trip.travellers?.adults || 0));
+    const children = Math.max(0, Number(trip.travellers?.children || 0));
+
+    for (let i = 0; i < adults; i++) {
+      trip.travellerProfiles.push(normalizeTravellerProfile({
+        name: `Adult ${i + 1}`,
+        type: "adult"
+      }));
+    }
+
+    for (let i = 0; i < children; i++) {
+      trip.travellerProfiles.push(normalizeTravellerProfile({
+        name: `Child ${i + 1}`,
+        type: "child"
+      }));
+    }
+
+    return trip;
+  }
+
   function migrateState(parsed) {
     if (!parsed || typeof parsed !== "object") return blankState();
 
     if (Number(parsed.version) >= 3 && parsed.trip) {
       return {
         version: APP_VERSION,
-        trip: normalizeTrip(parsed.trip),
+        trip: ensureTravellerProfiles(normalizeTrip(parsed.trip)),
         expenses: Array.isArray(parsed.expenses) ? parsed.expenses.map(normalizeExpense).filter(Boolean) : []
       };
     }
@@ -401,6 +442,7 @@
         day1HardLimit: null,
         destinations: Array.isArray(old.destinations) ? old.destinations.map(normalizeDestination) : []
       };
+      ensureTravellerProfiles(trip);
       return {
         version: APP_VERSION,
         trip,
@@ -437,6 +479,7 @@
           })
         ]
       };
+      ensureTravellerProfiles(trip);
       return {
         version: APP_VERSION,
         trip,
@@ -545,6 +588,50 @@
     if (key === "food") return "type-food";
     if (key === "shopping") return "type-shopping";
     return "type-other";
+  }
+
+  function travellerById(id) {
+    return state.trip?.travellerProfiles?.find((person) => person.id === id) || null;
+  }
+
+  function adultTravellers() {
+    return (state.trip?.travellerProfiles || []).filter((person) => person.type === "adult");
+  }
+
+  function travellerNames(ids) {
+    return (ids || []).map((id) => travellerById(id)?.name).filter(Boolean);
+  }
+
+  function itemAttendeeText(item) {
+    const names = travellerNames(item?.attendeeIds || []);
+    if (names.length) return names.join(", ");
+    return item?.participants || "";
+  }
+
+  function itemPaymentText(item) {
+    const total = itemEffectiveCost(item);
+    if (total === null || !Number.isFinite(total) || total <= 0) return "";
+
+    const payers = travellerNames(item?.payerIds || []);
+    if (item?.paymentMode === "individual" && payers.length === 1) {
+      return `${payers[0]} • ${money(total, item.costCurrency || "AUD")}`;
+    }
+
+    if (item?.paymentMode === "split" && payers.length >= 2) {
+      const share = total / payers.length;
+      return `${payers.join(" + ")} • ${money(share, item.costCurrency || "AUD")} each`;
+    }
+
+    return "";
+  }
+
+  function syncTravellerCounts() {
+    if (!state.trip) return;
+    const people = state.trip.travellerProfiles || [];
+    state.trip.travellers = {
+      adults: people.filter((person) => person.type === "adult").length,
+      children: people.filter((person) => person.type === "child").length
+    };
   }
 
   function itemEffectiveCost(item) {
@@ -844,7 +931,7 @@
     const chips = [];
     if (duration) chips.push(duration);
     if (item.status) chips.push(item.status);
-    if (item.participants) chips.push(item.participants);
+    if (itemAttendeeText(item)) chips.push(`Attending: ${itemAttendeeText(item)}`);
     if (item.bookingRef) chips.push(`Ref: ${item.bookingRef}`);
 
     const hasCosts = Number.isFinite(Number(item.costTotal)) || Number.isFinite(Number(item.adultCost)) || Number.isFinite(Number(item.childCost));
@@ -864,10 +951,11 @@
             <div class="item-cost-box">
               ${Number.isFinite(Number(item.costTotal)) ? `<strong>Total: ${escapeHtml(money(item.costTotal, costCurrency))}</strong>` : ""}
               <div class="per-person">
-                ${Number.isFinite(Number(item.adultCost)) ? `Adult: ${escapeHtml(money(item.adultCost, costCurrency))} each` : ""}
+                ${Number.isFinite(Number(item.adultCost)) ? `Adult ticket: ${escapeHtml(money(item.adultCost, costCurrency))} each` : ""}
                 ${Number.isFinite(Number(item.adultCost)) && Number.isFinite(Number(item.childCost)) ? ` • ` : ""}
-                ${Number.isFinite(Number(item.childCost)) ? `Child: ${escapeHtml(money(item.childCost, costCurrency))} each` : ""}
+                ${Number.isFinite(Number(item.childCost)) ? `Child ticket: ${escapeHtml(money(item.childCost, costCurrency))} each` : ""}
               </div>
+              ${itemPaymentText(item) ? `<div class="item-payment-line"><strong>${item.paymentMode === "split" ? "Split:" : "Responsible:"}</strong> ${escapeHtml(itemPaymentText(item))}</div>` : ""}
             </div>` : ""}
           ${item.notes ? `<p class="item-notes">${escapeHtml(item.notes)}</p>` : ""}
         </div>
@@ -2396,6 +2484,7 @@
     renderMore();
     renderDayJournal();
     renderUiSettings();
+    renderTravellerSettings();
     updateReminderBadge();
     scheduleReminderCheck();
 
@@ -2426,6 +2515,7 @@
     if (mode === "more") renderMore();
     if (mode === "settings") {
       renderUiSettings();
+      renderTravellerSettings();
       renderSettings();
       renderNotificationStatus();
     }
@@ -2896,6 +2986,139 @@
     }
   }
 
+  function renderItemPeopleControls(item = null) {
+    const people = state.trip?.travellerProfiles || [];
+    const legacyAll = !item?.attendeeIds?.length && /\ball\b/i.test(item?.participants || "");
+    const defaultAll = !item;
+    const attendeeSet = new Set(
+      item?.attendeeIds?.length
+        ? item.attendeeIds
+        : (legacyAll || defaultAll ? people.map((person) => person.id) : [])
+    );
+    const payerSet = new Set(item?.payerIds || []);
+
+    el("itemAttendeeOptions").innerHTML = people.length
+      ? people.map((person) => `
+          <label class="person-check">
+            <input type="checkbox" value="${escapeHtml(person.id)}" data-item-attendee ${attendeeSet.has(person.id) ? "checked" : ""}>
+            <span><strong>${escapeHtml(person.name)}</strong><small>${person.type === "child" ? "Child" : "Adult"}</small></span>
+          </label>
+        `).join("")
+      : "";
+
+    el("itemAttendeeHelp").classList.toggle("hidden", people.length > 0);
+
+    const adults = adultTravellers();
+    el("itemIndividualPayer").innerHTML = adults.length
+      ? `<option value="">Choose adult</option>` + adults.map((person) =>
+          `<option value="${escapeHtml(person.id)}" ${payerSet.has(person.id) ? "selected" : ""}>${escapeHtml(person.name)}</option>`
+        ).join("")
+      : `<option value="">No adults added</option>`;
+
+    el("itemSplitPayerOptions").innerHTML = adults.length
+      ? adults.map((person) => `
+          <label class="person-check">
+            <input type="checkbox" value="${escapeHtml(person.id)}" data-item-split-payer ${payerSet.has(person.id) ? "checked" : ""}>
+            <span><strong>${escapeHtml(person.name)}</strong><small>Adult</small></span>
+          </label>
+        `).join("")
+      : `<p class="muted small">Add adult travellers in Settings first.</p>`;
+
+    const mode = item?.paymentMode || "none";
+    document.querySelectorAll('input[name="itemPaymentMode"]').forEach((radio) => {
+      radio.checked = radio.value === mode;
+    });
+
+    document.querySelectorAll('[data-item-split-payer]').forEach((input) => {
+      input.addEventListener("change", updateItemPaymentControls);
+    });
+
+    updateItemPaymentControls();
+  }
+
+  function updateItemPaymentControls() {
+    const mode = document.querySelector('input[name="itemPaymentMode"]:checked')?.value || "none";
+    const total = el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value);
+    const currency = el("itemCostCurrency").value || "AUD";
+
+    el("itemIndividualPayerWrap").classList.toggle("hidden", mode !== "individual");
+    el("itemSplitPayersWrap").classList.toggle("hidden", mode !== "split");
+
+    if (total === null || !Number.isFinite(total) || total <= 0) {
+      el("itemPaymentHelp").textContent = "Enter a total event cost above before assigning who pays.";
+      el("itemSplitPreview").innerHTML = "";
+      return;
+    }
+
+    if (mode === "none") {
+      el("itemPaymentHelp").textContent = "The event cost is tracked, but not assigned to a traveller.";
+      el("itemSplitPreview").innerHTML = "";
+      return;
+    }
+
+    if (mode === "individual") {
+      const payer = travellerById(el("itemIndividualPayer").value);
+      el("itemPaymentHelp").textContent = payer
+        ? `${payer.name} is responsible for ${money(total, currency)}.`
+        : "Choose the adult responsible for the full cost.";
+      el("itemSplitPreview").innerHTML = "";
+      return;
+    }
+
+    const payerIds = [...document.querySelectorAll("[data-item-split-payer]:checked")].map((input) => input.value);
+    if (payerIds.length >= 2) {
+      const share = total / payerIds.length;
+      el("itemSplitPreview").innerHTML =
+        `<strong>${escapeHtml(money(share, currency))} each</strong><span>${payerIds.length} adults splitting ${escapeHtml(money(total, currency))}</span>`;
+      el("itemPaymentHelp").textContent = "";
+    } else {
+      el("itemSplitPreview").innerHTML = "";
+      el("itemPaymentHelp").textContent = "Choose at least two adults to split this cost.";
+    }
+  }
+
+  function renderTravellerSettings() {
+    if (!state.trip || !el("travellerList")) return;
+    const people = state.trip.travellerProfiles || [];
+    const adults = people.filter((person) => person.type === "adult").length;
+    const children = people.filter((person) => person.type === "child").length;
+
+    el("travellersSettingsSummary").textContent = people.length
+      ? `${people.length} traveller${people.length === 1 ? "" : "s"} • ${adults} adult${adults === 1 ? "" : "s"} • ${children} ${children === 1 ? "child" : "children"}`
+      : "No named travellers yet";
+
+    el("travellerList").innerHTML = people.length
+      ? people.map((person) => `
+          <article class="tool-card">
+            <div class="tool-card-top">
+              <div>
+                <h3>${escapeHtml(person.name)}</h3>
+                <div class="tool-card-meta">${person.type === "child" ? "Child • can attend events • never a payer" : "Adult • can attend events and be assigned costs"}</div>
+              </div>
+            </div>
+            <div class="tool-card-actions">
+              <button class="tool-link-btn edit-traveller" type="button" data-id="${escapeHtml(person.id)}">Edit</button>
+            </div>
+          </article>
+        `).join("")
+      : `<p class="expense-empty">Add the people travelling on this trip.</p>`;
+
+    el("travellerList").querySelectorAll(".edit-traveller").forEach((button) => {
+      button.addEventListener("click", () => openTravellerDialog(button.dataset.id));
+    });
+  }
+
+  function openTravellerDialog(id = "") {
+    const person = id ? state.trip?.travellerProfiles.find((x) => x.id === id) : null;
+    el("travellerId").value = person?.id || "";
+    el("travellerDialogTitle").textContent = person ? "Edit traveller" : "Add traveller";
+    el("travellerName").value = person?.name || "";
+    el("travellerType").value = person?.type || "adult";
+    el("travellerError").textContent = "";
+    el("deleteTravellerBtn").classList.toggle("hidden", !person);
+    showModalSafe(el("travellerDialog"));
+  }
+
   function openItineraryItemDialog(id = "", prefill = null) {
     if (!state.trip) return;
     const item = id ? state.trip.itinerary.find((x) => x.id === id) : null;
@@ -2922,6 +3145,7 @@
     (state.trip.budget?.destinations || []).forEach((d) => currencies.add(d.currency));
     el("itemCostCurrency").innerHTML = [...currencies].map((code) => `<option value="${code}">${code}</option>`).join("");
     el("itemCostCurrency").value = item?.costCurrency || "AUD";
+    renderItemPeopleControls(item);
 
     const dialog = el("itineraryItemDialog");
     showModalSafe(dialog);
@@ -3213,6 +3437,77 @@
     }
   });
 
+  el("addTravellerBtn").addEventListener("click", () => openTravellerDialog());
+  el("closeTravellerDialogBtn").addEventListener("click", () => closeModalSafe(el("travellerDialog")));
+
+  el("travellerForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const id = el("travellerId").value;
+    const name = el("travellerName").value.trim();
+    const type = el("travellerType").value === "child" ? "child" : "adult";
+
+    if (!name) {
+      el("travellerError").textContent = "Enter a traveller name.";
+      return;
+    }
+
+    const existing = id ? state.trip.travellerProfiles.find((person) => person.id === id) : null;
+    const person = normalizeTravellerProfile({
+      id: existing?.id || uid("person"),
+      name,
+      type,
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now()
+    });
+
+    if (existing) {
+      state.trip.travellerProfiles = state.trip.travellerProfiles.map((x) => x.id === id ? person : x);
+
+      // If an adult is changed to a child, they must immediately stop being a payer.
+      if (type === "child") {
+        state.trip.itinerary = state.trip.itinerary.map((item) => {
+          const payerIds = (item.payerIds || []).filter((payerId) => payerId !== id);
+          let paymentMode = item.paymentMode || "none";
+          if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
+          if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
+          return { ...item, payerIds, paymentMode };
+        });
+      }
+    } else {
+      state.trip.travellerProfiles.push(person);
+    }
+
+    syncTravellerCounts();
+    saveState();
+    closeModalSafe(el("travellerDialog"));
+    renderTravellerSettings();
+    renderItinerary();
+    el("travellerSettingsMessage").textContent = "Travellers saved.";
+  });
+
+  el("deleteTravellerBtn").addEventListener("click", () => {
+    const id = el("travellerId").value;
+    const person = state.trip?.travellerProfiles.find((x) => x.id === id);
+    if (!person || !window.confirm(`Delete "${person.name}" from this trip?`)) return;
+
+    state.trip.travellerProfiles = state.trip.travellerProfiles.filter((x) => x.id !== id);
+    state.trip.itinerary = state.trip.itinerary.map((item) => {
+      const attendeeIds = (item.attendeeIds || []).filter((personId) => personId !== id);
+      const payerIds = (item.payerIds || []).filter((personId) => personId !== id);
+      let paymentMode = item.paymentMode || "none";
+      if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
+      if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
+      return { ...item, attendeeIds, payerIds, paymentMode };
+    });
+
+    syncTravellerCounts();
+    saveState();
+    closeModalSafe(el("travellerDialog"));
+    renderTravellerSettings();
+    renderItinerary();
+    el("travellerSettingsMessage").textContent = "Traveller removed.";
+  });
+
   el("settingsBtn").addEventListener("click", () => activateMode("settings"));
   el("settingsCloseBtn").addEventListener("click", () => activateMode(lastNonSettingsMode || uiSettings.startScreen));
 
@@ -3322,6 +3617,7 @@
       adults: Math.max(0, Number(el("adultCount").value || 0)),
       children: Math.max(0, Number(el("childCount").value || 0))
     };
+    ensureTravellerProfiles(trip);
     trip.budget = {
       configured: true,
       totalBudget: Number(el("totalBudget").value),
@@ -3403,6 +3699,13 @@
   });
 
 
+  document.querySelectorAll('input[name="itemPaymentMode"]').forEach((radio) => {
+    radio.addEventListener("change", updateItemPaymentControls);
+  });
+  el("itemIndividualPayer").addEventListener("change", updateItemPaymentControls);
+  el("itemCostTotal").addEventListener("input", updateItemPaymentControls);
+  el("itemCostCurrency").addEventListener("change", updateItemPaymentControls);
+
   el("addPreTripTaskBtn").addEventListener("click", () => openPreTripTaskDialog());
   el("closePreTripDialogBtn").addEventListener("click", () => closeModalSafe(el("preTripTaskDialog")));
 
@@ -3481,6 +3784,22 @@
       return;
     }
 
+    const paymentMode = document.querySelector('input[name="itemPaymentMode"]:checked')?.value || "none";
+    const eventCost = el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value);
+
+    if (eventCost !== null && Number.isFinite(eventCost) && eventCost > 0 && paymentMode === "individual" && !el("itemIndividualPayer").value) {
+      el("itemError").textContent = "Choose the adult responsible for this cost.";
+      return;
+    }
+
+    if (eventCost !== null && Number.isFinite(eventCost) && eventCost > 0 && paymentMode === "split") {
+      const selectedSplitPayers = document.querySelectorAll("[data-item-split-payer]:checked").length;
+      if (selectedSplitPayers < 2) {
+        el("itemError").textContent = "Choose at least two adults to split this cost.";
+        return;
+      }
+    }
+
     const existing = id ? state.trip.itinerary.find((x) => x.id === id) : null;
     const item = normalizeItineraryItem({
       id: existing?.id || uid("itin"),
@@ -3497,6 +3816,14 @@
       adultCost: el("itemAdultCost").value === "" ? null : Number(el("itemAdultCost").value),
       childCost: el("itemChildCost").value === "" ? null : Number(el("itemChildCost").value),
       costCurrency: el("itemCostCurrency").value,
+      attendeeIds: [...document.querySelectorAll("[data-item-attendee]:checked")].map((input) => input.value),
+      paymentMode,
+      payerIds: paymentMode === "individual"
+        ? (el("itemIndividualPayer").value ? [el("itemIndividualPayer").value] : [])
+        : paymentMode === "split"
+          ? [...document.querySelectorAll("[data-item-split-payer]:checked")].map((input) => input.value)
+          : [],
+      participants: "",
       notes: el("itemNotes").value.trim(),
       createdAt: existing?.createdAt || Date.now(),
       updatedAt: Date.now()
