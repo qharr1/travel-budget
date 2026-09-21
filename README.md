@@ -1,37 +1,37 @@
-# Travel Planner v5
+# Travel Planner v6
 
-## New in v5
+## Budget dashboard redesign
 
-### Share links
-The Itinerary screen now has:
-- Share Itinerary Link
-- Share Full Trip Link
-- Export / Share Trip File
+The Budget > Today screen now flows as:
 
-A share link contains a compressed copy of the shared data after the `#` in the URL.
+1. Remaining Budget — large full-width hero
+2. Today's Budget / Day 1 Budget — full-width progress strip
+   - budget
+   - amount spent
+   - amount left / over
+   - hard-limit badge when applicable
+3. Ahead / Behind Pace
+4. Available / Future Day
+5. Overall trip budget progress
 
-`Share Itinerary Link` excludes expense history, the configured budget total, the Day 1 hard limit, and exchange rates.
+Before the trip, if a Day 1 hard limit is configured, the daily strip shows the Day 1 limit and Available / Future Day is calculated only across Days 2 onward.
 
-`Share Full Trip Link` includes itinerary, budget setup and expense history.
+Example:
+- Total budget: A$9,000
+- 21 trip days
+- Day 1 hard limit: A$200
+- Days 2–21: 20 days
+- Future allowance before the trip: (9,000 - 200) / 20 = A$440.00/day
 
-Anyone who receives the complete shared link can import that shared copy, so treat the link itself as private.
+After Day 1, the app uses actual Day 1 spending and automatically rolls any underspend or overspend into the remaining trip.
 
-### Optional Day 1 hard limit
-The budget can reserve a fixed amount for Day 1.
+## Update reliability
 
-Before and during Day 1, that amount is reserved rather than being redistributed prematurely.
-If Day 1 finishes under the limit, the unused amount rolls into the remaining days.
-If Day 1 exceeds the limit, future daily allowance is reduced.
-
-### Lower search-engine visibility
-The generic app now includes:
-- `noindex,nofollow,noarchive`
-- `robots.txt` with `Disallow: /`
-
-This discourages search-engine indexing, but it is not authentication and the GitHub Pages website remains public.
+v6 adds versioned JS/CSS URLs and changes the service worker to prefer the newest core app files when online, falling back to cache when offline. This prevents a new HTML page from accidentally running an older cached calculation.
 
 ## GitHub update files
-Upload/replace:
+
+Replace/upload:
 - index.html
 - styles.css
 - app.js
@@ -42,4 +42,4 @@ Upload/replace:
 - icon-512.png
 - apple-touch-icon.png
 
-Do not upload private `.trip.json` files.
+Existing local trip data remains compatible.

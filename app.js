@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "tripBudgetApp.v1";
-  const APP_VERSION = 5;
+  const APP_VERSION = 6;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -801,6 +801,48 @@
     return 0;
   }
 
+  function spentBeforeDate(dateStr) {
+    const target = dayNumber(dateStr);
+    return state.expenses.reduce((sum, item) => {
+      return dayNumber(item.date) < target ? sum + Number(item.audAmount || 0) : sum;
+    }, 0);
+  }
+
+  function currentTripDayBudget(today) {
+    if (!state.trip?.budget?.configured) return 0;
+
+    const trip = state.trip;
+    const startN = dayNumber(trip.startDate);
+    const endN = dayNumber(trip.endDate);
+    const todayN = dayNumber(today);
+    const totalDays = daysInclusive(trip.startDate, trip.endDate);
+    const totalBudget = Number(trip.budget.totalBudget);
+    const hardLimit = configuredDay1HardLimit();
+
+    // Before the trip, show the planned Day 1 budget.
+    if (todayN < startN) {
+      return hardLimit !== null
+        ? hardLimit
+        : (totalDays > 0 ? totalBudget / totalDays : 0);
+    }
+
+    // Day 1 uses the hard limit when one is configured.
+    if (todayN === startN && hardLimit !== null) {
+      return hardLimit;
+    }
+
+    // After the trip, preserve the final day's calculated starting allowance.
+    const effectiveDateN = todayN > endN ? endN : todayN;
+    const effectiveDate = addDays(trip.startDate, effectiveDateN - startN);
+    const priorSpend = spentBeforeDate(effectiveDate);
+    const remainingAtStartOfDay = totalBudget - priorSpend;
+    const daysIncludingThisDay = endN - effectiveDateN + 1;
+
+    return daysIncludingThisDay > 0
+      ? remainingAtStartOfDay / daysIncludingThisDay
+      : 0;
+  }
+
   function tripStats() {
     const trip = state.trip;
     if (!trip?.budget?.configured) return null;
@@ -810,132 +852,207 @@
     const endN = dayNumber(trip.endDate);
     const todayN = dayNumber(today);
     const totalDays = daysInclusive(trip.startDate, trip.endDate);
+    const budget = Number(trip.budget.totalBudget);
     const spent = totalSpent();
-    const remaining = Number(trip.budget.totalBudget) - spent;
-    const futureDays = futureDaysAfterToday(trip, today);
+    const remaining = budget - spent;
+    const hardLimit = configuredDay1HardLimit();
+    const spentDay1 = totalSpent(expensesOn(trip.startDate));
 
     let status = "during";
     let dayIndex = 0;
     let elapsedDays = 0;
+    let displayDayDate = today;
 
-    if (todayN < startN) status = "before";
-    else if (todayN > endN) {
+    if (todayN < startN) {
+      status = "before";
+      displayDayDate = trip.startDate;
+    } else if (todayN > endN) {
       status = "after";
       dayIndex = totalDays;
       elapsedDays = totalDays;
+      displayDayDate = trip.endDate;
     } else {
       dayIndex = todayN - startN + 1;
       elapsedDays = dayIndex;
     }
 
-    const spentDay1 = totalSpent(expensesOn(trip.startDate));
-    const hardLimit = configuredDay1HardLimit();
+    const futureDaysRaw = futureDaysAfterToday(trip, today);
     const day1PlannedFutureAllowance = plannedFutureAllowanceWithDay1Limit(today, spent, spentDay1);
+
+    let allowanceDayCount = futureDaysRaw;
+    if (status === "before" && hardLimit !== null) {
+      allowanceDayCount = Math.max(0, totalDays - 1);
+    }
+
     const availablePerFutureDay = day1PlannedFutureAllowance !== null
       ? day1PlannedFutureAllowance
-      : (futureDays > 0 ? remaining / futureDays : 0);
-    const originalDaily = totalDays > 0 ? Number(trip.budget.totalBudget) / totalDays : 0;
-    const expectedSpent = originalDaily * elapsedDays;
-    const pace = expectedSpent - spent;
+      : (futureDaysRaw > 0 ? remaining / futureDaysRaw : 0);
+
+    const todayBudget = currentTripDayBudget(today);
+    const spentForDisplayedDay = status === "before"
+      ? totalSpent(expensesOn(trip.startDate))
+      : totalSpent(expensesOn(displayDayDate));
+
+    const dayVariance = todayBudget - spentForDisplayedDay;
+    const todayProgressPct = todayBudget > 0 ? (spentForDisplayedDay / todayBudget) * 100 : 0;
 
     return {
-      today, totalDays, spent, remaining, status, dayIndex, elapsedDays, futureDays,
-      availablePerFutureDay, originalDaily, expectedSpent, pace,
-      spentToday: totalSpent(expensesOn(today)),
+      today,
+      totalDays,
+      spent,
+      remaining,
+      status,
+      dayIndex,
+      elapsedDays,
+      futureDays: futureDaysRaw,
+      allowanceDayCount,
+      availablePerFutureDay,
+      spentToday: spentForDisplayedDay,
       spentDay1,
-      hardLimit
+      hardLimit,
+      todayBudget,
+      dayVariance,
+      todayProgressPct,
+      displayDayDate
     };
   }
 
   function renderDashboard() {
     const stats = tripStats();
     if (!stats) return;
-    const budget = Number(state.trip.budget.totalBudget);
 
+    const budget = Number(state.trip.budget.totalBudget);
+    const spentPct = budget > 0 ? (stats.spent / budget) * 100 : 0;
+
+    // Main trip total.
     el("remainingBudget").textContent = aud(stats.remaining);
     el("remainingBudget").classList.toggle("bad", stats.remaining < 0);
-    el("daysRemaining").textContent = stats.futureDays === 1 ? "1 future day" : `${stats.futureDays} future days`;
+    el("heroTotalSpent").textContent = `Total spent ${aud(stats.spent)}`;
+    el("overallSpentLabel").textContent = `Total spent ${aud(stats.spent)}`;
+
     el("tripDay").textContent =
-      stats.status === "before" ? `Trip starts ${formatDate(state.trip.startDate, { year: false })}` :
-      stats.status === "after" ? `Trip finished • ${stats.totalDays} days` :
-      `Trip day ${stats.dayIndex} of ${stats.totalDays}`;
+      stats.status === "before"
+        ? `Trip starts ${formatDate(state.trip.startDate, { year: false })}`
+        : stats.status === "after"
+          ? `Trip finished • ${stats.totalDays} days`
+          : `Trip day ${stats.dayIndex} of ${stats.totalDays}`;
 
-    el("dailyAllowance").textContent = aud(stats.availablePerFutureDay);
+    // Today's / Day 1 budget strip.
+    const budgetLabel = el("todayBudgetLabel");
+    const spentLabel = el("todaySpentLabel");
+    const badge = el("todayBudgetBadge");
+
+    if (stats.status === "before") {
+      budgetLabel.textContent = "Day 1 budget";
+      spentLabel.textContent = "Day 1 spent";
+    } else if (stats.status === "after") {
+      budgetLabel.textContent = "Final day budget";
+      spentLabel.textContent = "Final day spent";
+    } else {
+      budgetLabel.textContent = "Today's budget";
+      spentLabel.textContent = "Spent today";
+    }
+
+    const isHardLimitDay =
+      stats.hardLimit !== null &&
+      dayNumber(stats.displayDayDate) === dayNumber(state.trip.startDate);
+
+    badge.classList.toggle("hidden", !isHardLimitDay);
+    badge.textContent = isHardLimitDay ? "Hard limit" : "";
+
+    el("todayBudgetValue").textContent = aud(stats.todayBudget);
     el("spentToday").textContent = aud(stats.spentToday);
-    el("todayLocalDate").textContent = formatDate(stats.today, { weekday: true });
-    el("totalSpent").textContent = aud(stats.spent);
+    el("todayLocalDate").textContent =
+      stats.status === "before"
+        ? formatDate(state.trip.startDate, { weekday: true })
+        : formatDate(stats.displayDayDate, { weekday: true });
 
-    const spentPct = budget > 0 ? (stats.spent / budget) * 100 : 0;
-    el("spentPercent").textContent = `${Math.max(0, spentPct).toFixed(1)}% of budget`;
+    const dailyProgress = Math.max(0, Math.min(100, stats.todayProgressPct));
+    el("todayProgressBar").style.width = `${dailyProgress}%`;
+    el("todayProgressBar").classList.toggle("over", stats.todayProgressPct > 100);
 
+    const todayStatus = el("todayBudgetStatus");
+    todayStatus.classList.remove("good", "bad");
+
+    if (stats.status === "before" && stats.spentToday === 0) {
+      todayStatus.textContent = `${aud(stats.todayBudget)} reserved for Day 1`;
+    } else if (stats.dayVariance >= 0) {
+      todayStatus.classList.add("good");
+      todayStatus.textContent = `${aud(stats.dayVariance)} left for ${stats.status === "before" ? "Day 1" : "today"}`;
+    } else {
+      todayStatus.classList.add("bad");
+      todayStatus.textContent = `${aud(Math.abs(stats.dayVariance))} over ${stats.status === "before" ? "Day 1 budget" : "today's budget"}`;
+    }
+
+    // Ahead / behind pace now matches the current day's rolling budget.
     const paceEl = el("paceValue");
     const paceNote = el("paceNote");
     paceEl.classList.remove("good", "bad", "warn");
 
     if (stats.status === "before") {
       paceEl.textContent = aud(0);
+      paceEl.classList.add("warn");
       paceNote.textContent = "Trip has not started yet";
+    } else if (stats.status === "after") {
+      const finalVariance = budget - stats.spent;
+      paceEl.textContent = `${finalVariance >= 0 ? "+" : "−"}${aud(Math.abs(finalVariance))}`;
+      paceEl.classList.add(finalVariance >= 0 ? "good" : "bad");
+      paceNote.textContent = finalVariance >= 0 ? "Finished under trip budget" : "Finished over trip budget";
     } else {
-      paceEl.textContent = `${stats.pace >= 0 ? "+" : "−"}${aud(Math.abs(stats.pace))}`;
-      if (Math.abs(stats.pace) < 0.01) {
-        paceEl.classList.add("warn");
-        paceNote.textContent = "Right on your even-spend pace";
-      } else if (stats.pace > 0) {
-        paceEl.classList.add("good");
-        paceNote.textContent = "Ahead of your even-spend pace";
-      } else {
-        paceEl.classList.add("bad");
-        paceNote.textContent = "Behind your even-spend pace";
-      }
+      paceEl.textContent = `${stats.dayVariance >= 0 ? "+" : "−"}${aud(Math.abs(stats.dayVariance))}`;
+      paceEl.classList.add(stats.dayVariance >= 0 ? "good" : "bad");
+      paceNote.textContent = stats.dayVariance >= 0
+        ? "Ahead of today's pace"
+        : "Behind today's pace";
     }
 
+    // Future allowance.
+    el("dailyAllowance").textContent = aud(stats.availablePerFutureDay);
+
+    if (stats.allowanceDayCount <= 0) {
+      el("futureAllowanceNote").textContent = "No future trip days remaining";
+    } else if (stats.status === "before" && stats.hardLimit !== null) {
+      el("futureAllowanceNote").textContent =
+        `${stats.allowanceDayCount} days after Day 1`;
+    } else {
+      el("futureAllowanceNote").textContent =
+        `${stats.allowanceDayCount} future day${stats.allowanceDayCount === 1 ? "" : "s"}`;
+    }
+
+    el("daysRemaining").textContent =
+      stats.allowanceDayCount === 1
+        ? "1 future day"
+        : `${stats.allowanceDayCount} future days`;
+
+    // Overall budget progress.
     const clampedPct = Math.max(0, Math.min(100, spentPct));
     el("budgetProgress").style.width = `${clampedPct}%`;
     el("budgetProgress").style.background = spentPct > 100 ? "#b91c1c" : "";
     el("progressUsed").textContent = `${Math.max(0, spentPct).toFixed(0)}% used`;
     el("progressRemaining").textContent =
-      stats.remaining >= 0 ? `${Math.max(0, 100 - spentPct).toFixed(0)}% left` : `${aud(Math.abs(stats.remaining))} over`;
+      stats.remaining >= 0
+        ? `${Math.max(0, 100 - spentPct).toFixed(0)}% left`
+        : `${aud(Math.abs(stats.remaining))} over`;
 
-    const limitBanner = el("day1LimitBanner");
-    limitBanner.classList.add("hidden");
-    limitBanner.classList.remove("limit-good", "limit-over");
-
-    if (stats.hardLimit !== null) {
-      const startN = dayNumber(state.trip.startDate);
-      const todayN = dayNumber(stats.today);
-      const difference = stats.hardLimit - stats.spentDay1;
-      limitBanner.classList.remove("hidden");
-
-      if (todayN < startN) {
-        limitBanner.textContent = `Day 1 hard limit: ${aud(stats.hardLimit)}. That amount is reserved for Day 1.`;
-      } else if (todayN === startN) {
-        if (difference >= 0) {
-          limitBanner.classList.add("limit-good");
-          limitBanner.textContent = `Day 1 hard limit: ${aud(stats.hardLimit)} • Spent: ${aud(stats.spentDay1)} • ${aud(difference)} still available today.`;
-        } else {
-          limitBanner.classList.add("limit-over");
-          limitBanner.textContent = `Day 1 hard limit exceeded by ${aud(Math.abs(difference))}. Future daily allowance has been reduced.`;
-        }
-      } else {
-        if (difference >= 0) {
-          limitBanner.classList.add("limit-good");
-          limitBanner.textContent = `Day 1 limit: ${aud(stats.hardLimit)} • Actual: ${aud(stats.spentDay1)} • ${aud(difference)} rolled into the remaining trip.`;
-        } else {
-          limitBanner.classList.add("limit-over");
-          limitBanner.textContent = `Day 1 limit: ${aud(stats.hardLimit)} • Actual: ${aud(stats.spentDay1)} • ${aud(Math.abs(difference))} overspend was absorbed by the remaining trip.`;
-        }
-      }
-    }
-
+    // Status copy.
     if (stats.status === "before") {
       const until = dayNumber(state.trip.startDate) - dayNumber(stats.today);
-      el("tripStatus").textContent = `Your trip starts in ${until} day${until === 1 ? "" : "s"}. Before the trip, available/day is spread across all trip days.`;
+      if (stats.hardLimit !== null) {
+        el("tripStatus").textContent =
+          `Your trip starts in ${until} day${until === 1 ? "" : "s"}. ${aud(stats.hardLimit)} is reserved for Day 1, so Days 2 onward currently have ${aud(stats.availablePerFutureDay)} per day.`;
+      } else {
+        el("tripStatus").textContent =
+          `Your trip starts in ${until} day${until === 1 ? "" : "s"}. The budget is currently spread evenly across all ${stats.totalDays} trip days.`;
+      }
     } else if (stats.status === "after") {
-      el("tripStatus").textContent = `This trip ended on ${formatDate(state.trip.endDate)}. Your history remains available.`;
+      el("tripStatus").textContent =
+        `This trip ended on ${formatDate(state.trip.endDate)}. Your history remains available.`;
     } else if (stats.futureDays === 0) {
-      el("tripStatus").textContent = `Today is the final day. Remaining budget is shown above; there are no future days to redistribute it across.`;
+      el("tripStatus").textContent =
+        `Today is the final day. There are no future days left to redistribute the remaining budget across.`;
     } else {
-      el("tripStatus").textContent = `Today is day ${stats.dayIndex} of ${stats.totalDays}. Future daily allowance excludes today and updates immediately as you spend.`;
+      el("tripStatus").textContent =
+        `Today is day ${stats.dayIndex} of ${stats.totalDays}. Today's allowance is fixed at the start of the day; future days recalculate from what is actually left.`;
     }
   }
 

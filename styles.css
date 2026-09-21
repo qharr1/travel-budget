@@ -808,3 +808,96 @@ dialog[open] {
   margin: 10px 0 0;
   line-height: 1.45;
 }
+
+
+/* v6 — clearer budget hierarchy */
+.today-budget-strip {
+  margin-top: 10px;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.today-budget-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+}
+.today-budget-label-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.today-budget-label-row .metric-label {
+  margin-bottom: 0;
+}
+.today-budget-badge {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: .65rem;
+  font-weight: 850;
+}
+.today-budget-value,
+.today-spent-value {
+  margin: 3px 0 0;
+  font-weight: 850;
+  letter-spacing: -.035em;
+}
+.today-budget-value {
+  font-size: clamp(1.55rem, 7vw, 2.1rem);
+}
+.today-spent-side {
+  text-align: right;
+}
+.today-spent-value {
+  font-size: clamp(1.2rem, 5.5vw, 1.6rem);
+}
+.today-progress-track {
+  height: 10px;
+  margin-top: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+.today-progress-bar {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+.today-progress-bar.over {
+  background: var(--bad);
+}
+.today-budget-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 650;
+}
+.today-budget-bottom .good {
+  color: var(--good);
+}
+.today-budget-bottom .bad {
+  color: var(--bad);
+}
+.budget-kpi-grid {
+  margin-top: 10px;
+}
+.overall-budget-progress {
+  margin: 13px 2px 4px;
+}
+.overall-budget-progress .progress-track {
+  margin-top: 6px;
+}
+.overall-budget-progress .progress-labels:last-child {
+  margin-top: 6px;
+}

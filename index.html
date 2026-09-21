@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-title" content="Travel Planner">
   <meta name="format-detection" content="telephone=no">
   <title>Travel Planner</title>
-  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="manifest" href="./manifest.webmanifest?v=6">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=6">
 </head>
 <body>
   <div class="app-shell">
@@ -285,44 +285,60 @@
 
             <section class="budget-tab-panel active" data-budget-panel="today">
               <div id="tripStatus" class="trip-status"></div>
-              <div id="day1LimitBanner" class="day1-limit-banner hidden"></div>
 
               <div class="hero-card">
                 <p class="metric-label">Remaining budget</p>
                 <p id="remainingBudget" class="hero-value">$0.00</p>
                 <div class="hero-meta">
-                  <span id="daysRemaining">0 future days</span>
+                  <span id="heroTotalSpent">Total spent $0.00</span>
                   <span id="tripDay">Trip day —</span>
                 </div>
               </div>
 
-              <div class="metrics-grid">
-                <article class="metric-card">
-                  <p class="metric-label">Available / future day</p>
-                  <p id="dailyAllowance" class="metric-value">$0.00</p>
-                  <p class="metric-note">Remaining budget ÷ days after today</p>
-                </article>
-                <article class="metric-card">
-                  <p class="metric-label">Spent today</p>
-                  <p id="spentToday" class="metric-value">$0.00</p>
-                  <p id="todayLocalDate" class="metric-note"></p>
-                </article>
-                <article class="metric-card">
-                  <p class="metric-label">Total spent</p>
-                  <p id="totalSpent" class="metric-value">$0.00</p>
-                  <p id="spentPercent" class="metric-note">0% of budget</p>
-                </article>
+              <section class="today-budget-strip" aria-label="Today's budget progress">
+                <div class="today-budget-top">
+                  <div>
+                    <div class="today-budget-label-row">
+                      <p id="todayBudgetLabel" class="metric-label">Today's budget</p>
+                      <span id="todayBudgetBadge" class="today-budget-badge hidden">Hard limit</span>
+                    </div>
+                    <p id="todayBudgetValue" class="today-budget-value">$0.00</p>
+                  </div>
+                  <div class="today-spent-side">
+                    <p id="todaySpentLabel" class="metric-label">Spent today</p>
+                    <p id="spentToday" class="today-spent-value">$0.00</p>
+                  </div>
+                </div>
+                <div class="today-progress-track">
+                  <div id="todayProgressBar" class="today-progress-bar"></div>
+                </div>
+                <div class="today-budget-bottom">
+                  <span id="todayBudgetStatus">No spending yet</span>
+                  <span id="todayLocalDate"></span>
+                </div>
+              </section>
+
+              <div class="metrics-grid budget-kpi-grid">
                 <article class="metric-card">
                   <p class="metric-label">Ahead / behind pace</p>
                   <p id="paceValue" class="metric-value">$0.00</p>
-                  <p id="paceNote" class="metric-note">Compared with even daily spending</p>
+                  <p id="paceNote" class="metric-note">Trip has not started yet</p>
+                </article>
+                <article class="metric-card">
+                  <p class="metric-label">Available / future day</p>
+                  <p id="dailyAllowance" class="metric-value">$0.00</p>
+                  <p id="futureAllowanceNote" class="metric-note">Future daily allowance</p>
                 </article>
               </div>
 
-              <div class="progress-wrap" aria-label="Budget used">
-                <div class="progress-track"><div id="budgetProgress" class="progress-bar"></div></div>
+              <div class="overall-budget-progress" aria-label="Overall budget used">
                 <div class="progress-labels">
                   <span id="progressUsed">0% used</span>
+                  <span id="daysRemaining">0 future days</span>
+                </div>
+                <div class="progress-track"><div id="budgetProgress" class="progress-bar"></div></div>
+                <div class="progress-labels">
+                  <span id="overallSpentLabel">Total spent $0.00</span>
                   <span id="progressRemaining">100% left</span>
                 </div>
               </div>
@@ -655,6 +671,6 @@
     </form>
   </dialog>
 
-  <script src="./app.js" defer></script>
+  <script src="./app.js?v=6" defer></script>
 </body>
 </html>
