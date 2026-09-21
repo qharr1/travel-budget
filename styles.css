@@ -3193,3 +3193,76 @@ html[data-theme="dark"] .map-source-status span[data-state="WebGL1"] {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v31 — manual map pin actions + category icons */
+.trip-map-glyph,
+.trip-map-pin-glyph {
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  user-select: none;
+}
+
+.trip-map-glyph {
+  font-size: 1.05rem;
+}
+
+.icon-pin-marker {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  margin: 2px 0 0 4px;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  transform: rotate(-45deg);
+  background: #0f766e;
+}
+
+.trip-map-pin-glyph {
+  position: absolute;
+  inset: 0;
+  font-size: .9rem;
+  transform: rotate(45deg);
+}
+
+.marker-hotel { background: #0f766e; }
+.marker-flight { background: #2563eb; }
+.marker-themepark { background: #ec4899; }
+.marker-travel { background: #475569; }
+.marker-food { background: #ea580c; }
+.marker-shopping { background: #7c3aed; }
+.marker-activity { background: #0f766e; }
+.marker-park { background: #16a34a; }
+.marker-attraction { background: #db2777; }
+.marker-generic { background: #0891b2; }
+
+.map-missing-copy {
+  min-width: 0;
+}
+.map-missing-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.soft-btn {
+  background: transparent;
+  border-color: var(--line-strong, #94a3b8);
+  color: var(--text);
+}
+
+@media (max-width: 620px) {
+  .map-missing-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .map-missing-actions {
+    justify-content: stretch;
+  }
+  .map-missing-actions .mini-btn {
+    flex: 1 1 auto;
+  }
+}

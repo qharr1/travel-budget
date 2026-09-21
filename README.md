@@ -43,3 +43,20 @@ remain visible even if MapLibre's external CSS is delayed.
 - Family Sync of coordinates
 - map filters / Fit whole trip
 - offline core PWA
+
+
+## v31 additions
+
+- Missing map locations now have a **Set manually** button.
+- You can enter latitude and longitude directly for any missing pin.
+- Map markers now use category-specific icons:
+  - Accommodation 🏨
+  - Flight ✈️
+  - Theme park 🎢
+  - Travel 🚆
+  - Food / Restaurant 🍽️
+  - Shopping / Shop 🛍️
+  - Activity 🎯
+  - Park 🌳
+  - Attraction 📸
+  - Other / generic 📍 or 🧭

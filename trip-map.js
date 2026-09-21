@@ -361,26 +361,71 @@ async function ensureMap() {
   return mapPromise;
 }
 
+
+function markerMeta(record) {
+  const type = String(record?.type || "").trim().toLowerCase();
+  const category = String(record?.category || "").trim().toLowerCase();
+
+  if (record?.isHotel) {
+    return { icon: "🏨", label: "Accommodation", className: "marker-hotel" };
+  }
+
+  if (type === "flight") {
+    return { icon: "✈️", label: "Flight", className: "marker-flight" };
+  }
+  if (type === "theme park") {
+    return { icon: "🎢", label: "Theme park", className: "marker-themepark" };
+  }
+  if (type === "travel") {
+    return { icon: "🚆", label: "Travel", className: "marker-travel" };
+  }
+  if (type === "food" || category === "restaurant") {
+    return { icon: "🍽️", label: type === "food" ? "Food" : "Restaurant", className: "marker-food" };
+  }
+  if (type === "shopping" || category === "shop") {
+    return { icon: "🛍️", label: type === "shopping" ? "Shopping" : "Shop", className: "marker-shopping" };
+  }
+  if (type === "activity" || category === "activity") {
+    return { icon: "🎯", label: "Activity", className: "marker-activity" };
+  }
+  if (category === "park") {
+    return { icon: "🌳", label: "Park", className: "marker-park" };
+  }
+  if (category === "attraction") {
+    return { icon: "📸", label: "Attraction", className: "marker-attraction" };
+  }
+
+  return {
+    icon: record?.kind === "place" ? "📍" : "🧭",
+    label: record?.kind === "place" ? "Place" : (record?.type || "Itinerary"),
+    className: "marker-generic"
+  };
+}
+
 function markerElement(record) {
   const wrapper = document.createElement("button");
   wrapper.type = "button";
   wrapper.className = `trip-map-marker-wrap ${record.isWishlist ? "wishlist-marker" : ""}`;
   wrapper.setAttribute("aria-label", record.title || "Trip location");
 
+  const meta = markerMeta(record);
   const visual = document.createElement("span");
+
   if (record.isHotel) {
-    visual.className = "trip-map-marker hotel-marker";
-    visual.textContent = "🏨";
+    visual.className = `trip-map-marker hotel-marker ${meta.className}`;
+    visual.innerHTML = `<span class="trip-map-glyph">${meta.icon}</span>`;
   } else {
-    visual.className = "trip-map-marker pin-marker";
-    visual.innerHTML = '<span class="trip-map-pin-dot"></span>';
+    visual.className = `trip-map-marker pin-marker icon-pin-marker ${meta.className}`;
+    visual.innerHTML = `<span class="trip-map-pin-glyph">${meta.icon}</span>`;
   }
+
   wrapper.appendChild(visual);
   return wrapper;
 }
 
 function popupHtml(record) {
   const meta = [];
+  const marker = markerMeta(record);
   if (record.date) meta.push(record.date);
   if (record.time) meta.push(record.time);
   if (record.category) meta.push(record.category);
@@ -388,7 +433,7 @@ function popupHtml(record) {
 
   return `
     <div class="trip-map-popup">
-      <span class="trip-map-popup-type">${record.isHotel ? "🏨 Accommodation" : escapeHtml(record.kind === "place" ? "Saved place" : record.type || "Itinerary")}</span>
+      <span class="trip-map-popup-type">${escapeHtml(marker.icon + " " + marker.label)}</span>
       <strong>${escapeHtml(record.title || "Location")}</strong>
       ${meta.length ? `<small>${escapeHtml(meta.join(" • "))}</small>` : ""}
       <p>${escapeHtml(record.location || "")}</p>
@@ -477,11 +522,14 @@ function renderMissingList() {
   root.innerHTML = missing.length
     ? missing.map((record) => `
         <div class="map-missing-row">
-          <div>
+          <div class="map-missing-copy">
             <strong>${escapeHtml(record.title)}</strong>
             <span>${escapeHtml(record.location)}</span>
           </div>
-          <button class="mini-btn map-find-one" type="button" data-kind="${escapeHtml(record.kind)}" data-id="${escapeHtml(record.id)}">Find pin</button>
+          <div class="map-missing-actions">
+            <button class="mini-btn map-find-one" type="button" data-kind="${escapeHtml(record.kind)}" data-id="${escapeHtml(record.id)}">Find pin</button>
+            <button class="mini-btn soft-btn map-manual-one" type="button" data-kind="${escapeHtml(record.kind)}" data-id="${escapeHtml(record.id)}">Set manually</button>
+          </div>
         </div>
       `).join("")
     : `<p class="expense-empty">Everything with a saved location is pinned.</p>`;
@@ -491,6 +539,43 @@ function renderMissingList() {
       queueGeocode(button.dataset.kind, button.dataset.id, true);
     });
   });
+
+  root.querySelectorAll(".map-manual-one").forEach((button) => {
+    button.addEventListener("click", () => {
+      promptManualCoordinates(button.dataset.kind, button.dataset.id);
+    });
+  });
+}
+
+
+function promptManualCoordinates(kind, id) {
+  const record = records().find((r) => r.kind === kind && r.id === id);
+  if (!record) return;
+
+  const latInput = window.prompt(
+    `Enter latitude for "${record.title}"\nExample: 35.6329`,
+    record.latitude ?? ""
+  );
+  if (latInput === null) return;
+
+  const lngInput = window.prompt(
+    `Enter longitude for "${record.title}"\nExample: 139.8804`,
+    record.longitude ?? ""
+  );
+  if (lngInput === null) return;
+
+  const lat = Number(String(latInput).trim());
+  const lng = Number(String(lngInput).trim());
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    window.alert("That latitude/longitude pair is not valid.");
+    return;
+  }
+
+  bridge.updateCoordinates?.(kind, id, lat, lng, `Manual pin (${lat.toFixed(5)}, ${lng.toFixed(5)})`);
+  refreshMarkers();
+  fitTrip(true);
+  setStatus(`Saved manual pin for ${record.title}.`);
 }
 
 function fitTrip(animate = true) {
@@ -608,7 +693,7 @@ async function processQueue() {
   } else if (!missingRecords().length) {
     setStatus("Every saved location has a pin.");
   } else if (navigator.onLine) {
-    setStatus("Some locations could not be matched. Make the address/location more specific and retry.");
+    setStatus("Some locations could not be matched. Make the address/location more specific, retry, or use Set manually.");
   }
 }
 
