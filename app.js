@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 20;
+  const APP_VERSION = 21;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -2744,6 +2744,47 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function applyImportedTrip(imported, options = {}) {
+    const currentTrip = state.trip;
+    const importedTrip = imported.trip;
+    const sameTrip = Boolean(
+      currentTrip?.id &&
+      importedTrip?.id &&
+      currentTrip.id === importedTrip.id
+    );
+
+    if (sameTrip) {
+      const preservedBudget = currentTrip.budget
+        ? JSON.parse(JSON.stringify(currentTrip.budget))
+        : null;
+      const preservedExpenses = Array.isArray(state.expenses)
+        ? JSON.parse(JSON.stringify(state.expenses))
+        : [];
+
+      state = imported;
+
+      // The device already owns the live spending budget for this trip.
+      // Incoming itinerary/full-trip updates must not overwrite it.
+      if (preservedBudget) {
+        state.trip.budget = preservedBudget;
+      }
+      state.expenses = preservedExpenses;
+
+      return {
+        sameTrip: true,
+        preservedBudget: Boolean(preservedBudget),
+        preservedExpenses: true
+      };
+    }
+
+    state = imported;
+    return {
+      sameTrip: false,
+      preservedBudget: false,
+      preservedExpenses: false
+    };
+  }
+
   async function importTripFile(file, messageElement) {
     try {
       const text = await file.text();
@@ -2764,7 +2805,7 @@
         throw new Error("Trip dates are invalid.");
       }
 
-      state = imported;
+      const importResult = applyImportedTrip(imported);
       setupVisible = false;
       selectedItineraryDate = defaultSelectedDate();
       itineraryViewMode = uiSettings.itineraryDefaultView;
@@ -2772,7 +2813,11 @@
       saveState();
       render();
       activateMode(uiSettings.startScreen);
-      if (messageElement) messageElement.textContent = "Trip imported.";
+      if (messageElement) {
+        messageElement.textContent = importResult.sameTrip
+          ? "Trip updated. This device's budget, exchange rates and expense history were kept."
+          : "Trip imported.";
+      }
     } catch (error) {
       if (messageElement) messageElement.textContent = `Could not import trip: ${error.message}`;
     }
@@ -2903,8 +2948,16 @@
       ? "full trip, including budget data"
       : "itinerary only";
 
+    const sameTrip = Boolean(
+      state.trip?.id &&
+      payload.trip?.id &&
+      state.trip.id === payload.trip.id
+    );
+
     const promptText = state.trip
-      ? `Import ${tripName} (${modeLabel}) and replace the trip currently stored on this device?`
+      ? sameTrip
+        ? `Update ${tripName} from this ${modeLabel} link? Your budget, exchange rates and expense history on this device will be kept.`
+        : `Import ${tripName} (${modeLabel}) and replace the different trip currently stored on this device?`
       : `Import ${tripName} (${modeLabel})?`;
 
     if (!window.confirm(promptText)) {
@@ -2912,11 +2965,13 @@
       return false;
     }
 
-    state = migrateState({
+    const imported = migrateState({
       version: APP_VERSION,
       trip: payload.trip,
       expenses: Array.isArray(payload.expenses) ? payload.expenses : []
     });
+
+    const importResult = applyImportedTrip(imported);
 
     setupVisible = false;
     selectedItineraryDate = defaultSelectedDate();
@@ -2927,8 +2982,9 @@
     activateMode(uiSettings.startScreen);
 
     if (messageElement) {
-      messageElement.textContent =
-        `${tripName} imported from ${payload.shareMode === "full" ? "a full-trip" : "an itinerary"} link.`;
+      messageElement.textContent = importResult.sameTrip
+        ? `${tripName} updated. This device's budget, exchange rates and expense history were kept.`
+        : `${tripName} imported from ${payload.shareMode === "full" ? "a full-trip" : "an itinerary"} link.`;
     }
 
     return true;
@@ -4411,7 +4467,7 @@
 
   el("importInput").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
-    if (file && window.confirm("Replace the trip on this device with the imported trip?")) {
+    if (file && window.confirm("Import this trip file? If it is an update to the same trip, your budget, exchange rates and expense history on this device will be kept.")) {
       await importTripFile(file, el("backupMessage"));
     }
     event.target.value = "";

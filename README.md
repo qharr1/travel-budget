@@ -1,63 +1,55 @@
-# Travel Planner v20 — Import a trip using a share link
+# Travel Planner v21 — Same-trip imports preserve the local budget
 
-## Settings > Backup, data & privacy
+## New import behaviour
 
-You can now import a trip in two ways:
+When an imported trip has the same trip ID as the trip already stored on the
+device, Travel Planner now treats it as an update rather than a total overwrite.
 
-1. Import from file
-2. Import using a share link
+The incoming copy updates the trip-planning data, while the current device keeps:
 
-## Import using a share link
+- total spending budget
+- Day 1 hard limit
+- destination/currency periods
+- planning exchange rates
+- expense history
 
-Paste a Travel Planner share link into the new field and tap:
+This applies to:
+- Import from file
+- Import using a share link
+- Full Trip links
+- Itinerary-only links
 
-`Import from link`
+## Why
 
-The importer accepts:
-- a full Travel Planner URL
-- copied text containing the Travel Planner URL
-- a `#tripshare=...` fragment
-- the raw Travel Planner share payload
+This supports the intended workflow:
 
-The link is decoded locally in the browser. No server fetch is needed.
+1. Export/share the trip from iPhone
+2. Import it on PC
+3. Edit the itinerary on PC
+4. Export/share the updated trip
+5. Import it back on iPhone
 
-## Full Trip vs Itinerary link
+The iPhone's live spending budget and expenses are not replaced by the older
+copy that was edited on the PC.
 
-Before importing, Travel Planner tells you whether the link contains:
+## Different-trip imports
 
-- `full trip, including budget data`
-- `itinerary only`
+If the incoming trip has a different trip ID, it is still treated as a different
+trip and can replace the current one after confirmation.
 
-If a trip is already stored on the device, you are asked to confirm before it
-is replaced.
+If there is no trip currently stored on the device, all data from the imported
+trip is imported normally.
 
-## PC -> iPhone workflow
+## Other features retained
 
-A simple workflow is now:
-
-1. Export/share Full Trip link on iPhone
-2. Open/import link on PC
-3. Make changes on PC
-4. Create a new Full Trip link on PC
-5. Send/copy that link to the iPhone
-6. Settings > Backup, data & privacy > Import using a share link
-7. Paste the link and import
-
-## Privacy
-
-The trip payload remains inside the URL fragment after `#tripshare=`.
-Travel Planner decodes it locally.
-
-As before, anyone who receives the complete share link can import that snapshot,
-so treat Full Trip links as private.
-
-## Existing features retained
-
-v20 keeps:
-- foreign-currency conversion and rate snapshots
-- traveller attendance and split costs
-- Who Pays What
-- dark mode / light default
+v21 keeps:
+- link import
+- foreign-currency conversion and booking-rate snapshots
+- named travellers / attendance
+- individual and split cost responsibility
+- pre-trip costs
+- Who Pays What summary
+- light-mode default
 - offline caching
 - document vault
 - reminders
