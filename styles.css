@@ -3184,7 +3184,6 @@ html[data-theme="dark"] .map-source-status span[data-state="WebGL1"] {
   border-bottom: 0;
 }
 
-
 /* v30 — three map actions */
 .map-action-row {
   grid-template-columns: repeat(3, minmax(0, 1fr));

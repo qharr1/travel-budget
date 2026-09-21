@@ -196,8 +196,6 @@ function validCoords(record) {
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return false;
-
-  // 0,0 is the classic missing-coordinate sentinel. Treat it as unmapped.
   if (lat === 0 && lng === 0) return false;
 
   return true;
