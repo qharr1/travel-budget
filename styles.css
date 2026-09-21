@@ -1520,3 +1520,157 @@ dialog[open] {
     flex-direction: column;
   }
 }
+
+/* v11 — centralized Settings */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.settings-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.settings-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, #f8fafc, #fff);
+  box-shadow: var(--shadow);
+}
+.settings-hero h2 { margin: 2px 0 5px; }
+.compact-settings-close {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 8px 12px;
+}
+.settings-group {
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+.settings-group > summary {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.settings-group > summary::-webkit-details-marker { display: none; }
+.settings-group[open] .pretrip-chevron { transform: rotate(180deg); }
+.settings-group-title {
+  display: block;
+  font-size: .97rem;
+  font-weight: 850;
+}
+.settings-group-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+.settings-group-body {
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--line);
+}
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+.settings-row:last-of-type { border-bottom: 0; }
+.settings-row strong {
+  display: block;
+  font-size: .86rem;
+}
+.settings-row span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.4;
+}
+.settings-toggle-list {
+  display: grid;
+  gap: 0;
+}
+.settings-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.settings-toggle:last-child { border-bottom: 0; }
+.settings-toggle span { min-width: 0; }
+.settings-toggle strong {
+  display: block;
+  font-size: .86rem;
+}
+.settings-toggle small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.35;
+}
+.settings-toggle input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+}
+.settings-embedded-section {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.settings-embedded-section + .settings-embedded-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.settings-group-body .danger-panel { background: transparent; }
+.settings-inline-action { margin-top: 12px; }
+#settingsTripBudgetBody .section-heading,
+#settingsDataBody .section-heading { margin-top: 0; }
+#settingsNotificationsBody .notification-box { margin-top: 0; }
+
+@media (max-width: 520px) {
+  .settings-hero { flex-direction: column; }
+  .compact-settings-close { align-self: stretch; }
+  .settings-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .settings-row .compact-select { width: 100%; }
+}

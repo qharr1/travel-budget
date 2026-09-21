@@ -1,1207 +1,1096 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f172a">
-  <meta name="robots" content="noindex,nofollow,noarchive">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Travel Planner">
-  <meta name="format-detection" content="telephone=no">
-  <title>Travel Planner</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=10">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=10">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
+<meta content="#0f172a" name="theme-color"/>
+<meta content="noindex,nofollow,noarchive" name="robots"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="Travel Planner" name="apple-mobile-web-app-title"/>
+<meta content="telephone=no" name="format-detection"/>
+<title>Travel Planner</title>
+<link href="./manifest.webmanifest?v=11" rel="manifest"/>
+<link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
+<link href="./styles.css?v=11" rel="stylesheet"/>
 </head>
 <body>
-  <div class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">PRIVATE • OFFLINE READY</p>
-        <h1 id="headerTripName">Travel Planner</h1>
-        <p id="headerTripDates" class="muted">Create or import a trip to begin.</p>
-      </div>
-      <span id="connectionBadge" class="badge">Checking…</span>
-    </header>
+<div class="app-shell">
+<header class="topbar">
+<div>
+<p class="eyebrow">PRIVATE • OFFLINE READY</p>
+<h1 id="headerTripName">Travel Planner</h1>
+<p class="muted" id="headerTripDates">Create or import a trip to begin.</p>
+</div>
 
-    <main>
-      <section id="welcomePanel" class="welcome-panel hidden">
-        <div class="welcome-card">
-          <p class="eyebrow">GET STARTED</p>
-          <h2>Your trips stay on this device</h2>
-          <p class="muted">Create a brand-new trip, or import a trip file somebody has shared with you.</p>
-
-          <div class="welcome-actions">
-            <button id="welcomeCreateBtn" class="primary-btn big-action" type="button">
-              <span class="action-title">Create New Trip</span>
-              <span class="action-sub">Set dates, currencies and budget</span>
-            </button>
-
-            <button id="welcomeImportBtn" class="secondary-btn big-action" type="button">
-              <span class="action-title">Import Trip</span>
-              <span class="action-sub">Choose a .json trip file from Files</span>
-            </button>
-            <input id="welcomeImportInput" type="file" accept=".json,application/json" hidden>
-          </div>
-
-          <p id="welcomeMessage" class="status-message" role="status"></p>
-        </div>
-      </section>
-
-      <section id="setupPanel" class="panel setup-panel hidden" aria-labelledby="setupHeading">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">NEW TRIP</p>
-            <h2 id="setupHeading">Create your trip</h2>
-          </div>
-          <button id="cancelCreateBtn" class="text-btn" type="button">Cancel</button>
-        </div>
-
-        <form id="setupForm" class="form-grid">
-          <label>
+<div class="topbar-actions"><span class="badge" id="connectionBadge">Checking…</span><button aria-label="Open settings" class="settings-icon-btn" id="settingsBtn" type="button">⚙︎</button></div></header>
+<main>
+<section class="welcome-panel hidden" id="welcomePanel">
+<div class="welcome-card">
+<p class="eyebrow">GET STARTED</p>
+<h2>Your trips stay on this device</h2>
+<p class="muted">Create a brand-new trip, or import a trip file somebody has shared with you.</p>
+<div class="welcome-actions">
+<button class="primary-btn big-action" id="welcomeCreateBtn" type="button">
+<span class="action-title">Create New Trip</span>
+<span class="action-sub">Set dates, currencies and budget</span>
+</button>
+<button class="secondary-btn big-action" id="welcomeImportBtn" type="button">
+<span class="action-title">Import Trip</span>
+<span class="action-sub">Choose a .json trip file from Files</span>
+</button>
+<input accept=".json,application/json" hidden="" id="welcomeImportInput" type="file"/>
+</div>
+<p class="status-message" id="welcomeMessage" role="status"></p>
+</div>
+</section>
+<section aria-labelledby="setupHeading" class="panel setup-panel hidden" id="setupPanel">
+<div class="section-heading">
+<div>
+<p class="eyebrow">NEW TRIP</p>
+<h2 id="setupHeading">Create your trip</h2>
+</div>
+<button class="text-btn" id="cancelCreateBtn" type="button">Cancel</button>
+</div>
+<form class="form-grid" id="setupForm">
+<label>
             Trip name
-            <input id="tripName" type="text" maxlength="60" placeholder="Europe 2027" required>
-          </label>
-
-          <div class="two-col">
-            <label>
+            <input id="tripName" maxlength="60" placeholder="Europe 2027" required="" type="text"/>
+</label>
+<div class="two-col">
+<label>
               Start date
-              <input id="startDate" type="date" required>
-            </label>
-            <label>
+              <input id="startDate" required="" type="date"/>
+</label>
+<label>
               End date
-              <input id="endDate" type="date" required>
-            </label>
-          </div>
-
-          <div class="two-col">
-            <label>
+              <input id="endDate" required="" type="date"/>
+</label>
+</div>
+<div class="two-col">
+<label>
               Adults
-              <input id="adultCount" type="number" min="0" max="30" step="1" inputmode="numeric" value="2">
-            </label>
-            <label>
+              <input id="adultCount" inputmode="numeric" max="30" min="0" step="1" type="number" value="2"/>
+</label>
+<label>
               Children
-              <input id="childCount" type="number" min="0" max="30" step="1" inputmode="numeric" value="0">
-            </label>
-          </div>
-
-          <label>
+              <input id="childCount" inputmode="numeric" max="30" min="0" step="1" type="number" value="0"/>
+</label>
+</div>
+<label>
             Total spending budget (AUD)
             <div class="money-input">
-              <span>$</span>
-              <input id="totalBudget" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="7500" required>
-            </div>
-          </label>
-
-          <label>
+<span>$</span>
+<input id="totalBudget" inputmode="decimal" min="0.01" placeholder="7500" required="" step="0.01" type="number"/>
+</div>
+</label>
+<label>
             Day 1 hard limit (AUD) <span class="optional">(optional)</span>
-            <div class="money-input">
-              <span>$</span>
-              <input id="day1HardLimit" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Leave blank for normal rolling budget">
-            </div>
-            <span class="field-help">This amount is reserved for Day 1. Any unused amount rolls into the remaining days after Day 1.</span>
-          </label>
+<div class="money-input">
+<span>$</span>
+<input id="day1HardLimit" inputmode="decimal" min="0" placeholder="Leave blank for normal rolling budget" step="0.01" type="number"/>
+</div>
+<span class="field-help">This amount is reserved for Day 1. Any unused amount rolls into the remaining days after Day 1.</span>
+</label>
+<section class="destination-builder">
+<div class="section-heading compact-heading">
+<div>
+<p class="eyebrow">DESTINATIONS &amp; CURRENCIES</p>
+<h3>Where are you spending?</h3>
+</div>
+<button class="text-btn" id="addSetupDestinationBtn" type="button">+ Add</button>
+</div>
+<p class="muted small">Add each part of the trip. Rates mean local currency units per A$1. Transition dates can overlap.</p>
+<div class="destination-list" id="setupDestinations"></div>
+</section>
+<p class="error" id="setupError" role="alert"></p>
+<button class="primary-btn" type="submit">Create trip</button>
+</form>
+</section>
+<section class="hidden" id="appPanel">
+<nav aria-label="Travel planner mode" class="mode-switch">
+<button class="mode-btn active" data-mode="home" type="button">Home</button>
+<button class="mode-btn" data-mode="itinerary" type="button">Itinerary</button>
+<button class="mode-btn" data-mode="summary" type="button">Summary</button>
+<button class="mode-btn" data-mode="budget" type="button">Budget</button>
+<button class="mode-btn" data-mode="more" type="button">More</button>
+</nav>
+<section class="mode-panel active" data-mode-panel="home" id="homeMode">
+<section class="home-hero">
+<div>
+<p class="eyebrow" id="homeEyebrow">TRIP HOME</p>
+<h2 id="homeTitle">Your trip</h2>
+<p class="home-subtitle" id="homeSubtitle"></p>
+</div>
+<div class="home-countdown" id="homeCountdown"></div>
+</section>
+<div class="home-budget-grid" id="homeBudgetWidget">
+<article class="home-stat-card">
+<p class="metric-label" id="homeBudgetLabel">Day 1 budget</p>
+<p class="home-stat-value" id="homeTodayBudget">$0.00</p>
+<p class="metric-note" id="homeTodayBudgetNote"></p>
+</article>
+<article class="home-stat-card">
+<p class="metric-label" id="homeSpentLabel">Spent</p>
+<p class="home-stat-value" id="homeTodaySpent">$0.00</p>
+<p class="metric-note" id="homeSpendStatus"></p>
+</article>
+</div>
+<section class="home-alert hidden" id="homePreTripWarning"></section>
+<section class="panel home-section" id="homeUpNextWidget">
+<div class="section-heading">
+<div>
+<p class="eyebrow">UP NEXT</p>
+<h2>Next on the itinerary</h2>
+</div>
+<button class="text-btn" id="homeOpenItineraryBtn" type="button">Open itinerary</button>
+</div>
+<div class="home-list" id="homeNextItems"></div>
+</section>
+<div class="home-two-col">
+<section class="panel home-section" id="homeTonightWidget">
+<div class="section-heading compact-heading">
+<div><p class="eyebrow">TONIGHT</p><h3>Accommodation</h3></div>
+</div>
+<div class="home-simple-card" id="homeAccommodation"></div>
+</section>
+<section class="panel home-section" id="homePaymentsWidget">
+<div class="section-heading compact-heading">
+<div><p class="eyebrow">PAYMENTS</p><h3>Next outstanding</h3></div>
+</div>
+<div class="home-simple-card" id="homeOutstanding"></div>
+</section>
+</div>
+<section class="panel home-section" id="homeRemindersWidget">
+<div class="section-heading">
+<div>
+<p class="eyebrow">REMINDERS</p>
+<h2>Coming up</h2>
+</div>
+<button class="text-btn" id="homeOpenRemindersBtn" type="button">All reminders</button>
+</div>
+<div class="home-list" id="homeReminders"></div>
+</section>
+<section class="panel home-section hidden" id="homeDayNotesCard">
+<div class="section-heading">
+<div><p class="eyebrow">TODAY'S NOTES</p><h2>Travel notebook</h2></div>
+<button class="text-btn" id="homeAddNoteBtn" type="button">+ Add note</button>
+</div>
+<div class="home-list" id="homeDayNotes"></div>
+</section>
+</section>
+<section class="mode-panel" data-mode-panel="itinerary" id="itineraryMode">
 
-          <section class="destination-builder">
-            <div class="section-heading compact-heading">
-              <div>
-                <p class="eyebrow">DESTINATIONS & CURRENCIES</p>
-                <h3>Where are you spending?</h3>
-              </div>
-              <button id="addSetupDestinationBtn" class="text-btn" type="button">+ Add</button>
-            </div>
-            <p class="muted small">Add each part of the trip. Rates mean local currency units per A$1. Transition dates can overlap.</p>
-            <div id="setupDestinations" class="destination-list"></div>
-          </section>
-
-          <p id="setupError" class="error" role="alert"></p>
-          <button class="primary-btn" type="submit">Create trip</button>
-        </form>
-      </section>
-
-      <section id="appPanel" class="hidden">
-        <nav class="mode-switch" aria-label="Travel planner mode">
-          <button class="mode-btn active" type="button" data-mode="home">Home</button>
-          <button class="mode-btn" type="button" data-mode="itinerary">Itinerary</button>
-          <button class="mode-btn" type="button" data-mode="summary">Summary</button>
-          <button class="mode-btn" type="button" data-mode="budget">Budget</button>
-          <button class="mode-btn" type="button" data-mode="more">More</button>
-        </nav>
-
-        <section id="homeMode" class="mode-panel active" data-mode-panel="home">
-          <section class="home-hero">
-            <div>
-              <p id="homeEyebrow" class="eyebrow">TRIP HOME</p>
-              <h2 id="homeTitle">Your trip</h2>
-              <p id="homeSubtitle" class="home-subtitle"></p>
-            </div>
-            <div id="homeCountdown" class="home-countdown"></div>
-          </section>
-
-          <div class="home-budget-grid">
-            <article class="home-stat-card">
-              <p id="homeBudgetLabel" class="metric-label">Day 1 budget</p>
-              <p id="homeTodayBudget" class="home-stat-value">$0.00</p>
-              <p id="homeTodayBudgetNote" class="metric-note"></p>
-            </article>
-            <article class="home-stat-card">
-              <p id="homeSpentLabel" class="metric-label">Spent</p>
-              <p id="homeTodaySpent" class="home-stat-value">$0.00</p>
-              <p id="homeSpendStatus" class="metric-note"></p>
-            </article>
-          </div>
-
-          <section id="homePreTripWarning" class="home-alert hidden"></section>
-
-          <section class="panel home-section">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">UP NEXT</p>
-                <h2>Next on the itinerary</h2>
-              </div>
-              <button id="homeOpenItineraryBtn" class="text-btn" type="button">Open itinerary</button>
-            </div>
-            <div id="homeNextItems" class="home-list"></div>
-          </section>
-
-          <div class="home-two-col">
-            <section class="panel home-section">
-              <div class="section-heading compact-heading">
-                <div><p class="eyebrow">TONIGHT</p><h3>Accommodation</h3></div>
-              </div>
-              <div id="homeAccommodation" class="home-simple-card"></div>
-            </section>
-
-            <section class="panel home-section">
-              <div class="section-heading compact-heading">
-                <div><p class="eyebrow">PAYMENTS</p><h3>Next outstanding</h3></div>
-              </div>
-              <div id="homeOutstanding" class="home-simple-card"></div>
-            </section>
-          </div>
-
-          <section class="panel home-section">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">REMINDERS</p>
-                <h2>Coming up</h2>
-              </div>
-              <button id="homeOpenRemindersBtn" class="text-btn" type="button">All reminders</button>
-            </div>
-            <div id="homeReminders" class="home-list"></div>
-          </section>
-
-          <section id="homeDayNotesCard" class="panel home-section hidden">
-            <div class="section-heading">
-              <div><p class="eyebrow">TODAY'S NOTES</p><h2>Travel notebook</h2></div>
-              <button id="homeAddNoteBtn" class="text-btn" type="button">+ Add note</button>
-            </div>
-            <div id="homeDayNotes" class="home-list"></div>
-          </section>
-        </section>
-
-        <section id="itineraryMode" class="mode-panel" data-mode-panel="itinerary">
-          <section class="itinerary-view-control">
-            <div>
-              <p class="eyebrow">ITINERARY VIEW</p>
-              <p class="view-control-title">How do you want to see the trip?</p>
-            </div>
-            <select id="itineraryViewSelect" class="compact-select" aria-label="Itinerary view">
-              <option value="day">Day view</option>
-              <option value="full">Full trip</option>
-            </select>
-          </section>
-
-          <details id="preTripPanel" class="pretrip-panel">
-            <summary>
-              <div>
-                <span class="pretrip-summary-title">Pre-trip</span>
-                <span id="preTripSummaryText" class="pretrip-summary-sub">No tasks yet</span>
-              </div>
-              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div class="pretrip-body">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">BEFORE YOU LEAVE</p>
-                  <h2>Pre-trip tasks</h2>
-                </div>
-                <button id="addPreTripTaskBtn" class="primary-compact-btn" type="button">+ Add task</button>
-              </div>
-              <div id="preTripTaskList" class="pretrip-task-list"></div>
-              <div class="pretrip-import-box">
-                <p class="muted small">Have a pre-trip update file? Importing it merges tasks into this trip without replacing your itinerary, budget or expenses.</p>
-                <label class="secondary-btn file-btn">
+<details class="pretrip-panel" id="preTripPanel">
+<summary>
+<div>
+<span class="pretrip-summary-title">Pre-trip</span>
+<span class="pretrip-summary-sub" id="preTripSummaryText">No tasks yet</span>
+</div>
+<span aria-hidden="true" class="pretrip-chevron">⌄</span>
+</summary>
+<div class="pretrip-body">
+<div class="section-heading">
+<div>
+<p class="eyebrow">BEFORE YOU LEAVE</p>
+<h2>Pre-trip tasks</h2>
+</div>
+<button class="primary-compact-btn" id="addPreTripTaskBtn" type="button">+ Add task</button>
+</div>
+<div class="pretrip-task-list" id="preTripTaskList"></div>
+<div class="pretrip-import-box">
+<p class="muted small">Have a pre-trip update file? Importing it merges tasks into this trip without replacing your itinerary, budget or expenses.</p>
+<label class="secondary-btn file-btn">
                   Import pre-trip tasks
-                  <input id="preTripImportInput" type="file" accept=".json,application/json">
-                </label>
-                <p id="preTripImportMessage" class="status-message" role="status"></p>
-              </div>
-            </div>
-          </details>
-
-          <div id="dayItineraryView">
-            <div class="itinerary-toolbar">
-              <button id="prevDayBtn" class="round-btn" type="button" aria-label="Previous day">‹</button>
-              <div class="day-picker-wrap">
-                <div id="dayStrip" class="day-strip" aria-label="Trip days"></div>
-              </div>
-              <button id="nextDayBtn" class="round-btn" type="button" aria-label="Next day">›</button>
-            </div>
-
-            <section class="itinerary-hero">
-              <div>
-                <p id="itineraryDayLabel" class="eyebrow">DAY 1</p>
-                <h2 id="itineraryDateTitle">Date</h2>
-                <p id="itineraryHeadline" class="itinerary-headline">Nothing planned</p>
-                <p id="itineraryLocation" class="muted"></p>
-              </div>
-              <button id="editDayBtn" class="text-btn" type="button">Edit day</button>
-            </section>
-
-            <div id="overnightBanner" class="overnight-banner hidden"></div>
-            <div id="dayNotesBanner" class="day-notes-banner hidden"></div>
-
-            <section class="panel">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">TODAY'S PLAN</p>
-                  <h2 id="dayItemsHeading">Itinerary</h2>
-                </div>
-                <button id="addItineraryItemBtn" class="primary-compact-btn" type="button">+ Add item</button>
-              </div>
-              <div id="itineraryItems" class="itinerary-list"></div>
-            </section>
-
-            <details class="day-journal-panel">
-              <summary>
-                <div>
-                  <span class="pretrip-summary-title">Day notes / journal</span>
-                  <span id="dayJournalSummary" class="pretrip-summary-sub">No notes yet</span>
-                </div>
-                <span class="pretrip-chevron" aria-hidden="true">⌄</span>
-              </summary>
-              <div class="day-journal-body">
-                <div class="section-heading">
-                  <div><p class="eyebrow">TRAVEL NOTEBOOK</p><h2>Notes for this day</h2></div>
-                  <button id="addDayNoteBtn" class="primary-compact-btn" type="button">+ Add note</button>
-                </div>
-                <div id="dayJournalList" class="day-journal-list"></div>
-              </div>
-            </details>
-          </div>
-
-          <div id="fullItineraryView" class="hidden">
-            <section class="panel">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">FULL TRIP</p>
-                  <h2>Every day</h2>
-                </div>
-                <span id="fullItineraryCount" class="summary-chip">0 days</span>
-              </div>
-              <div id="fullItineraryList" class="full-itinerary-list"></div>
-            </section>
-          </div>
-
-          <section class="panel share-panel">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">SHARE</p>
-                <h2>Send this trip to someone</h2>
-              </div>
-            </div>
-            <p class="muted">Share a private link or export a trip file. Pre-trip tasks are included in itinerary sharing.</p>
-            <div class="stack-actions">
-              <button id="shareItineraryLinkBtn" class="primary-btn" type="button">Share Itinerary Link</button>
-              <button id="shareFullTripLinkBtn" class="secondary-btn" type="button">Share Full Trip Link</button>
-              <button id="quickExportBtn" class="secondary-btn" type="button">Export / Share Trip File</button>
-            </div>
-            <p class="muted small share-help">Shared links contain a compressed copy of the trip after the # in the URL. GitHub does not receive that fragment, but anyone who receives the complete link can import that shared copy.</p>
-            <p id="quickExportMessage" class="status-message" role="status"></p>
-          </section>
-        </section>
-
-
-        <section id="summaryMode" class="mode-panel" data-mode-panel="summary">
-          <div class="summary-hero">
-            <p class="metric-label">Priced trip total</p>
-            <p id="summaryTotalCost" class="summary-hero-value">$0.00</p>
-            <div class="summary-hero-meta">
-              <span id="summaryItemCount">0 trip items</span>
-              <span id="summaryDayCount">0 trip days</span>
-            </div>
-          </div>
-
-          <div class="summary-metrics">
-            <article class="summary-metric-card paid-card">
-              <p class="metric-label">Paid</p>
-              <p id="summaryPaid" class="summary-metric-value">$0.00</p>
-              <p id="summaryPaidPct" class="metric-note">0% of priced trip</p>
-            </article>
-
-            <article class="summary-metric-card outstanding-card">
-              <p class="metric-label">Still to pay</p>
-              <p id="summaryOutstanding" class="summary-metric-value">$0.00</p>
-              <p class="metric-note">Planned / unpaid priced items</p>
-            </article>
-
-            <article class="summary-metric-card">
-              <p class="metric-label">Unpriced items</p>
-              <p id="summaryUnpriced" class="summary-metric-value">0</p>
-              <p class="metric-note">No cost entered yet</p>
-            </article>
-
-            <article class="summary-metric-card">
-              <p class="metric-label">Priced items</p>
-              <p id="summaryPricedItems" class="summary-metric-value">0</p>
-              <p class="metric-note">Items included in totals</p>
-            </article>
-          </div>
-
-          <div class="summary-progress-wrap">
-            <div class="summary-progress-track">
-              <div id="summaryPaidProgress" class="summary-progress-bar"></div>
-            </div>
-            <div class="progress-labels">
-              <span>Payment progress</span>
-              <span id="summaryProgressText">0% paid</span>
-            </div>
-          </div>
-
-          <section class="panel">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">BY TYPE</p>
-                <h2>Where the itinerary cost sits</h2>
-              </div>
-            </div>
-            <div id="summaryBreakdown" class="summary-breakdown"></div>
-          </section>
-
-          <section class="panel">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">OUTSTANDING</p>
-                <h2>Still to pay</h2>
-              </div>
-            </div>
-            <div id="summaryOutstandingList" class="summary-outstanding-list"></div>
-          </section>
-
-          <section class="summary-note">
+                  <input accept=".json,application/json" id="preTripImportInput" type="file"/>
+</label>
+<p class="status-message" id="preTripImportMessage" role="status"></p>
+</div>
+</div>
+</details>
+<div id="dayItineraryView">
+<div class="itinerary-toolbar">
+<button aria-label="Previous day" class="round-btn" id="prevDayBtn" type="button">‹</button>
+<div class="day-picker-wrap">
+<div aria-label="Trip days" class="day-strip" id="dayStrip"></div>
+</div>
+<button aria-label="Next day" class="round-btn" id="nextDayBtn" type="button">›</button>
+</div>
+<section class="itinerary-hero">
+<div>
+<p class="eyebrow" id="itineraryDayLabel">DAY 1</p>
+<h2 id="itineraryDateTitle">Date</h2>
+<p class="itinerary-headline" id="itineraryHeadline">Nothing planned</p>
+<p class="muted" id="itineraryLocation"></p>
+</div>
+<button class="text-btn" id="editDayBtn" type="button">Edit day</button>
+</section>
+<div class="overnight-banner hidden" id="overnightBanner"></div>
+<div class="day-notes-banner hidden" id="dayNotesBanner"></div>
+<section class="panel">
+<div class="section-heading">
+<div>
+<p class="eyebrow">TODAY'S PLAN</p>
+<h2 id="dayItemsHeading">Itinerary</h2>
+</div>
+<button class="primary-compact-btn" id="addItineraryItemBtn" type="button">+ Add item</button>
+</div>
+<div class="itinerary-list" id="itineraryItems"></div>
+</section>
+<details class="day-journal-panel">
+<summary>
+<div>
+<span class="pretrip-summary-title">Day notes / journal</span>
+<span class="pretrip-summary-sub" id="dayJournalSummary">No notes yet</span>
+</div>
+<span aria-hidden="true" class="pretrip-chevron">⌄</span>
+</summary>
+<div class="day-journal-body">
+<div class="section-heading">
+<div><p class="eyebrow">TRAVEL NOTEBOOK</p><h2>Notes for this day</h2></div>
+<button class="primary-compact-btn" id="addDayNoteBtn" type="button">+ Add note</button>
+</div>
+<div class="day-journal-list" id="dayJournalList"></div>
+</div>
+</details>
+</div>
+<div class="hidden" id="fullItineraryView">
+<section class="panel">
+<div class="section-heading">
+<div>
+<p class="eyebrow">FULL TRIP</p>
+<h2>Every day</h2>
+</div>
+<span class="summary-chip" id="fullItineraryCount">0 days</span>
+</div>
+<div class="full-itinerary-list" id="fullItineraryList"></div>
+</section>
+</div>
+<section class="panel share-panel">
+<div class="section-heading">
+<div>
+<p class="eyebrow">SHARE</p>
+<h2>Send this trip to someone</h2>
+</div>
+</div>
+<p class="muted">Share a private link or export a trip file. Pre-trip tasks are included in itinerary sharing.</p>
+<div class="stack-actions">
+<button class="primary-btn" id="shareItineraryLinkBtn" type="button">Share Itinerary Link</button>
+<button class="secondary-btn" id="shareFullTripLinkBtn" type="button">Share Full Trip Link</button>
+<button class="secondary-btn" id="quickExportBtn" type="button">Export / Share Trip File</button>
+</div>
+<p class="muted small share-help">Shared links contain a compressed copy of the trip after the # in the URL. GitHub does not receive that fragment, but anyone who receives the complete link can import that shared copy.</p>
+<p class="status-message" id="quickExportMessage" role="status"></p>
+</section>
+</section>
+<section class="mode-panel" data-mode-panel="summary" id="summaryMode">
+<div class="summary-hero" id="summaryHeroWidget">
+<p class="metric-label">Priced trip total</p>
+<p class="summary-hero-value" id="summaryTotalCost">$0.00</p>
+<div class="summary-hero-meta">
+<span id="summaryItemCount">0 trip items</span>
+<span id="summaryDayCount">0 trip days</span>
+</div>
+</div>
+<div class="summary-metrics">
+<article class="summary-metric-card paid-card" id="summaryPaidWidget">
+<p class="metric-label">Paid</p>
+<p class="summary-metric-value" id="summaryPaid">$0.00</p>
+<p class="metric-note" id="summaryPaidPct">0% of priced trip</p>
+</article>
+<article class="summary-metric-card outstanding-card" id="summaryOutstandingWidget">
+<p class="metric-label">Still to pay</p>
+<p class="summary-metric-value" id="summaryOutstanding">$0.00</p>
+<p class="metric-note">Planned / unpaid priced items</p>
+</article>
+<article class="summary-metric-card" id="summaryUnpricedWidget">
+<p class="metric-label">Unpriced items</p>
+<p class="summary-metric-value" id="summaryUnpriced">0</p>
+<p class="metric-note">No cost entered yet</p>
+</article>
+<article class="summary-metric-card" id="summaryPricedWidget">
+<p class="metric-label">Priced items</p>
+<p class="summary-metric-value" id="summaryPricedItems">0</p>
+<p class="metric-note">Items included in totals</p>
+</article>
+</div>
+<div class="summary-progress-wrap" id="summaryProgressWidget">
+<div class="summary-progress-track">
+<div class="summary-progress-bar" id="summaryPaidProgress"></div>
+</div>
+<div class="progress-labels">
+<span>Payment progress</span>
+<span id="summaryProgressText">0% paid</span>
+</div>
+</div>
+<section class="panel" id="summaryBreakdownWidget">
+<div class="section-heading">
+<div>
+<p class="eyebrow">BY TYPE</p>
+<h2>Where the itinerary cost sits</h2>
+</div>
+</div>
+<div class="summary-breakdown" id="summaryBreakdown"></div>
+</section>
+<section class="panel" id="summaryOutstandingListWidget">
+<div class="section-heading">
+<div>
+<p class="eyebrow">OUTSTANDING</p>
+<h2>Still to pay</h2>
+</div>
+</div>
+<div class="summary-outstanding-list" id="summaryOutstandingList"></div>
+</section>
+<section class="summary-note">
             Summary totals use costs entered against itinerary items and pre-trip tasks. Items without a cost are listed separately and are not guessed.
           </section>
-        </section>
-
-        <section id="budgetMode" class="mode-panel" data-mode-panel="budget">
-          <div id="budgetNotConfigured" class="panel hidden">
-            <p class="eyebrow">BUDGET SETUP</p>
-            <h2>Finish setting up the spending budget</h2>
-            <p class="muted">This imported trip has itinerary data, but no spending budget yet. Add your AUD budget and exchange rates when you're ready.</p>
-            <form id="configureBudgetForm" class="form-grid">
-              <label>
+</section>
+<section class="mode-panel" data-mode-panel="budget" id="budgetMode">
+<div class="panel hidden" id="budgetNotConfigured">
+<p class="eyebrow">BUDGET SETUP</p>
+<h2>Finish setting up the spending budget</h2>
+<p class="muted">This imported trip has itinerary data, but no spending budget yet. Add your AUD budget and exchange rates when you're ready.</p>
+<form class="form-grid" id="configureBudgetForm">
+<label>
                 Total spending budget (AUD)
                 <div class="money-input">
-                  <span>$</span>
-                  <input id="configureBudgetTotal" type="number" min="0.01" step="0.01" inputmode="decimal" required>
-                </div>
-              </label>
-              <label>
+<span>$</span>
+<input id="configureBudgetTotal" inputmode="decimal" min="0.01" required="" step="0.01" type="number"/>
+</div>
+</label>
+<label>
                 Day 1 hard limit (AUD) <span class="optional">(optional)</span>
-                <div class="money-input">
-                  <span>$</span>
-                  <input id="configureDay1HardLimit" type="number" min="0" step="0.01" inputmode="decimal">
-                </div>
-              </label>
-              <div id="configureBudgetDestinations" class="destination-list"></div>
-              <p id="configureBudgetError" class="error"></p>
-              <button class="primary-btn" type="submit">Enable budget tracker</button>
-            </form>
-          </div>
+<div class="money-input">
+<span>$</span>
+<input id="configureDay1HardLimit" inputmode="decimal" min="0" step="0.01" type="number"/>
+</div>
+</label>
+<div class="destination-list" id="configureBudgetDestinations"></div>
+<p class="error" id="configureBudgetError"></p>
+<button class="primary-btn" type="submit">Enable budget tracker</button>
+</form>
+</div>
+<section class="hidden" id="budgetConfiguredArea">
+<nav aria-label="Budget sections" class="tabs">
+<button class="tab active" data-budget-tab="today" type="button">Today</button>
+<button class="tab" data-budget-tab="history" type="button">History</button>
 
-          <section id="budgetConfiguredArea" class="hidden">
-            <nav class="tabs" aria-label="Budget sections">
-              <button class="tab active" type="button" data-budget-tab="today">Today</button>
-              <button class="tab" type="button" data-budget-tab="history">History</button>
-              <button class="tab" type="button" data-budget-tab="settings">Settings</button>
-            </nav>
-
-            <section class="budget-tab-panel active" data-budget-panel="today">
-              <div id="tripStatus" class="trip-status"></div>
-
-              <div class="hero-card">
-                <p class="metric-label">Remaining budget</p>
-                <p id="remainingBudget" class="hero-value">$0.00</p>
-                <div class="hero-meta">
-                  <span id="heroTotalSpent">Total spent $0.00</span>
-                  <span id="tripDay">Trip day —</span>
-                </div>
-              </div>
-
-              <section class="today-budget-strip" aria-label="Today's budget progress">
-                <div class="today-budget-top">
-                  <div>
-                    <div class="today-budget-label-row">
-                      <p id="todayBudgetLabel" class="metric-label">Today's budget</p>
-                      <span id="todayBudgetBadge" class="today-budget-badge hidden">Hard limit</span>
-                    </div>
-                    <p id="todayBudgetValue" class="today-budget-value">$0.00</p>
-                  </div>
-                  <div class="today-spent-side">
-                    <p id="todaySpentLabel" class="metric-label">Spent today</p>
-                    <p id="spentToday" class="today-spent-value">$0.00</p>
-                  </div>
-                </div>
-                <div class="today-progress-track">
-                  <div id="todayProgressBar" class="today-progress-bar"></div>
-                </div>
-                <div class="today-budget-bottom">
-                  <span id="todayBudgetStatus">No spending yet</span>
-                  <span id="todayLocalDate"></span>
-                </div>
-              </section>
-
-              <div class="metrics-grid budget-kpi-grid">
-                <article class="metric-card">
-                  <p class="metric-label">Ahead / behind pace</p>
-                  <p id="paceValue" class="metric-value">$0.00</p>
-                  <p id="paceNote" class="metric-note">Trip has not started yet</p>
-                </article>
-                <article class="metric-card">
-                  <p class="metric-label">Available / future day</p>
-                  <p id="dailyAllowance" class="metric-value">$0.00</p>
-                  <p id="futureAllowanceNote" class="metric-note">Future daily allowance</p>
-                </article>
-              </div>
-
-              <div class="overall-budget-progress" aria-label="Overall budget used">
-                <div class="progress-labels">
-                  <span id="progressUsed">0% used</span>
-                  <span id="daysRemaining">0 future days</span>
-                </div>
-                <div class="progress-track"><div id="budgetProgress" class="progress-bar"></div></div>
-                <div class="progress-labels">
-                  <span id="overallSpentLabel">Total spent $0.00</span>
-                  <span id="progressRemaining">100% left</span>
-                </div>
-              </div>
-
-              <section class="panel">
-                <div class="section-heading">
-                  <div>
-                    <p class="eyebrow">QUICK ENTRY</p>
-                    <h2 id="expenseFormHeading">Add expense</h2>
-                  </div>
-                  <button id="cancelEditBtn" class="text-btn hidden" type="button">Cancel edit</button>
-                </div>
-
-                <form id="expenseForm">
-                  <input id="editingExpenseId" type="hidden">
-                  <div class="two-col">
-                    <label>
+</nav>
+<section class="budget-tab-panel active" data-budget-panel="today">
+<div class="trip-status" id="tripStatus"></div>
+<div class="hero-card">
+<p class="metric-label">Remaining budget</p>
+<p class="hero-value" id="remainingBudget">$0.00</p>
+<div class="hero-meta">
+<span id="heroTotalSpent">Total spent $0.00</span>
+<span id="tripDay">Trip day —</span>
+</div>
+</div>
+<section aria-label="Today's budget progress" class="today-budget-strip">
+<div class="today-budget-top">
+<div>
+<div class="today-budget-label-row">
+<p class="metric-label" id="todayBudgetLabel">Today's budget</p>
+<span class="today-budget-badge hidden" id="todayBudgetBadge">Hard limit</span>
+</div>
+<p class="today-budget-value" id="todayBudgetValue">$0.00</p>
+</div>
+<div class="today-spent-side">
+<p class="metric-label" id="todaySpentLabel">Spent today</p>
+<p class="today-spent-value" id="spentToday">$0.00</p>
+</div>
+</div>
+<div class="today-progress-track">
+<div class="today-progress-bar" id="todayProgressBar"></div>
+</div>
+<div class="today-budget-bottom">
+<span id="todayBudgetStatus">No spending yet</span>
+<span id="todayLocalDate"></span>
+</div>
+</section>
+<div class="metrics-grid budget-kpi-grid">
+<article class="metric-card">
+<p class="metric-label">Ahead / behind pace</p>
+<p class="metric-value" id="paceValue">$0.00</p>
+<p class="metric-note" id="paceNote">Trip has not started yet</p>
+</article>
+<article class="metric-card">
+<p class="metric-label">Available / future day</p>
+<p class="metric-value" id="dailyAllowance">$0.00</p>
+<p class="metric-note" id="futureAllowanceNote">Future daily allowance</p>
+</article>
+</div>
+<div aria-label="Overall budget used" class="overall-budget-progress">
+<div class="progress-labels">
+<span id="progressUsed">0% used</span>
+<span id="daysRemaining">0 future days</span>
+</div>
+<div class="progress-track"><div class="progress-bar" id="budgetProgress"></div></div>
+<div class="progress-labels">
+<span id="overallSpentLabel">Total spent $0.00</span>
+<span id="progressRemaining">100% left</span>
+</div>
+</div>
+<section class="panel">
+<div class="section-heading">
+<div>
+<p class="eyebrow">QUICK ENTRY</p>
+<h2 id="expenseFormHeading">Add expense</h2>
+</div>
+<button class="text-btn hidden" id="cancelEditBtn" type="button">Cancel edit</button>
+</div>
+<form id="expenseForm">
+<input id="editingExpenseId" type="hidden"/>
+<div class="two-col">
+<label>
                       Date
-                      <input id="expenseDate" type="date" required>
-                    </label>
-                    <label>
+                      <input id="expenseDate" required="" type="date"/>
+</label>
+<label>
                       Destination
-                      <select id="expenseDestination" required></select>
-                    </label>
-                  </div>
-
-                  <div class="two-col">
-                    <label>
+                      <select id="expenseDestination" required=""></select>
+</label>
+</div>
+<div class="two-col">
+<label>
                       Currency
                       <select id="expenseCurrency"></select>
-                    </label>
-                    <label>
+</label>
+<label>
                       Amount
-                      <input id="expenseAmount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required>
-                    </label>
-                  </div>
-
-                  <label>
+                      <input id="expenseAmount" inputmode="decimal" min="0.01" placeholder="0.00" required="" step="0.01" type="number"/>
+</label>
+</div>
+<label>
                     Category
                     <select id="expenseCategory">
-                      <option>Food</option>
-                      <option>Drinks</option>
-                      <option>Shopping</option>
-                      <option>Transport</option>
-                      <option>Theme parks</option>
-                      <option>Tours</option>
-                      <option>Kids</option>
-                      <option>Other</option>
-                    </select>
-                  </label>
-
-                  <label>
+<option>Food</option>
+<option>Drinks</option>
+<option>Shopping</option>
+<option>Transport</option>
+<option>Theme parks</option>
+<option>Tours</option>
+<option>Kids</option>
+<option>Other</option>
+</select>
+</label>
+<label>
                     Note <span class="optional">(optional)</span>
-                    <input id="expenseNote" type="text" maxlength="100" placeholder="Dinner, tickets, taxi…">
-                  </label>
+<input id="expenseNote" maxlength="100" placeholder="Dinner, tickets, taxi…" type="text"/>
+</label>
+<p class="conversion-preview" id="conversionPreview"></p>
+<p class="error" id="expenseError" role="alert"></p>
+<button class="primary-btn" id="saveExpenseBtn" type="submit">Add expense</button>
+</form>
+</section>
+<section class="panel">
+<div class="section-heading">
+<div><p class="eyebrow">RECENT</p><h2>Latest spending</h2></div>
+<button class="text-btn" id="viewAllBtn" type="button">View all</button>
+</div>
+<div class="expense-list" id="recentExpenses"></div>
+</section>
+</section>
+<section class="budget-tab-panel" data-budget-panel="history">
+<section class="panel">
+<div class="section-heading">
+<div><p class="eyebrow">DAY BY DAY</p><h2>Daily budget</h2></div>
+</div>
+<p class="muted small">Each day's allocation rolls forward from the actual spend on previous days.</p>
+<div class="daily-history" id="dailyHistory"></div>
+</section>
+<section class="panel">
+<div class="section-heading">
+<div><p class="eyebrow">SPENDING HISTORY</p><h2>All expenses</h2></div>
+<select aria-label="Filter expenses" class="compact-select" id="historyFilter">
+<option value="all">All destinations</option>
+</select>
+</div>
+<div class="history-summary" id="historySummary"></div>
+<div class="expense-list" id="historyExpenses"></div>
+</section>
+</section>
 
-                  <p id="conversionPreview" class="conversion-preview"></p>
-                  <p id="expenseError" class="error" role="alert"></p>
-                  <button id="saveExpenseBtn" class="primary-btn" type="submit">Add expense</button>
-                </form>
-              </section>
+</section>
+</section>
+<section class="mode-panel" data-mode-panel="more" id="moreMode">
+<section class="more-hero">
+<p class="eyebrow">TRIP TOOLS</p>
+<h2>Everything else you need</h2>
+<p class="muted">Documents, travel contacts, wishlist places and reminders all stay available offline on this device.</p>
+</section>
+<details class="tool-panel" id="documentsPanel" open="">
+<summary>
+<div>
+<span class="tool-panel-title">Booking &amp; document vault</span>
+<span class="tool-panel-sub" id="documentsSummary">0 documents</span>
+</div>
+<span aria-hidden="true" class="pretrip-chevron">⌄</span>
+</summary>
+<div class="tool-panel-body">
+<div class="section-heading">
+<div><p class="eyebrow">VAULT</p><h2>Bookings &amp; documents</h2></div>
+<button class="primary-compact-btn" id="addDocumentBtn" type="button">+ Add</button>
+</div>
+<p class="muted small">PDFs and screenshots are stored locally in the browser on this device. Export/share files include the document details, but not the attached PDF/image itself.</p>
+<div class="tool-list" id="documentList"></div>
+</div>
+</details>
+<details class="tool-panel" id="travelInfoPanel">
+<summary>
+<div>
+<span class="tool-panel-title">Emergency &amp; travel info</span>
+<span class="tool-panel-sub" id="travelInfoSummary">0 saved contacts</span>
+</div>
+<span aria-hidden="true" class="pretrip-chevron">⌄</span>
+</summary>
+<div class="tool-panel-body">
+<div class="section-heading">
+<div><p class="eyebrow">OFFLINE INFO</p><h2>Emergency &amp; travel contacts</h2></div>
+<button class="primary-compact-btn" id="addTravelInfoBtn" type="button">+ Add</button>
+</div>
+<div class="tool-list" id="travelInfoList"></div>
+</div>
+</details>
+<details class="tool-panel" id="placesPanel">
+<summary>
+<div>
+<span class="tool-panel-title">Places / wishlist</span>
+<span class="tool-panel-sub" id="placesSummary">0 places</span>
+</div>
+<span aria-hidden="true" class="pretrip-chevron">⌄</span>
+</summary>
+<div class="tool-panel-body">
+<div class="section-heading">
+<div><p class="eyebrow">MAYBE LATER</p><h2>Places &amp; wishlist</h2></div>
+<button class="primary-compact-btn" id="addPlaceBtn" type="button">+ Add</button>
+</div>
+<div class="tool-list" id="placeList"></div>
+</div>
+</details>
+<details class="tool-panel" id="remindersPanel">
+<summary>
+<div>
+<span class="tool-panel-title">Reminders</span>
+<span class="tool-panel-sub" id="remindersSummary">0 active reminders</span>
+</div>
+<span aria-hidden="true" class="pretrip-chevron">⌄</span>
+</summary>
+<div class="tool-panel-body">
 
-              <section class="panel">
-                <div class="section-heading">
-                  <div><p class="eyebrow">RECENT</p><h2>Latest spending</h2></div>
-                  <button id="viewAllBtn" class="text-btn" type="button">View all</button>
-                </div>
-                <div id="recentExpenses" class="expense-list"></div>
-              </section>
-            </section>
 
-            <section class="budget-tab-panel" data-budget-panel="history">
-              <section class="panel">
-                <div class="section-heading">
-                  <div><p class="eyebrow">DAY BY DAY</p><h2>Daily budget</h2></div>
-                </div>
-                <p class="muted small">Each day's allocation rolls forward from the actual spend on previous days.</p>
-                <div id="dailyHistory" class="daily-history"></div>
-              </section>
-
-              <section class="panel">
-                <div class="section-heading">
-                  <div><p class="eyebrow">SPENDING HISTORY</p><h2>All expenses</h2></div>
-                  <select id="historyFilter" class="compact-select" aria-label="Filter expenses">
-                    <option value="all">All destinations</option>
-                  </select>
-                </div>
-                <div id="historySummary" class="history-summary"></div>
-                <div id="historyExpenses" class="expense-list"></div>
-              </section>
-            </section>
-
-            <section class="budget-tab-panel" data-budget-panel="settings">
-              <section class="panel">
-                <div class="section-heading">
-                  <div><p class="eyebrow">TRIP SETTINGS</p><h2>Budget & dates</h2></div>
-                </div>
-
-                <form id="settingsForm" class="form-grid">
-                  <label>
+<div class="section-heading">
+<div><p class="eyebrow">REMIND ME</p><h2>Trip reminders</h2></div>
+<button class="primary-compact-btn" id="addReminderBtn" type="button">+ Add</button>
+</div>
+<div class="tool-list" id="reminderList"></div>
+</div>
+</details>
+</section>
+<section class="mode-panel" data-mode-panel="settings" id="settingsMode">
+<section class="settings-hero"><div><p class="eyebrow">SETTINGS</p><h2>Make Travel Planner yours</h2><p class="muted">Control what you see, how the itinerary opens, trip and budget details, notifications and your local data.</p></div><button class="secondary-btn compact-settings-close" id="settingsCloseBtn" type="button">Done</button></section>
+<details class="settings-group" open=""><summary><div><span class="settings-group-title">App &amp; display</span><span class="settings-group-sub">Default screen and itinerary layout</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body">
+<div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
+<div class="settings-row"><div><strong>Default itinerary view</strong><span>Day view automatically selects the correct trip day.</span></div><select class="compact-select" id="settingsItineraryView"><option value="day">Day view</option><option value="full">Full trip</option></select></div>
+<button class="secondary-btn" id="resetLayoutBtn" type="button">Reset layout preferences</button><p class="status-message" id="layoutSettingsMessage"></p></div></details>
+<details class="settings-group"><summary><div><span class="settings-group-title">Home screen</span><span class="settings-group-sub">Choose the cards you want on Home</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body"><div class="settings-toggle-list">
+<label class="settings-toggle"><span><strong>Budget &amp; spend</strong><small>Today / Day 1 budget and spending</small></span><input data-home-widget="budget" id="setHomeBudget" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Pre-trip warning</strong><small>Outstanding tasks before departure</small></span><input data-home-widget="preTrip" id="setHomePreTrip" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Up next</strong><small>Upcoming itinerary items</small></span><input data-home-widget="upNext" id="setHomeUpNext" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Tonight</strong><small>Accommodation for the current day</small></span><input data-home-widget="tonight" id="setHomeTonight" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Payments</strong><small>Next unpaid priced item</small></span><input data-home-widget="payments" id="setHomePayments" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Reminders</strong><small>Upcoming and overdue reminders</small></span><input data-home-widget="reminders" id="setHomeReminders" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Today's notes</strong><small>Travel journal notes for today</small></span><input data-home-widget="notes" id="setHomeNotes" type="checkbox"/></label></div>
+<div class="settings-row"><div><strong>Number of “Up next” items</strong><span>How many itinerary items Home should show.</span></div><select class="compact-select" id="settingsHomeNextCount"><option value="1">1 item</option><option value="2">2 items</option><option value="3">3 items</option><option value="5">5 items</option></select></div></div></details>
+<details class="settings-group"><summary><div><span class="settings-group-title">Summary</span><span class="settings-group-sub">Choose your Summary KPIs and sections</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body"><div class="settings-toggle-list">
+<label class="settings-toggle"><span><strong>Priced trip total</strong><small>Main Summary hero</small></span><input data-summary-widget="hero" id="setSummaryHero" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Paid</strong><small>Paid amount KPI</small></span><input data-summary-widget="paid" id="setSummaryPaid" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Still to pay</strong><small>Outstanding amount KPI</small></span><input data-summary-widget="outstanding" id="setSummaryOutstanding" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Unpriced items</strong><small>Items without a cost</small></span><input data-summary-widget="unpriced" id="setSummaryUnpriced" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Priced items</strong><small>Number included in totals</small></span><input data-summary-widget="priced" id="setSummaryPriced" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Payment progress</strong><small>Paid percentage bar</small></span><input data-summary-widget="progress" id="setSummaryProgress" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Cost by type</strong><small>Flights, hotels, activities and pre-trip</small></span><input data-summary-widget="breakdown" id="setSummaryBreakdown" type="checkbox"/></label>
+<label class="settings-toggle"><span><strong>Outstanding list</strong><small>Priced items still to pay</small></span><input data-summary-widget="outstandingList" id="setSummaryOutstandingList" type="checkbox"/></label></div></div></details>
+<details class="settings-group" id="settingsTripBudgetGroup"><summary><div><span class="settings-group-title">Trip &amp; budget</span><span class="settings-group-sub">Dates, total budget, Day 1 limit and currencies</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsTripBudgetBody"><section class="settings-embedded-section">
+<div class="section-heading">
+<div><p class="eyebrow">TRIP SETTINGS</p><h2>Budget &amp; dates</h2></div>
+</div>
+<form class="form-grid" id="settingsForm">
+<label>
                     Trip name
-                    <input id="settingsTripName" type="text" maxlength="60" required>
-                  </label>
-
-                  <div class="two-col">
-                    <label>
+                    <input id="settingsTripName" maxlength="60" required="" type="text"/>
+</label>
+<div class="two-col">
+<label>
                       Start date
-                      <input id="settingsStartDate" type="date" required>
-                    </label>
-                    <label>
+                      <input id="settingsStartDate" required="" type="date"/>
+</label>
+<label>
                       End date
-                      <input id="settingsEndDate" type="date" required>
-                    </label>
-                  </div>
-
-                  <label>
+                      <input id="settingsEndDate" required="" type="date"/>
+</label>
+</div>
+<label>
                     Total spending budget (AUD)
                     <div class="money-input">
-                      <span>$</span>
-                      <input id="settingsBudget" type="number" min="0.01" step="0.01" inputmode="decimal" required>
-                    </div>
-                  </label>
-
-                  <label>
+<span>$</span>
+<input id="settingsBudget" inputmode="decimal" min="0.01" required="" step="0.01" type="number"/>
+</div>
+</label>
+<label>
                     Day 1 hard limit (AUD) <span class="optional">(optional)</span>
-                    <div class="money-input">
-                      <span>$</span>
-                      <input id="settingsDay1HardLimit" type="number" min="0" step="0.01" inputmode="decimal">
-                    </div>
-                    <span class="field-help">Leave blank to use the normal rolling daily budget.</span>
-                  </label>
-
-                  <section class="destination-builder">
-                    <div class="section-heading compact-heading">
-                      <div><p class="eyebrow">DESTINATIONS & CURRENCIES</p><h3>Trip periods</h3></div>
-                      <button id="addSettingsDestinationBtn" class="text-btn" type="button">+ Add</button>
-                    </div>
-                    <p class="muted small">Changing a rate only affects new or edited expenses. Existing expenses keep their recorded AUD value.</p>
-                    <div id="settingsDestinations" class="destination-list"></div>
-                  </section>
-
-                  <p id="settingsError" class="error" role="alert"></p>
-                  <button class="primary-btn" type="submit">Save settings</button>
-                </form>
-              </section>
-
-              <section class="panel">
-                <div class="section-heading">
-                  <div><p class="eyebrow">YOUR DATA</p><h2>Export / import</h2></div>
-                </div>
-                <p class="muted">The exported trip file includes itinerary, budget setup, expenses and trip-tool metadata. Local PDF/image attachments in the document vault are not embedded in the export.</p>
-                <div class="stack-actions">
-                  <button id="exportBtn" class="secondary-btn" type="button">Export / Share Trip</button>
-                  <label class="secondary-btn file-btn">
+<div class="money-input">
+<span>$</span>
+<input id="settingsDay1HardLimit" inputmode="decimal" min="0" step="0.01" type="number"/>
+</div>
+<span class="field-help">Leave blank to use the normal rolling daily budget.</span>
+</label>
+<section class="destination-builder">
+<div class="section-heading compact-heading">
+<div><p class="eyebrow">DESTINATIONS &amp; CURRENCIES</p><h3>Trip periods</h3></div>
+<button class="text-btn" id="addSettingsDestinationBtn" type="button">+ Add</button>
+</div>
+<p class="muted small">Changing a rate only affects new or edited expenses. Existing expenses keep their recorded AUD value.</p>
+<div class="destination-list" id="settingsDestinations"></div>
+</section>
+<p class="error" id="settingsError" role="alert"></p>
+<button class="primary-btn" type="submit">Save settings</button>
+</form>
+</section></div></details>
+<details class="settings-group"><summary><div><span class="settings-group-title">Notifications &amp; reminders</span><span class="settings-group-sub">Notification permission and reminder behaviour</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsNotificationsBody"><section class="notification-box" id="notificationCapability">
+<div>
+<strong>iPhone notifications</strong>
+<p class="muted small" id="notificationStatusText">Checking notification support…</p>
+</div>
+<button class="secondary-btn" id="enableNotificationsBtn" type="button">Enable notifications</button>
+</section><p class="muted small">Local-only limitation: without a push server, reminders are checked when the app is open or returns to the foreground. The app cannot reliably wake itself from a fully closed/suspended state at a scheduled time.</p><div class="settings-inline-action"><p class="muted small">Create and edit individual reminders under More → Reminders. This section controls the iPhone notification permission.</p><button class="secondary-btn" id="settingsOpenRemindersBtn" type="button">Open reminders</button></div></div></details>
+<details class="settings-group"><summary><div><span class="settings-group-title">Backup, data &amp; privacy</span><span class="settings-group-sub">Export, import, local storage and reset</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsDataBody"><section class="settings-embedded-section">
+<div class="section-heading">
+<div><p class="eyebrow">YOUR DATA</p><h2>Export / import</h2></div>
+</div>
+<p class="muted">The exported trip file includes itinerary, budget setup, expenses and trip-tool metadata. Local PDF/image attachments in the document vault are not embedded in the export.</p>
+<div class="stack-actions">
+<button class="secondary-btn" id="exportBtn" type="button">Export / Share Trip</button>
+<label class="secondary-btn file-btn">
                     Import / Replace Trip
-                    <input id="importInput" type="file" accept=".json,application/json">
-                  </label>
-                </div>
-                <p id="backupMessage" class="status-message" role="status"></p>
-              </section>
-
-              <section class="panel danger-panel">
-                <div class="section-heading">
-                  <div><p class="eyebrow">RESET</p><h2>Leave this trip</h2></div>
-                </div>
-                <p class="muted">Export the trip first if you want to keep a copy. This returns the app to the Create / Import screen.</p>
-                <button id="resetBtn" class="danger-btn" type="button">Erase local trip data</button>
-              </section>
-
-              <section class="privacy-note">
-                <strong>Privacy:</strong> No account, advertising, analytics or cloud database is used. Your trip stays in this browser unless you export it yourself.
-              </section>
-            </section>
-          </section>
-        </section>
-
-        <section id="moreMode" class="mode-panel" data-mode-panel="more">
-          <section class="more-hero">
-            <p class="eyebrow">TRIP TOOLS</p>
-            <h2>Everything else you need</h2>
-            <p class="muted">Documents, travel contacts, wishlist places and reminders all stay available offline on this device.</p>
-          </section>
-
-          <details id="documentsPanel" class="tool-panel" open>
-            <summary>
-              <div>
-                <span class="tool-panel-title">Booking & document vault</span>
-                <span id="documentsSummary" class="tool-panel-sub">0 documents</span>
-              </div>
-              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div class="tool-panel-body">
-              <div class="section-heading">
-                <div><p class="eyebrow">VAULT</p><h2>Bookings & documents</h2></div>
-                <button id="addDocumentBtn" class="primary-compact-btn" type="button">+ Add</button>
-              </div>
-              <p class="muted small">PDFs and screenshots are stored locally in the browser on this device. Export/share files include the document details, but not the attached PDF/image itself.</p>
-              <div id="documentList" class="tool-list"></div>
-            </div>
-          </details>
-
-          <details id="travelInfoPanel" class="tool-panel">
-            <summary>
-              <div>
-                <span class="tool-panel-title">Emergency & travel info</span>
-                <span id="travelInfoSummary" class="tool-panel-sub">0 saved contacts</span>
-              </div>
-              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div class="tool-panel-body">
-              <div class="section-heading">
-                <div><p class="eyebrow">OFFLINE INFO</p><h2>Emergency & travel contacts</h2></div>
-                <button id="addTravelInfoBtn" class="primary-compact-btn" type="button">+ Add</button>
-              </div>
-              <div id="travelInfoList" class="tool-list"></div>
-            </div>
-          </details>
-
-          <details id="placesPanel" class="tool-panel">
-            <summary>
-              <div>
-                <span class="tool-panel-title">Places / wishlist</span>
-                <span id="placesSummary" class="tool-panel-sub">0 places</span>
-              </div>
-              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div class="tool-panel-body">
-              <div class="section-heading">
-                <div><p class="eyebrow">MAYBE LATER</p><h2>Places & wishlist</h2></div>
-                <button id="addPlaceBtn" class="primary-compact-btn" type="button">+ Add</button>
-              </div>
-              <div id="placeList" class="tool-list"></div>
-            </div>
-          </details>
-
-          <details id="remindersPanel" class="tool-panel">
-            <summary>
-              <div>
-                <span class="tool-panel-title">Reminders</span>
-                <span id="remindersSummary" class="tool-panel-sub">0 active reminders</span>
-              </div>
-              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
-            </summary>
-            <div class="tool-panel-body">
-              <section id="notificationCapability" class="notification-box">
-                <div>
-                  <strong>iPhone notifications</strong>
-                  <p id="notificationStatusText" class="muted small">Checking notification support…</p>
-                </div>
-                <button id="enableNotificationsBtn" class="secondary-btn" type="button">Enable notifications</button>
-              </section>
-              <p class="muted small">Local-only limitation: without a push server, reminders are checked when the app is open or returns to the foreground. The app cannot reliably wake itself from a fully closed/suspended state at a scheduled time.</p>
-
-              <div class="section-heading">
-                <div><p class="eyebrow">REMIND ME</p><h2>Trip reminders</h2></div>
-                <button id="addReminderBtn" class="primary-compact-btn" type="button">+ Add</button>
-              </div>
-              <div id="reminderList" class="tool-list"></div>
-            </div>
-          </details>
-        </section>
-      </section>
-    </main>
-
-    <footer>
-      <span>Travel Planner</span>
-      <span>Local-only data • Offline capable</span>
-    </footer>
-  </div>
-
-  <dialog id="itineraryItemDialog">
-    <form id="itineraryItemForm" class="dialog-form">
-      <div class="section-heading">
-        <div><p class="eyebrow">ITINERARY ITEM</p><h2 id="itemDialogTitle">Add item</h2></div>
-        <button id="closeItemDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-      <input id="itineraryItemId" type="hidden">
-
-      <div class="two-col">
-        <label>
+                    <input accept=".json,application/json" id="importInput" type="file"/>
+</label>
+</div>
+<p class="status-message" id="backupMessage" role="status"></p>
+</section><section class="settings-embedded-section danger-panel">
+<div class="section-heading">
+<div><p class="eyebrow">RESET</p><h2>Leave this trip</h2></div>
+</div>
+<p class="muted">Export the trip first if you want to keep a copy. This returns the app to the Create / Import screen.</p>
+<button class="danger-btn" id="resetBtn" type="button">Erase local trip data</button>
+</section><section class="privacy-note">
+<strong>Privacy:</strong> No account, advertising, analytics or cloud database is used. Your trip stays in this browser unless you export it yourself.
+              </section></div></details>
+</section></section>
+</main>
+<footer>
+<span>Travel Planner</span>
+<span>Local-only data • Offline capable</span>
+</footer>
+</div>
+<dialog id="itineraryItemDialog">
+<form class="dialog-form" id="itineraryItemForm">
+<div class="section-heading">
+<div><p class="eyebrow">ITINERARY ITEM</p><h2 id="itemDialogTitle">Add item</h2></div>
+<button class="text-btn" id="closeItemDialogBtn" type="button">Close</button>
+</div>
+<input id="itineraryItemId" type="hidden"/>
+<div class="two-col">
+<label>
           Date
-          <input id="itemDate" type="date" required>
-        </label>
-        <label>
+          <input id="itemDate" required="" type="date"/>
+</label>
+<label>
           Type
           <select id="itemType">
-            <option>Activity</option>
-            <option>Theme park</option>
-            <option>Flight</option>
-            <option>Accommodation</option>
-            <option>Travel</option>
-            <option>Food</option>
-            <option>Shopping</option>
-            <option>Other</option>
-          </select>
-        </label>
-      </div>
-
-      <label>
+<option>Activity</option>
+<option>Theme park</option>
+<option>Flight</option>
+<option>Accommodation</option>
+<option>Travel</option>
+<option>Food</option>
+<option>Shopping</option>
+<option>Other</option>
+</select>
+</label>
+</div>
+<label>
         Title
-        <input id="itemTitle" type="text" maxlength="100" required>
-      </label>
-
-      <div class="two-col">
-        <label>
+        <input id="itemTitle" maxlength="100" required="" type="text"/>
+</label>
+<div class="two-col">
+<label>
           Start time
-          <input id="itemStartTime" type="time">
-        </label>
-        <label>
+          <input id="itemStartTime" type="time"/>
+</label>
+<label>
           End time
-          <input id="itemEndTime" type="time">
-        </label>
-      </div>
-
-      <label>
+          <input id="itemEndTime" type="time"/>
+</label>
+</div>
+<label>
         Duration <span class="optional">(optional override)</span>
-        <input id="itemDurationText" type="text" maxlength="40" placeholder="2 h 25 min">
-      </label>
-
-      <label>
+<input id="itemDurationText" maxlength="40" placeholder="2 h 25 min" type="text"/>
+</label>
+<label>
         Location
-        <input id="itemLocation" type="text" maxlength="160">
-      </label>
-
-      <div class="two-col">
-        <label>
+        <input id="itemLocation" maxlength="160" type="text"/>
+</label>
+<div class="two-col">
+<label>
           Status
           <select id="itemStatus">
-            <option>Planned</option>
-            <option>Booked - paid</option>
-            <option>Booked - unpaid</option>
-            <option>Confirmed</option>
-            <option>Paid</option>
-          </select>
-        </label>
-        <label>
+<option>Planned</option>
+<option>Booked - paid</option>
+<option>Booked - unpaid</option>
+<option>Confirmed</option>
+<option>Paid</option>
+</select>
+</label>
+<label>
           Booking ref <span class="optional">(optional)</span>
-          <input id="itemBookingRef" type="text" maxlength="80">
-        </label>
-      </div>
-
-      <div class="three-col">
-        <label>
+<input id="itemBookingRef" maxlength="80" type="text"/>
+</label>
+</div>
+<div class="three-col">
+<label>
           Total cost
-          <input id="itemCostTotal" type="number" min="0" step="0.01" inputmode="decimal">
-        </label>
-        <label>
+          <input id="itemCostTotal" inputmode="decimal" min="0" step="0.01" type="number"/>
+</label>
+<label>
           Adult / person
-          <input id="itemAdultCost" type="number" min="0" step="0.01" inputmode="decimal">
-        </label>
-        <label>
+          <input id="itemAdultCost" inputmode="decimal" min="0" step="0.01" type="number"/>
+</label>
+<label>
           Child / person
-          <input id="itemChildCost" type="number" min="0" step="0.01" inputmode="decimal">
-        </label>
-      </div>
-
-      <label>
+          <input id="itemChildCost" inputmode="decimal" min="0" step="0.01" type="number"/>
+</label>
+</div>
+<label>
         Cost currency
         <select id="itemCostCurrency">
-          <option value="AUD">AUD</option>
-        </select>
-      </label>
-
-      <label>
+<option value="AUD">AUD</option>
+</select>
+</label>
+<label>
         Notes
-        <textarea id="itemNotes" rows="4" maxlength="1500" placeholder="Booking notes, ticket instructions, reminders…"></textarea>
-      </label>
-
-      <p id="itemError" class="error"></p>
-      <div class="dialog-actions">
-        <button id="deleteItemBtn" class="danger-btn hidden" type="button">Delete</button>
-        <button class="primary-btn" type="submit">Save item</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="dayDialog">
-    <form id="dayForm" class="dialog-form">
-      <div class="section-heading">
-        <div><p class="eyebrow">DAY DETAILS</p><h2>Edit day</h2></div>
-        <button id="closeDayDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-
-      <label>
+        <textarea id="itemNotes" maxlength="1500" placeholder="Booking notes, ticket instructions, reminders…" rows="4"></textarea>
+</label>
+<p class="error" id="itemError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deleteItemBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save item</button>
+</div>
+</form>
+</dialog>
+<dialog id="dayDialog">
+<form class="dialog-form" id="dayForm">
+<div class="section-heading">
+<div><p class="eyebrow">DAY DETAILS</p><h2>Edit day</h2></div>
+<button class="text-btn" id="closeDayDialogBtn" type="button">Close</button>
+</div>
+<label>
         Date
-        <input id="dayDate" type="date" readonly>
-      </label>
-      <label>
+        <input id="dayDate" readonly="" type="date"/>
+</label>
+<label>
         Headline
-        <input id="dayHeadline" type="text" maxlength="100" placeholder="Tokyo Disneyland">
-      </label>
-      <label>
+        <input id="dayHeadline" maxlength="100" placeholder="Tokyo Disneyland" type="text"/>
+</label>
+<label>
         Area / location
-        <input id="dayLocation" type="text" maxlength="100" placeholder="Tokyo">
-      </label>
-      <label>
+        <input id="dayLocation" maxlength="100" placeholder="Tokyo" type="text"/>
+</label>
+<label>
         Overnight
-        <input id="dayOvernight" type="text" maxlength="120" placeholder="Hotel name">
-      </label>
-      <label>
+        <input id="dayOvernight" maxlength="120" placeholder="Hotel name" type="text"/>
+</label>
+<label>
         Day note
-        <textarea id="dayNotes" rows="3" maxlength="1000"></textarea>
-      </label>
-      <button class="primary-btn" type="submit">Save day</button>
-    </form>
-  </dialog>
-
-  <dialog id="directionsDialog" class="directions-dialog">
-    <div class="directions-sheet">
-      <div class="directions-handle" aria-hidden="true"></div>
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">DIRECTIONS</p>
-          <h2 id="directionsDialogTitle">Open directions</h2>
-        </div>
-        <button id="closeDirectionsDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-
-      <div class="directions-destination-box">
-        <span class="directions-destination-label">Destination</span>
-        <strong id="directionsDestinationText"></strong>
-      </div>
-
-      <div class="directions-app-list">
-        <button id="openAppleMapsBtn" class="map-app-btn" type="button">
-          <span>
-            <strong>Apple Maps</strong>
-            <small>Open directions from your current location</small>
-          </span>
-          <span class="map-app-arrow">›</span>
-        </button>
-
-        <button id="openGoogleMapsBtn" class="map-app-btn" type="button">
-          <span>
-            <strong>Google Maps</strong>
-            <small>Uses the app when iOS hands the link to it</small>
-          </span>
-          <span class="map-app-arrow">›</span>
-        </button>
-
-        <button id="openWazeBtn" class="map-app-btn" type="button">
-          <span>
-            <strong>Waze</strong>
-            <small>Uses Waze if installed, otherwise opens the web version</small>
-          </span>
-          <span class="map-app-arrow">›</span>
-        </button>
-
-        <button id="copyDirectionsDestinationBtn" class="map-app-btn" type="button">
-          <span>
-            <strong>Copy location</strong>
-            <small>Copy the destination to your clipboard</small>
-          </span>
-          <span class="map-app-arrow">›</span>
-        </button>
-      </div>
-
-      <p id="directionsMessage" class="status-message" role="status"></p>
-      <p class="muted small directions-privacy-note">Travel Planner does not ask for or transmit your current location. Your chosen maps app handles routing.</p>
-    </div>
-  </dialog>
-
-  <dialog id="preTripTaskDialog">
-    <form id="preTripTaskForm" class="dialog-form">
-      <div class="section-heading">
-        <div><p class="eyebrow">PRE-TRIP</p><h2 id="preTripDialogTitle">Add task</h2></div>
-        <button id="closePreTripDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-
-      <input id="preTripTaskId" type="hidden">
-
-      <label>
+        <textarea id="dayNotes" maxlength="1000" rows="3"></textarea>
+</label>
+<button class="primary-btn" type="submit">Save day</button>
+</form>
+</dialog>
+<dialog class="directions-dialog" id="directionsDialog">
+<div class="directions-sheet">
+<div aria-hidden="true" class="directions-handle"></div>
+<div class="section-heading">
+<div>
+<p class="eyebrow">DIRECTIONS</p>
+<h2 id="directionsDialogTitle">Open directions</h2>
+</div>
+<button class="text-btn" id="closeDirectionsDialogBtn" type="button">Close</button>
+</div>
+<div class="directions-destination-box">
+<span class="directions-destination-label">Destination</span>
+<strong id="directionsDestinationText"></strong>
+</div>
+<div class="directions-app-list">
+<button class="map-app-btn" id="openAppleMapsBtn" type="button">
+<span>
+<strong>Apple Maps</strong>
+<small>Open directions from your current location</small>
+</span>
+<span class="map-app-arrow">›</span>
+</button>
+<button class="map-app-btn" id="openGoogleMapsBtn" type="button">
+<span>
+<strong>Google Maps</strong>
+<small>Uses the app when iOS hands the link to it</small>
+</span>
+<span class="map-app-arrow">›</span>
+</button>
+<button class="map-app-btn" id="openWazeBtn" type="button">
+<span>
+<strong>Waze</strong>
+<small>Uses Waze if installed, otherwise opens the web version</small>
+</span>
+<span class="map-app-arrow">›</span>
+</button>
+<button class="map-app-btn" id="copyDirectionsDestinationBtn" type="button">
+<span>
+<strong>Copy location</strong>
+<small>Copy the destination to your clipboard</small>
+</span>
+<span class="map-app-arrow">›</span>
+</button>
+</div>
+<p class="status-message" id="directionsMessage" role="status"></p>
+<p class="muted small directions-privacy-note">Travel Planner does not ask for or transmit your current location. Your chosen maps app handles routing.</p>
+</div>
+</dialog>
+<dialog id="preTripTaskDialog">
+<form class="dialog-form" id="preTripTaskForm">
+<div class="section-heading">
+<div><p class="eyebrow">PRE-TRIP</p><h2 id="preTripDialogTitle">Add task</h2></div>
+<button class="text-btn" id="closePreTripDialogBtn" type="button">Close</button>
+</div>
+<input id="preTripTaskId" type="hidden"/>
+<label>
         Task
-        <input id="preTripTitle" type="text" maxlength="140" required>
-      </label>
-
-      <div class="two-col">
-        <label>
+        <input id="preTripTitle" maxlength="140" required="" type="text"/>
+</label>
+<div class="two-col">
+<label>
           Due date
-          <input id="preTripDueDate" type="date">
-        </label>
-        <label>
+          <input id="preTripDueDate" type="date"/>
+</label>
+<label>
           Category
           <select id="preTripCategory">
-            <option>Insurance</option>
-            <option>Connectivity</option>
-            <option>Transport</option>
-            <option>Hotel</option>
-            <option>App / setup</option>
-            <option>Documents</option>
-            <option>Other</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="two-col">
-        <label>
+<option>Insurance</option>
+<option>Connectivity</option>
+<option>Transport</option>
+<option>Hotel</option>
+<option>App / setup</option>
+<option>Documents</option>
+<option>Other</option>
+</select>
+</label>
+</div>
+<div class="two-col">
+<label>
           Status
           <select id="preTripStatus">
-            <option>Planned</option>
-            <option>To book</option>
-            <option>Booked - unpaid</option>
-            <option>Booked - paid</option>
-            <option>Paid</option>
-            <option>Completed</option>
-          </select>
-        </label>
-        <label>
+<option>Planned</option>
+<option>To book</option>
+<option>Booked - unpaid</option>
+<option>Booked - paid</option>
+<option>Paid</option>
+<option>Completed</option>
+</select>
+</label>
+<label>
           Cost (AUD) <span class="optional">(optional)</span>
-          <input id="preTripCost" type="number" min="0" step="0.01" inputmode="decimal">
-        </label>
-      </div>
-
-      <label>
+<input id="preTripCost" inputmode="decimal" min="0" step="0.01" type="number"/>
+</label>
+</div>
+<label>
         Notes
-        <textarea id="preTripNotes" rows="5" maxlength="2000" placeholder="Booking link, phone number, reminder, instructions…"></textarea>
-      </label>
-
-      <p id="preTripTaskError" class="error"></p>
-      <div class="dialog-actions">
-        <button id="deletePreTripTaskBtn" class="danger-btn hidden" type="button">Delete</button>
-        <button class="primary-btn" type="submit">Save task</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="documentDialog">
-    <form id="documentForm" class="dialog-form">
-      <div class="section-heading">
-        <div><p class="eyebrow">DOCUMENT VAULT</p><h2 id="documentDialogTitle">Add document</h2></div>
-        <button id="closeDocumentDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-      <input id="documentId" type="hidden">
-
-      <label>Title<input id="documentTitle" type="text" maxlength="140" required></label>
-
-      <div class="two-col">
-        <label>
+        <textarea id="preTripNotes" maxlength="2000" placeholder="Booking link, phone number, reminder, instructions…" rows="5"></textarea>
+</label>
+<p class="error" id="preTripTaskError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deletePreTripTaskBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save task</button>
+</div>
+</form>
+</dialog>
+<dialog id="documentDialog">
+<form class="dialog-form" id="documentForm">
+<div class="section-heading">
+<div><p class="eyebrow">DOCUMENT VAULT</p><h2 id="documentDialogTitle">Add document</h2></div>
+<button class="text-btn" id="closeDocumentDialogBtn" type="button">Close</button>
+</div>
+<input id="documentId" type="hidden"/>
+<label>Title<input id="documentTitle" maxlength="140" required="" type="text"/></label>
+<div class="two-col">
+<label>
           Category
           <select id="documentCategory">
-            <option>Flight</option>
-            <option>Hotel</option>
-            <option>Train</option>
-            <option>Activity</option>
-            <option>Insurance</option>
-            <option>Ticket</option>
-            <option>Other</option>
-          </select>
-        </label>
-        <label>
+<option>Flight</option>
+<option>Hotel</option>
+<option>Train</option>
+<option>Activity</option>
+<option>Insurance</option>
+<option>Ticket</option>
+<option>Other</option>
+</select>
+</label>
+<label>
           Linked itinerary item
           <select id="documentLinkedItinerary"><option value="">Not linked</option></select>
-        </label>
-      </div>
-
-      <div class="two-col">
-        <label>Booking reference<input id="documentBookingRef" type="text" maxlength="100"></label>
-        <label>Confirmation number<input id="documentConfirmation" type="text" maxlength="100"></label>
-      </div>
-
-      <div class="two-col">
-        <label>Contact number<input id="documentPhone" type="tel" maxlength="100"></label>
-        <label>Website / link<input id="documentWebsite" type="url" maxlength="500" placeholder="https://"></label>
-      </div>
-
-      <label>
+</label>
+</div>
+<div class="two-col">
+<label>Booking reference<input id="documentBookingRef" maxlength="100" type="text"/></label>
+<label>Confirmation number<input id="documentConfirmation" maxlength="100" type="text"/></label>
+</div>
+<div class="two-col">
+<label>Contact number<input id="documentPhone" maxlength="100" type="tel"/></label>
+<label>Website / link<input id="documentWebsite" maxlength="500" placeholder="https://" type="url"/></label>
+</div>
+<label>
         Attach PDF / screenshot <span class="optional">(local only)</span>
-        <input id="documentAttachment" type="file" accept="image/*,.pdf,application/pdf">
-      </label>
-      <p id="documentAttachmentStatus" class="muted small"></p>
-
-      <label>Notes<textarea id="documentNotes" rows="5" maxlength="3000"></textarea></label>
-
-      <p id="documentError" class="error"></p>
-      <div class="dialog-actions">
-        <button id="deleteDocumentBtn" class="danger-btn hidden" type="button">Delete</button>
-        <button class="primary-btn" type="submit">Save document</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="travelInfoDialog">
-    <form id="travelInfoForm" class="dialog-form">
-      <div class="section-heading">
-        <div><p class="eyebrow">TRAVEL INFO</p><h2 id="travelInfoDialogTitle">Add travel info</h2></div>
-        <button id="closeTravelInfoDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-      <input id="travelInfoId" type="hidden">
-
-      <div class="two-col">
-        <label>
+<input accept="image/*,.pdf,application/pdf" id="documentAttachment" type="file"/>
+</label>
+<p class="muted small" id="documentAttachmentStatus"></p>
+<label>Notes<textarea id="documentNotes" maxlength="3000" rows="5"></textarea></label>
+<p class="error" id="documentError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deleteDocumentBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save document</button>
+</div>
+</form>
+</dialog>
+<dialog id="travelInfoDialog">
+<form class="dialog-form" id="travelInfoForm">
+<div class="section-heading">
+<div><p class="eyebrow">TRAVEL INFO</p><h2 id="travelInfoDialogTitle">Add travel info</h2></div>
+<button class="text-btn" id="closeTravelInfoDialogBtn" type="button">Close</button>
+</div>
+<input id="travelInfoId" type="hidden"/>
+<div class="two-col">
+<label>
           Type
           <select id="travelInfoType">
-            <option>Travel insurance</option>
-            <option>Embassy / consulate</option>
-            <option>Airline</option>
-            <option>Hotel</option>
-            <option>Emergency contact</option>
-            <option>Medical</option>
-            <option>Other</option>
-          </select>
-        </label>
-        <label>Name<input id="travelInfoName" type="text" maxlength="140" required></label>
-      </div>
-
-      <label>Policy / reference number<input id="travelInfoReference" type="text" maxlength="140"></label>
-
-      <div class="two-col">
-        <label>Phone<input id="travelInfoPhone" type="tel" maxlength="100"></label>
-        <label>Email<input id="travelInfoEmail" type="email" maxlength="200"></label>
-      </div>
-
-      <label>Website<input id="travelInfoWebsite" type="url" maxlength="500" placeholder="https://"></label>
-      <label>Notes<textarea id="travelInfoNotes" rows="5" maxlength="3000"></textarea></label>
-
-      <p id="travelInfoError" class="error"></p>
-      <div class="dialog-actions">
-        <button id="deleteTravelInfoBtn" class="danger-btn hidden" type="button">Delete</button>
-        <button class="primary-btn" type="submit">Save info</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="placeDialog">
-    <form id="placeForm" class="dialog-form">
-      <div class="section-heading">
-        <div><p class="eyebrow">WISHLIST</p><h2 id="placeDialogTitle">Add place</h2></div>
-        <button id="closePlaceDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-      <input id="placeId" type="hidden">
-
-      <label>Name<input id="placeTitle" type="text" maxlength="140" required></label>
-
-      <div class="two-col">
-        <label>
+<option>Travel insurance</option>
+<option>Embassy / consulate</option>
+<option>Airline</option>
+<option>Hotel</option>
+<option>Emergency contact</option>
+<option>Medical</option>
+<option>Other</option>
+</select>
+</label>
+<label>Name<input id="travelInfoName" maxlength="140" required="" type="text"/></label>
+</div>
+<label>Policy / reference number<input id="travelInfoReference" maxlength="140" type="text"/></label>
+<div class="two-col">
+<label>Phone<input id="travelInfoPhone" maxlength="100" type="tel"/></label>
+<label>Email<input id="travelInfoEmail" maxlength="200" type="email"/></label>
+</div>
+<label>Website<input id="travelInfoWebsite" maxlength="500" placeholder="https://" type="url"/></label>
+<label>Notes<textarea id="travelInfoNotes" maxlength="3000" rows="5"></textarea></label>
+<p class="error" id="travelInfoError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deleteTravelInfoBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save info</button>
+</div>
+</form>
+</dialog>
+<dialog id="placeDialog">
+<form class="dialog-form" id="placeForm">
+<div class="section-heading">
+<div><p class="eyebrow">WISHLIST</p><h2 id="placeDialogTitle">Add place</h2></div>
+<button class="text-btn" id="closePlaceDialogBtn" type="button">Close</button>
+</div>
+<input id="placeId" type="hidden"/>
+<label>Name<input id="placeTitle" maxlength="140" required="" type="text"/></label>
+<div class="two-col">
+<label>
           Category
           <select id="placeCategory">
-            <option>Restaurant</option>
-            <option>Shop</option>
-            <option>Attraction</option>
-            <option>Park</option>
-            <option>Activity</option>
-            <option>Other</option>
-          </select>
-        </label>
-        <label>
+<option>Restaurant</option>
+<option>Shop</option>
+<option>Attraction</option>
+<option>Park</option>
+<option>Activity</option>
+<option>Other</option>
+</select>
+</label>
+<label>
           Status
           <select id="placeStatus">
-            <option>Wishlist</option>
-            <option>Scheduled</option>
-            <option>Visited</option>
-          </select>
-        </label>
-      </div>
-
-      <label>Location / address<input id="placeLocation" type="text" maxlength="500"></label>
-      <label>Website<input id="placeWebsite" type="url" maxlength="500" placeholder="https://"></label>
-      <label>Notes<textarea id="placeNotes" rows="5" maxlength="3000"></textarea></label>
-
-      <p id="placeError" class="error"></p>
-      <div class="dialog-actions">
-        <button id="deletePlaceBtn" class="danger-btn hidden" type="button">Delete</button>
-        <button class="primary-btn" type="submit">Save place</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="dayNoteDialog">
-    <form id="dayNoteForm" class="dialog-form">
-      <div class="section-heading">
-        <div><p class="eyebrow">DAY NOTE</p><h2 id="dayNoteDialogTitle">Add note</h2></div>
-        <button id="closeDayNoteDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-      <input id="dayNoteId" type="hidden">
-      <label>Heading <span class="optional">(optional)</span><input id="dayNoteTitle" type="text" maxlength="140"></label>
-      <label>Note<textarea id="dayNoteText" rows="8" maxlength="4000" required></textarea></label>
-      <p id="dayNoteError" class="error"></p>
-      <div class="dialog-actions">
-        <button id="deleteDayNoteBtn" class="danger-btn hidden" type="button">Delete</button>
-        <button class="primary-btn" type="submit">Save note</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="reminderDialog">
-    <form id="reminderForm" class="dialog-form">
-      <div class="section-heading">
-        <div><p class="eyebrow">REMINDER</p><h2 id="reminderDialogTitle">Add reminder</h2></div>
-        <button id="closeReminderDialogBtn" class="text-btn" type="button">Close</button>
-      </div>
-      <input id="reminderId" type="hidden">
-      <input id="reminderLinkedKind" type="hidden">
-      <input id="reminderLinkedId" type="hidden">
-
-      <label>Reminder<input id="reminderTitle" type="text" maxlength="180" required></label>
-      <label>Date & time<input id="reminderDueAt" type="datetime-local" required></label>
-      <label>Notes<textarea id="reminderNotes" rows="5" maxlength="3000"></textarea></label>
-
-      <p id="reminderLinkText" class="muted small"></p>
-      <p id="reminderError" class="error"></p>
-      <div class="dialog-actions">
-        <button id="deleteReminderBtn" class="danger-btn hidden" type="button">Delete</button>
-        <button class="primary-btn" type="submit">Save reminder</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="confirmDialog">
-    <form method="dialog">
-      <h2>Erase local trip?</h2>
-      <p>This removes the trip, itinerary and expenses from this device and returns to the opening screen.</p>
-      <div class="dialog-actions">
-        <button value="cancel" class="secondary-btn">Cancel</button>
-        <button value="confirm" class="danger-btn">Erase everything</button>
-      </div>
-    </form>
-  </dialog>
-
-  <script src="./app.js?v=10" defer></script>
+<option>Wishlist</option>
+<option>Scheduled</option>
+<option>Visited</option>
+</select>
+</label>
+</div>
+<label>Location / address<input id="placeLocation" maxlength="500" type="text"/></label>
+<label>Website<input id="placeWebsite" maxlength="500" placeholder="https://" type="url"/></label>
+<label>Notes<textarea id="placeNotes" maxlength="3000" rows="5"></textarea></label>
+<p class="error" id="placeError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deletePlaceBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save place</button>
+</div>
+</form>
+</dialog>
+<dialog id="dayNoteDialog">
+<form class="dialog-form" id="dayNoteForm">
+<div class="section-heading">
+<div><p class="eyebrow">DAY NOTE</p><h2 id="dayNoteDialogTitle">Add note</h2></div>
+<button class="text-btn" id="closeDayNoteDialogBtn" type="button">Close</button>
+</div>
+<input id="dayNoteId" type="hidden"/>
+<label>Heading <span class="optional">(optional)</span><input id="dayNoteTitle" maxlength="140" type="text"/></label>
+<label>Note<textarea id="dayNoteText" maxlength="4000" required="" rows="8"></textarea></label>
+<p class="error" id="dayNoteError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deleteDayNoteBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save note</button>
+</div>
+</form>
+</dialog>
+<dialog id="reminderDialog">
+<form class="dialog-form" id="reminderForm">
+<div class="section-heading">
+<div><p class="eyebrow">REMINDER</p><h2 id="reminderDialogTitle">Add reminder</h2></div>
+<button class="text-btn" id="closeReminderDialogBtn" type="button">Close</button>
+</div>
+<input id="reminderId" type="hidden"/>
+<input id="reminderLinkedKind" type="hidden"/>
+<input id="reminderLinkedId" type="hidden"/>
+<label>Reminder<input id="reminderTitle" maxlength="180" required="" type="text"/></label>
+<label>Date &amp; time<input id="reminderDueAt" required="" type="datetime-local"/></label>
+<label>Notes<textarea id="reminderNotes" maxlength="3000" rows="5"></textarea></label>
+<p class="muted small" id="reminderLinkText"></p>
+<p class="error" id="reminderError"></p>
+<div class="dialog-actions">
+<button class="danger-btn hidden" id="deleteReminderBtn" type="button">Delete</button>
+<button class="primary-btn" type="submit">Save reminder</button>
+</div>
+</form>
+</dialog>
+<dialog id="confirmDialog">
+<form method="dialog">
+<h2>Erase local trip?</h2>
+<p>This removes the trip, itinerary and expenses from this device and returns to the opening screen.</p>
+<div class="dialog-actions">
+<button class="secondary-btn" value="cancel">Cancel</button>
+<button class="danger-btn" value="confirm">Erase everything</button>
+</div>
+</form>
+</dialog>
+<script defer="" src="./app.js?v=11"></script>
 </body>
 </html>

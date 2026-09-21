@@ -2,7 +2,8 @@
   "use strict";
 
   const STORAGE_KEY = "tripBudgetApp.v1";
-  const APP_VERSION = 10;
+  const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
+  const APP_VERSION = 11;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -28,16 +29,125 @@
 
   const el = (id) => document.getElementById(id);
   let state = loadState();
+  let uiSettings = loadUiSettings();
   let setupDraftDestinations = [];
   let settingsDraftDestinations = [];
   let selectedItineraryDate = "";
-  let itineraryViewMode = "day";
+  let itineraryViewMode = uiSettings.itineraryDefaultView;
+  let lastNonSettingsMode = uiSettings.startScreen;
   let setupVisible = false;
   let lastObservedCalendarDate = todayISO();
   let directionsTarget = "";
   let pendingPlaceToScheduleId = "";
   let reminderTimer = null;
   let vaultDbPromise = null;
+
+  function defaultUiSettings() {
+    return {
+      startScreen: "home",
+      itineraryDefaultView: "day",
+      homeNextCount: 3,
+      homeWidgets: {
+        budget: true,
+        preTrip: true,
+        upNext: true,
+        tonight: true,
+        payments: true,
+        reminders: true,
+        notes: true
+      },
+      summaryWidgets: {
+        hero: true,
+        paid: true,
+        outstanding: true,
+        unpriced: true,
+        priced: true,
+        progress: true,
+        breakdown: true,
+        outstandingList: true
+      }
+    };
+  }
+
+  function normalizeUiSettings(raw) {
+    const defaults = defaultUiSettings();
+    const startScreens = ["home", "itinerary", "summary", "budget", "more"];
+    return {
+      startScreen: startScreens.includes(raw?.startScreen) ? raw.startScreen : defaults.startScreen,
+      itineraryDefaultView: raw?.itineraryDefaultView === "full" ? "full" : "day",
+      homeNextCount: [1, 2, 3, 5].includes(Number(raw?.homeNextCount)) ? Number(raw.homeNextCount) : defaults.homeNextCount,
+      homeWidgets: { ...defaults.homeWidgets, ...(raw?.homeWidgets || {}) },
+      summaryWidgets: { ...defaults.summaryWidgets, ...(raw?.summaryWidgets || {}) }
+    };
+  }
+
+  function loadUiSettings() {
+    try {
+      const raw = localStorage.getItem(UI_SETTINGS_KEY);
+      return raw ? normalizeUiSettings(JSON.parse(raw)) : defaultUiSettings();
+    } catch {
+      return defaultUiSettings();
+    }
+  }
+
+  function saveUiSettings() {
+    localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(uiSettings));
+  }
+
+  function setHiddenByPreference(id, visible) {
+    const node = el(id);
+    if (node) node.classList.toggle("hidden", !visible);
+  }
+
+  function applyHomeWidgetVisibility() {
+    setHiddenByPreference("homeBudgetWidget", uiSettings.homeWidgets.budget);
+    setHiddenByPreference("homeUpNextWidget", uiSettings.homeWidgets.upNext);
+    setHiddenByPreference("homeTonightWidget", uiSettings.homeWidgets.tonight);
+    setHiddenByPreference("homePaymentsWidget", uiSettings.homeWidgets.payments);
+    setHiddenByPreference("homeRemindersWidget", uiSettings.homeWidgets.reminders);
+    if (!uiSettings.homeWidgets.preTrip) el("homePreTripWarning")?.classList.add("hidden");
+    if (!uiSettings.homeWidgets.notes) el("homeDayNotesCard")?.classList.add("hidden");
+  }
+
+  function applySummaryWidgetVisibility() {
+    const map = {
+      summaryHeroWidget: uiSettings.summaryWidgets.hero,
+      summaryPaidWidget: uiSettings.summaryWidgets.paid,
+      summaryOutstandingWidget: uiSettings.summaryWidgets.outstanding,
+      summaryUnpricedWidget: uiSettings.summaryWidgets.unpriced,
+      summaryPricedWidget: uiSettings.summaryWidgets.priced,
+      summaryProgressWidget: uiSettings.summaryWidgets.progress,
+      summaryBreakdownWidget: uiSettings.summaryWidgets.breakdown,
+      summaryOutstandingListWidget: uiSettings.summaryWidgets.outstandingList
+    };
+    Object.entries(map).forEach(([id, visible]) => setHiddenByPreference(id, visible));
+  }
+
+  function renderUiSettings() {
+    if (!el("settingsStartScreen")) return;
+    el("settingsStartScreen").value = uiSettings.startScreen;
+    el("settingsItineraryView").value = uiSettings.itineraryDefaultView;
+    el("settingsHomeNextCount").value = String(uiSettings.homeNextCount);
+    document.querySelectorAll("[data-home-widget]").forEach((input) => {
+      input.checked = Boolean(uiSettings.homeWidgets[input.dataset.homeWidget]);
+    });
+    document.querySelectorAll("[data-summary-widget]").forEach((input) => {
+      input.checked = Boolean(uiSettings.summaryWidgets[input.dataset.summaryWidget]);
+    });
+    applyHomeWidgetVisibility();
+    applySummaryWidgetVisibility();
+  }
+
+  function resetUiSettings() {
+    uiSettings = defaultUiSettings();
+    saveUiSettings();
+    itineraryViewMode = uiSettings.itineraryDefaultView;
+    renderUiSettings();
+    renderHome();
+    renderSummary();
+    renderItinerary();
+    el("layoutSettingsMessage").textContent = "Layout preferences reset.";
+  }
 
   function uid(prefix = "id") {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -870,7 +980,6 @@
       button.addEventListener("click", () => {
         selectedItineraryDate = button.dataset.date;
         itineraryViewMode = "day";
-        el("itineraryViewSelect").value = "day";
         renderItinerary();
         window.scrollTo({ top: 0, behavior: "smooth" });
       });
@@ -897,7 +1006,6 @@
     const full = itineraryViewMode === "full";
     el("dayItineraryView").classList.toggle("hidden", full);
     el("fullItineraryView").classList.toggle("hidden", !full);
-    el("itineraryViewSelect").value = itineraryViewMode;
     if (full) renderFullItinerary();
   }
 
@@ -1078,6 +1186,8 @@
           </div>
         `).join("")
       : `<p class="expense-empty">Nothing priced is currently marked as unpaid.</p>`;
+
+    applySummaryWidgetVisibility();
   }
 
   function renderBudgetVisibility() {
@@ -1625,6 +1735,7 @@
   }
 
   function renderSettings() {
+    renderUiSettings();
     if (!state.trip?.budget?.configured) return;
     el("settingsTripName").value = state.trip.name;
     el("settingsStartDate").value = state.trip.startDate;
@@ -1869,7 +1980,7 @@
       el("homeSpendStatus").textContent = "";
     }
 
-    const nextItems = upcomingItineraryItems(3);
+    const nextItems = upcomingItineraryItems(uiSettings.homeNextCount);
     el("homeNextItems").innerHTML = nextItems.length
       ? nextItems.map((item) => `
           <div class="home-list-item" style="--home-accent:${homeItemTypeClass(item.type)}">
@@ -1947,6 +2058,8 @@
     } else {
       notesCard.classList.add("hidden");
     }
+
+    applyHomeWidgetVisibility();
   }
 
   function linkedItineraryOptions(selected = "") {
@@ -2259,6 +2372,7 @@
     renderHome();
     renderMore();
     renderDayJournal();
+    renderUiSettings();
     updateReminderBadge();
     scheduleReminderCheck();
 
@@ -2276,12 +2390,22 @@
   }
 
   function activateMode(mode) {
-    document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+    if (mode !== "settings") lastNonSettingsMode = mode;
+    if (mode === "itinerary") {
+      itineraryViewMode = uiSettings.itineraryDefaultView;
+      renderItinerary();
+    }
+    document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("active", mode !== "settings" && b.dataset.mode === mode));
     document.querySelectorAll(".mode-panel").forEach((p) => p.classList.toggle("active", p.dataset.modePanel === mode));
     if (mode === "home") renderHome();
     if (mode === "budget") renderBudgetVisibility();
     if (mode === "summary") renderSummary();
     if (mode === "more") renderMore();
+    if (mode === "settings") {
+      renderUiSettings();
+      renderSettings();
+      renderNotificationStatus();
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2314,11 +2438,11 @@
       state = imported;
       setupVisible = false;
       selectedItineraryDate = defaultSelectedDate();
-      itineraryViewMode = "day";
+      itineraryViewMode = uiSettings.itineraryDefaultView;
       settingsDraftDestinations = [];
       saveState();
       render();
-      activateMode("home");
+      activateMode(uiSettings.startScreen);
       if (messageElement) messageElement.textContent = "Trip imported.";
     } catch (error) {
       if (messageElement) messageElement.textContent = `Could not import trip: ${error.message}`;
@@ -2460,13 +2584,13 @@
 
       setupVisible = false;
       selectedItineraryDate = defaultSelectedDate();
-      itineraryViewMode = "day";
+      itineraryViewMode = uiSettings.itineraryDefaultView;
       settingsDraftDestinations = [];
       saveState();
 
       history.replaceState(null, "", `${location.pathname}${location.search}`);
       render();
-      activateMode("home");
+      activateMode(uiSettings.startScreen);
     } catch (error) {
       history.replaceState(null, "", `${location.pathname}${location.search}`);
       alert(`Could not import shared trip: ${error.message}`);
@@ -3066,6 +3190,51 @@
     }
   });
 
+  el("settingsBtn").addEventListener("click", () => activateMode("settings"));
+  el("settingsCloseBtn").addEventListener("click", () => activateMode(lastNonSettingsMode || uiSettings.startScreen));
+
+  el("settingsStartScreen").addEventListener("change", () => {
+    uiSettings.startScreen = el("settingsStartScreen").value;
+    saveUiSettings();
+  });
+
+  el("settingsItineraryView").addEventListener("change", () => {
+    uiSettings.itineraryDefaultView = el("settingsItineraryView").value === "full" ? "full" : "day";
+    itineraryViewMode = uiSettings.itineraryDefaultView;
+    saveUiSettings();
+  });
+
+  el("settingsHomeNextCount").addEventListener("change", () => {
+    const value = Number(el("settingsHomeNextCount").value);
+    uiSettings.homeNextCount = [1, 2, 3, 5].includes(value) ? value : 3;
+    saveUiSettings();
+    renderHome();
+  });
+
+  document.querySelectorAll("[data-home-widget]").forEach((input) => {
+    input.addEventListener("change", () => {
+      uiSettings.homeWidgets[input.dataset.homeWidget] = input.checked;
+      saveUiSettings();
+      renderHome();
+    });
+  });
+
+  document.querySelectorAll("[data-summary-widget]").forEach((input) => {
+    input.addEventListener("change", () => {
+      uiSettings.summaryWidgets[input.dataset.summaryWidget] = input.checked;
+      saveUiSettings();
+      applySummaryWidgetVisibility();
+    });
+  });
+
+  el("resetLayoutBtn").addEventListener("click", resetUiSettings);
+
+  el("settingsOpenRemindersBtn").addEventListener("click", () => {
+    activateMode("more");
+    el("remindersPanel").open = true;
+    setTimeout(() => el("remindersPanel").scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  });
+
   el("welcomeCreateBtn").addEventListener("click", showCreate);
   el("cancelCreateBtn").addEventListener("click", showLanding);
   el("welcomeImportBtn").addEventListener("click", () => el("welcomeImportInput").click());
@@ -3135,7 +3304,7 @@
     settingsDraftDestinations = [];
     saveState();
     render();
-    activateMode("home");
+    activateMode(uiSettings.startScreen);
   });
 
   document.querySelectorAll(".mode-btn").forEach((button) => {
@@ -3202,10 +3371,6 @@
     }
   });
 
-  el("itineraryViewSelect").addEventListener("change", () => {
-    itineraryViewMode = el("itineraryViewSelect").value === "full" ? "full" : "day";
-    renderItinerary();
-  });
 
   el("addPreTripTaskBtn").addEventListener("click", () => openPreTripTaskDialog());
   el("closePreTripDialogBtn").addEventListener("click", () => closeModalSafe(el("preTripTaskDialog")));
@@ -3634,6 +3799,7 @@
 
   updateConnection();
   render();
+  if (state.trip) activateMode(uiSettings.startScreen);
   importSharedLinkFromHash();
   checkRemindersAndNotify();
 })();

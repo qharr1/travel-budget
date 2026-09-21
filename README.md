@@ -1,59 +1,65 @@
-# Travel Planner v10 — Offline Reliability Fix
+# Travel Planner v11 — Dedicated Settings
 
-## Important fix
+## One Settings area
 
-Versions 6–9 contained a service-worker regression.
+A settings gear now sits beside the Online / Offline badge in the header.
 
-The fetch handler created:
+### App & display
+- choose the screen Travel Planner opens to
+- choose Day view or Full trip as the default itinerary view
+- reset layout preferences
 
-`const url = new URL(...)`
+The Day / Full Trip selector has been removed from the Itinerary page itself.
 
-but later referenced:
+### Home screen
+Choose whether Home shows:
+- Budget & spend
+- Pre-trip warning
+- Up next
+- Tonight
+- Payments
+- Reminders
+- Today's notes
 
-`requestUrl.pathname`
+You can also choose whether `Up next` displays 1, 2, 3 or 5 itinerary items.
 
-That undefined variable caused the service worker to fail when handling CSS, JavaScript and manifest requests. Online use could appear normal because the network was available, but in Airplane Mode the browser could fall back to a plain cached HTML page without the matching CSS/JS.
+### Summary
+Choose whether Summary displays:
+- Priced trip total
+- Paid
+- Still to pay
+- Unpriced items
+- Priced items
+- Payment progress
+- Cost by type
+- Outstanding list
 
-This explains the reported symptom:
-- white/basic page
-- little or no styling
-- no local trip data rendered
+### Trip & budget
+The old Budget > Settings area has moved here:
+- trip name
+- start/end dates
+- total spending budget
+- Day 1 hard limit
+- destinations and currencies
+- exchange rates
 
-The local trip data itself was not erased. The JavaScript required to read/render it simply was not loading offline.
+Budget now contains only Today and History.
 
-## v10 fix
+### Notifications & reminders
+Notification permission now lives in Settings.
+Individual reminders remain under More > Reminders and on itinerary/pre-trip items.
 
-v10 replaces the service worker logic and:
+### Backup, data & privacy
+Export, import, erase-local-trip and privacy information now live together here.
 
-- pre-caches the complete matching v10 app shell
-- explicitly caches `app.js?v=10`
-- explicitly caches `styles.css?v=10`
-- explicitly caches `manifest.webmanifest?v=10`
-- falls back to the matching cached `index.html` for offline navigation
-- uses cache-first for versioned core assets
-- removes old `travel-planner-*` caches during activation
-- registers the service worker with `updateViaCache: "none"` so update checks do not get stuck behind an old HTTP cache
-- shows `Offline • local data` in the connection badge
+## Device preferences
 
-Existing itinerary, budget, pre-trip tasks, expenses, reminders, wishlist, notes and metadata remain in localStorage and migrate automatically.
+Display preferences are stored separately under `travelPlanner.ui.v1`.
+They are device preferences and are not included in trip sharing, so different family members can have different layouts.
 
-Local PDF/image vault attachments remain in IndexedDB.
+## Offline
 
-## Critical update/test sequence
-
-After uploading v10:
-
-1. Open the live Travel Planner URL while connected to the internet.
-2. Close the Home Screen app completely.
-3. Open it once more while still online.
-4. Confirm your existing trip data is visible.
-5. Turn on Airplane Mode / turn off Wi-Fi.
-6. Close Travel Planner completely.
-7. Reopen it from the Home Screen.
-
-It should now load the fully styled application with the same locally stored trip data.
-
-Do not clear Safari website data or erase local trip data to perform this test.
+v11 retains the corrected v10 offline architecture and caches the matching v11 HTML, CSS, JS, manifest and icons together.
 
 ## GitHub update files
 
@@ -67,3 +73,5 @@ Replace/upload:
 - icon-192.png
 - icon-512.png
 - apple-touch-icon.png
+
+Existing v10 trip data migrates automatically.
