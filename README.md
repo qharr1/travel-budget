@@ -1,65 +1,54 @@
-# Travel Planner v11 — Dedicated Settings
+# Travel Planner v12 — Dark Mode
 
-## One Settings area
+## Appearance
 
-A settings gear now sits beside the Online / Offline badge in the header.
+Settings > App & display now includes:
 
-### App & display
-- choose the screen Travel Planner opens to
-- choose Day view or Full trip as the default itinerary view
-- reset layout preferences
+- Use iPhone setting
+- Light
+- Dark
 
-The Day / Full Trip selector has been removed from the Itinerary page itself.
+`Use iPhone setting` follows the iPhone's appearance automatically. If iOS switches between Light and Dark while Travel Planner is open, the app follows it.
 
-### Home screen
-Choose whether Home shows:
-- Budget & spend
-- Pre-trip warning
-- Up next
-- Tonight
-- Payments
-- Reminders
-- Today's notes
+Light or Dark can be forced for Travel Planner independently of the phone.
 
-You can also choose whether `Up next` displays 1, 2, 3 or 5 itinerary items.
+## No bright launch flash
 
-### Summary
-Choose whether Summary displays:
-- Priced trip total
-- Paid
-- Still to pay
-- Unpriced items
-- Priced items
-- Payment progress
-- Cost by type
-- Outstanding list
+The appearance preference is applied before the main stylesheet loads, reducing the bright white flash that can otherwise occur when opening an installed PWA in Dark Mode.
 
-### Trip & budget
-The old Budget > Settings area has moved here:
-- trip name
-- start/end dates
-- total spending budget
-- Day 1 hard limit
-- destinations and currencies
-- exchange rates
+## What Dark Mode covers
 
-Budget now contains only Today and History.
+Dark styling is applied across:
 
-### Notifications & reminders
-Notification permission now lives in Settings.
-Individual reminders remain under More > Reminders and on itinerary/pre-trip items.
+- Home
+- Itinerary and day chips
+- Summary
+- Budget
+- More
+- Settings
+- forms and dialogs
+- directions chooser
+- reminders
+- document vault
+- day notes
+- paid / outstanding / warning states
+- online / offline badge
 
-### Backup, data & privacy
-Export, import, erase-local-trip and privacy information now live together here.
+Itinerary category colours remain distinct.
 
-## Device preferences
+## Device preference
 
-Display preferences are stored separately under `travelPlanner.ui.v1`.
-They are device preferences and are not included in trip sharing, so different family members can have different layouts.
+Appearance is stored in `travelPlanner.ui.v1`, alongside the other device-only layout choices.
+
+It is not part of the shared trip, so different family members can use different themes.
 
 ## Offline
 
-v11 retains the corrected v10 offline architecture and caches the matching v11 HTML, CSS, JS, manifest and icons together.
+v12 keeps the corrected offline caching introduced in v10:
+- complete matching app shell cached
+- cached versioned CSS/JS/manifest
+- offline navigation fallback
+- old app caches removed during activation
 
 ## GitHub update files
 
@@ -74,4 +63,4 @@ Replace/upload:
 - icon-512.png
 - apple-touch-icon.png
 
-Existing v10 trip data migrates automatically.
+Existing trip data and Settings preferences migrate automatically.

@@ -1674,3 +1674,188 @@ dialog[open] {
   }
   .settings-row .compact-select { width: 100%; }
 }
+
+
+/* v12 — Dark Mode */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #07111f;
+  --surface: #0f1b2d;
+  --surface-2: #17243a;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --line: #26364d;
+  --accent: #2dd4bf;
+  --accent-2: #5eead4;
+  --accent-soft: #123c3a;
+  --good: #34d399;
+  --bad: #f87171;
+  --warn: #fbbf24;
+  --shadow: 0 12px 30px rgba(0, 0, 0, .28);
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .hero-card,
+html[data-theme="dark"] .metric-card,
+html[data-theme="dark"] .welcome-card,
+html[data-theme="dark"] .itinerary-hero,
+html[data-theme="dark"] .mode-switch,
+html[data-theme="dark"] .summary-metric-card,
+html[data-theme="dark"] .pretrip-panel,
+html[data-theme="dark"] .pretrip-task-card,
+html[data-theme="dark"] .full-day-card,
+html[data-theme="dark"] .home-stat-card,
+html[data-theme="dark"] .tool-panel,
+html[data-theme="dark"] .day-journal-panel,
+html[data-theme="dark"] .tool-card,
+html[data-theme="dark"] .day-note-card,
+html[data-theme="dark"] .settings-icon-btn,
+html[data-theme="dark"] .settings-group,
+html[data-theme="dark"] dialog,
+html[data-theme="dark"] .map-app-btn,
+html[data-theme="dark"] .itinerary-item,
+html[data-theme="dark"] .secondary-btn,
+html[data-theme="dark"] .file-btn,
+html[data-theme="dark"] .round-btn,
+html[data-theme="dark"] .day-chip {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .home-hero,
+html[data-theme="dark"] .more-hero,
+html[data-theme="dark"] .settings-hero {
+  background: linear-gradient(145deg, #0b1728, #101e31);
+}
+
+html[data-theme="dark"] .mode-btn.active {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] .money-input {
+  background: #0b1728;
+  color: var(--text);
+  border-color: #33465f;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #64748b;
+}
+
+html[data-theme="dark"] .item-cost-box,
+html[data-theme="dark"] .directions-destination-box,
+html[data-theme="dark"] .full-day-header {
+  background: #132238;
+}
+
+html[data-theme="dark"] .item-actions {
+  background: #0b1728;
+}
+
+html[data-theme="dark"] .day-chip.active {
+  background: #123c3a;
+  border-color: #2dd4bf;
+  color: #5eead4;
+}
+html[data-theme="dark"] .day-chip.active strong {
+  color: #99f6e4;
+}
+
+html[data-theme="dark"] .badge.online {
+  background: #123524;
+  color: #86efac;
+}
+html[data-theme="dark"] .badge.offline {
+  background: #3c2d0d;
+  color: #fde68a;
+}
+
+html[data-theme="dark"] .overnight-banner {
+  background: #0b3145;
+  color: #bae6fd;
+}
+
+html[data-theme="dark"] .day-notes-banner,
+html[data-theme="dark"] .summary-metric-card.outstanding-card,
+html[data-theme="dark"] .home-alert {
+  background: #3a2514;
+  border-color: #70441e;
+  color: #fed7aa;
+}
+
+html[data-theme="dark"] .summary-metric-card.paid-card,
+html[data-theme="dark"] .day1-limit-banner.limit-good {
+  background: #0d3024;
+  border-color: #166534;
+  color: #86efac;
+}
+
+html[data-theme="dark"] .day1-limit-banner {
+  background: #102847;
+  border-color: #1d4f7a;
+  color: #bfdbfe;
+}
+
+html[data-theme="dark"] .day1-limit-banner.limit-over,
+html[data-theme="dark"] .danger-btn {
+  background: #3a171b;
+  border-color: #7f1d1d;
+  color: #fecaca;
+}
+
+html[data-theme="dark"] .today-progress-track,
+html[data-theme="dark"] .summary-progress-track,
+html[data-theme="dark"] .progress-track {
+  background: #25364b;
+}
+
+html[data-theme="dark"] .notification-box {
+  background: #102847;
+  border-color: #1d4f7a;
+}
+
+html[data-theme="dark"] .status-pill {
+  background: #243247;
+  color: #cbd5e1;
+}
+html[data-theme="dark"] .status-pill.overdue {
+  background: #3a171b;
+  color: #fecaca;
+}
+html[data-theme="dark"] .status-pill.done {
+  background: #0d3024;
+  color: #86efac;
+}
+html[data-theme="dark"] .local-file-pill {
+  background: #0b3145;
+  color: #bae6fd;
+}
+
+html[data-theme="dark"] .tool-card-notes,
+html[data-theme="dark"] .day-note-text {
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .dialog-form > .section-heading {
+  background: var(--surface);
+}
+
+html[data-theme="dark"] .summary-hero {
+  background: linear-gradient(145deg, #020617, #0f1b2d);
+}
+
+html[data-theme="dark"] .settings-row,
+html[data-theme="dark"] .settings-toggle,
+html[data-theme="dark"] .settings-group-body,
+html[data-theme="dark"] .pretrip-body,
+html[data-theme="dark"] .tool-panel-body,
+html[data-theme="dark"] .day-journal-body {
+  border-color: var(--line);
+}

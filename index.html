@@ -11,9 +11,20 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=11" rel="manifest"/>
+<link href="./manifest.webmanifest?v=12" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
-<link href="./styles.css?v=11" rel="stylesheet"/>
+<script>
+(() => {
+  try {
+    const raw = JSON.parse(localStorage.getItem("travelPlanner.ui.v1") || "{}");
+    const preference = ["light", "dark", "system"].includes(raw.appearance) ? raw.appearance : "system";
+    const dark = preference === "dark" ||
+      (preference === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  } catch {}
+})();
+</script><link href="./styles.css?v=12" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -23,7 +34,6 @@
 <h1 id="headerTripName">Travel Planner</h1>
 <p class="muted" id="headerTripDates">Create or import a trip to begin.</p>
 </div>
-
 <div class="topbar-actions"><span class="badge" id="connectionBadge">Checking…</span><button aria-label="Open settings" class="settings-icon-btn" id="settingsBtn" type="button">⚙︎</button></div></header>
 <main>
 <section class="welcome-panel hidden" id="welcomePanel">
@@ -181,7 +191,6 @@
 </section>
 </section>
 <section class="mode-panel" data-mode-panel="itinerary" id="itineraryMode">
-
 <details class="pretrip-panel" id="preTripPanel">
 <summary>
 <div>
@@ -375,7 +384,6 @@
 <nav aria-label="Budget sections" class="tabs">
 <button class="tab active" data-budget-tab="today" type="button">Today</button>
 <button class="tab" data-budget-tab="history" type="button">History</button>
-
 </nav>
 <section class="budget-tab-panel active" data-budget-panel="today">
 <div class="trip-status" id="tripStatus"></div>
@@ -511,7 +519,6 @@
 <div class="expense-list" id="historyExpenses"></div>
 </section>
 </section>
-
 </section>
 </section>
 <section class="mode-panel" data-mode-panel="more" id="moreMode">
@@ -578,8 +585,6 @@
 <span aria-hidden="true" class="pretrip-chevron">⌄</span>
 </summary>
 <div class="tool-panel-body">
-
-
 <div class="section-heading">
 <div><p class="eyebrow">REMIND ME</p><h2>Trip reminders</h2></div>
 <button class="primary-compact-btn" id="addReminderBtn" type="button">+ Add</button>
@@ -591,7 +596,17 @@
 <section class="mode-panel" data-mode-panel="settings" id="settingsMode">
 <section class="settings-hero"><div><p class="eyebrow">SETTINGS</p><h2>Make Travel Planner yours</h2><p class="muted">Control what you see, how the itinerary opens, trip and budget details, notifications and your local data.</p></div><button class="secondary-btn compact-settings-close" id="settingsCloseBtn" type="button">Done</button></section>
 <details class="settings-group" open=""><summary><div><span class="settings-group-title">App &amp; display</span><span class="settings-group-sub">Default screen and itinerary layout</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body">
-<div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
+<div class="settings-row">
+<div>
+<strong>Appearance</strong>
+<span>Follow your iPhone automatically, or force Travel Planner to stay light or dark.</span>
+</div>
+<select class="compact-select" id="settingsAppearance">
+<option value="system">Use iPhone setting</option>
+<option value="light">Light</option>
+<option value="dark">Dark</option>
+</select>
+</div><div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
 <div class="settings-row"><div><strong>Default itinerary view</strong><span>Day view automatically selects the correct trip day.</span></div><select class="compact-select" id="settingsItineraryView"><option value="day">Day view</option><option value="full">Full trip</option></select></div>
 <button class="secondary-btn" id="resetLayoutBtn" type="button">Reset layout preferences</button><p class="status-message" id="layoutSettingsMessage"></p></div></details>
 <details class="settings-group"><summary><div><span class="settings-group-title">Home screen</span><span class="settings-group-sub">Choose the cards you want on Home</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body"><div class="settings-toggle-list">
@@ -1091,6 +1106,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=11"></script>
+<script defer="" src="./app.js?v=12"></script>
 </body>
 </html>

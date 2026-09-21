@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 11;
+  const APP_VERSION = 12;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -45,6 +45,7 @@
   function defaultUiSettings() {
     return {
       startScreen: "home",
+      appearance: "system",
       itineraryDefaultView: "day",
       homeNextCount: 3,
       homeWidgets: {
@@ -74,6 +75,7 @@
     const startScreens = ["home", "itinerary", "summary", "budget", "more"];
     return {
       startScreen: startScreens.includes(raw?.startScreen) ? raw.startScreen : defaults.startScreen,
+      appearance: ["system", "light", "dark"].includes(raw?.appearance) ? raw.appearance : defaults.appearance,
       itineraryDefaultView: raw?.itineraryDefaultView === "full" ? "full" : "day",
       homeNextCount: [1, 2, 3, 5].includes(Number(raw?.homeNextCount)) ? Number(raw.homeNextCount) : defaults.homeNextCount,
       homeWidgets: { ...defaults.homeWidgets, ...(raw?.homeWidgets || {}) },
@@ -123,9 +125,29 @@
     Object.entries(map).forEach(([id, visible]) => setHiddenByPreference(id, visible));
   }
 
+  const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+  function resolvedTheme() {
+    if (uiSettings.appearance === "dark") return "dark";
+    if (uiSettings.appearance === "light") return "light";
+    return systemThemeQuery.matches ? "dark" : "light";
+  }
+
+  function applyAppearance() {
+    const theme = resolvedTheme();
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) {
+      themeMeta.setAttribute("content", theme === "dark" ? "#07111f" : "#0f172a");
+    }
+  }
+
   function renderUiSettings() {
     if (!el("settingsStartScreen")) return;
     el("settingsStartScreen").value = uiSettings.startScreen;
+    el("settingsAppearance").value = uiSettings.appearance;
     el("settingsItineraryView").value = uiSettings.itineraryDefaultView;
     el("settingsHomeNextCount").value = String(uiSettings.homeNextCount);
     document.querySelectorAll("[data-home-widget]").forEach((input) => {
@@ -134,6 +156,7 @@
     document.querySelectorAll("[data-summary-widget]").forEach((input) => {
       input.checked = Boolean(uiSettings.summaryWidgets[input.dataset.summaryWidget]);
     });
+    applyAppearance();
     applyHomeWidgetVisibility();
     applySummaryWidgetVisibility();
   }
@@ -3193,6 +3216,14 @@
   el("settingsBtn").addEventListener("click", () => activateMode("settings"));
   el("settingsCloseBtn").addEventListener("click", () => activateMode(lastNonSettingsMode || uiSettings.startScreen));
 
+  el("settingsAppearance").addEventListener("change", () => {
+    uiSettings.appearance = ["system", "light", "dark"].includes(el("settingsAppearance").value)
+      ? el("settingsAppearance").value
+      : "system";
+    saveUiSettings();
+    applyAppearance();
+  });
+
   el("settingsStartScreen").addEventListener("change", () => {
     uiSettings.startScreen = el("settingsStartScreen").value;
     saveUiSettings();
@@ -3766,6 +3797,16 @@
     }
   }
 
+  const onSystemThemeChange = () => {
+    if (uiSettings.appearance === "system") applyAppearance();
+  };
+
+  if (typeof systemThemeQuery.addEventListener === "function") {
+    systemThemeQuery.addEventListener("change", onSystemThemeChange);
+  } else if (typeof systemThemeQuery.addListener === "function") {
+    systemThemeQuery.addListener(onSystemThemeChange);
+  }
+
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       refreshCurrentTripDayIfNeeded();
@@ -3797,6 +3838,7 @@
     });
   }
 
+  applyAppearance();
   updateConnection();
   render();
   if (state.trip) activateMode(uiSettings.startScreen);
