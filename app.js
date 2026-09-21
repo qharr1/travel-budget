@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "tripBudgetApp.v1";
-  const APP_VERSION = 9;
+  const APP_VERSION = 10;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -3615,7 +3615,7 @@
   function updateConnection() {
     const badge = el("connectionBadge");
     const online = navigator.onLine;
-    badge.textContent = online ? "Online" : "Offline";
+    badge.textContent = online ? "Online" : "Offline • local data";
     badge.classList.toggle("online", online);
     badge.classList.toggle("offline", !online);
   }
@@ -3624,8 +3624,11 @@
   window.addEventListener("offline", updateConnection);
 
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./sw.js").catch(() => {});
+    window.addEventListener("load", async () => {
+      try {
+        const registration = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
+        registration.update().catch(() => {});
+      } catch {}
     });
   }
 

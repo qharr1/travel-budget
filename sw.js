@@ -1,11 +1,11 @@
-const CACHE_NAME = "travel-planner-v9";
+const CACHE_NAME = "travel-planner-v10";
 
-const ASSETS = [
+const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=9",
-  "./app.js?v=9",
-  "./manifest.webmanifest?v=9",
+  "./styles.css?v=10",
+  "./app.js?v=10",
+  "./manifest.webmanifest?v=10",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
@@ -14,34 +14,91 @@ const ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.addAll(APP_SHELL);
+      await self.skipWaiting();
+    })()
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim())
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith("travel-planner-") && key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      );
+      await self.clients.claim();
+    })()
   );
 });
 
+async function cachedIndex() {
+  const cache = await caches.open(CACHE_NAME);
+  return (
+    (await cache.match("./index.html")) ||
+    (await cache.match("./")) ||
+    null
+  );
+}
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error("Network unavailable and resource is not cached.");
+  }
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  const response = await fetch(request);
+  if (response && response.ok) {
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
 
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+
+  // App navigation: prefer fresh HTML while online; always fall back to the
+  // matching v10 cached shell when offline.
   if (event.request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", copy));
+      (async () => {
+        try {
+          const response = await fetch(event.request);
+          if (response && response.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            await cache.put("./index.html", response.clone());
+          }
           return response;
-        })
-        .catch(() => caches.match("./index.html"))
+        } catch {
+          const fallback = await cachedIndex();
+          if (fallback) return fallback;
+          return new Response(
+            "<!doctype html><meta name='viewport' content='width=device-width'><title>Travel Planner</title><h1>Travel Planner</h1><p>The offline app shell has not finished installing yet. Reconnect once, open Travel Planner, then try offline again.</p>",
+            { headers: { "Content-Type": "text/html; charset=utf-8" } }
+          );
+        }
+      })()
     );
     return;
   }
@@ -51,34 +108,22 @@ self.addEventListener("fetch", (event) => {
     requestUrl.pathname.endsWith("/styles.css") ||
     requestUrl.pathname.endsWith("/manifest.webmanifest");
 
+  // Core assets are versioned in the HTML and pre-cached during install.
+  // Cache-first guarantees the matching v10 JS/CSS is available offline.
   if (isCoreAsset) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
+    event.respondWith(cacheFirst(event.request));
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type === "opaque") return response;
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      });
-    })
-  );
+  // Icons / other same-origin static assets.
+  event.respondWith(cacheFirst(event.request));
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

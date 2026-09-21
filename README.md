@@ -1,101 +1,59 @@
-# Travel Planner v9 — Travel Companion
+# Travel Planner v10 — Offline Reliability Fix
 
-## New Home screen
+## Important fix
 
-Travel Planner now opens to `Home`.
+Versions 6–9 contained a service-worker regression.
 
-Before the trip it shows:
-- days to go
-- Day 1 budget / spend
-- pre-trip warnings
-- next itinerary items
-- first accommodation
-- next outstanding payment
-- reminders
+The fetch handler created:
 
-During the trip it becomes a Today screen:
-- trip day
-- current day title/location
-- today's budget and spend
-- next itinerary items
-- tonight's accommodation
-- next unpaid item
-- reminders
-- today's travel notes
+`const url = new URL(...)`
 
-## Booking / document vault
+but later referenced:
 
-More > Booking & document vault supports:
-- booking reference
-- confirmation number
-- phone
-- website
-- notes
-- optional linked itinerary item
-- local screenshot/PDF attachment
+`requestUrl.pathname`
 
-Attachment files are stored in IndexedDB on the current device.
-Trip exports and share links include document metadata but do NOT include the attached PDF/image bytes.
+That undefined variable caused the service worker to fail when handling CSS, JavaScript and manifest requests. Online use could appear normal because the network was available, but in Airplane Mode the browser could fall back to a plain cached HTML page without the matching CSS/JS.
 
-## Offline emergency & travel info
+This explains the reported symptom:
+- white/basic page
+- little or no styling
+- no local trip data rendered
 
-More > Emergency & travel info can store:
-- insurance
-- embassy/consulate
-- airline
-- hotel
-- emergency contact
-- medical
-- other
+The local trip data itself was not erased. The JavaScript required to read/render it simply was not loading offline.
 
-Phone, email and website shortcuts work from the saved card.
+## v10 fix
 
-## Places / wishlist
+v10 replaces the service worker logic and:
 
-More > Places / wishlist supports:
-- restaurants
-- shops
-- attractions
-- parks
-- activities
-- locations
-- websites
-- notes
-- Wishlist / Scheduled / Visited status
+- pre-caches the complete matching v10 app shell
+- explicitly caches `app.js?v=10`
+- explicitly caches `styles.css?v=10`
+- explicitly caches `manifest.webmanifest?v=10`
+- falls back to the matching cached `index.html` for offline navigation
+- uses cache-first for versioned core assets
+- removes old `travel-planner-*` caches during activation
+- registers the service worker with `updateViaCache: "none"` so update checks do not get stuck behind an old HTTP cache
+- shows `Offline • local data` in the connection badge
 
-`Add to itinerary` opens a prefilled itinerary item.
-Directions reuses the Apple Maps / Google Maps / Waze chooser.
+Existing itinerary, budget, pre-trip tasks, expenses, reminders, wishlist, notes and metadata remain in localStorage and migrate automatically.
 
-## Day notes / travel journal
+Local PDF/image vault attachments remain in IndexedDB.
 
-Each Day view has a collapsible Day notes / journal section with multiple note entries.
+## Critical update/test sequence
 
-During the trip, today's latest notes are also shown on Home.
+After uploading v10:
 
-## Reminders
+1. Open the live Travel Planner URL while connected to the internet.
+2. Close the Home Screen app completely.
+3. Open it once more while still online.
+4. Confirm your existing trip data is visible.
+5. Turn on Airplane Mode / turn off Wi-Fi.
+6. Close Travel Planner completely.
+7. Reopen it from the Home Screen.
 
-Reminders can be:
-- custom
-- created directly from an itinerary item
-- created directly from a pre-trip task
+It should now load the fully styled application with the same locally stored trip data.
 
-The app can ask for iPhone notification permission when installed as a Home Screen web app.
-
-Important local-only limitation:
-without a remote push server, the PWA cannot reliably wake itself from a fully closed or suspended state at an exact future time.
-
-v9 therefore:
-- checks due reminders while open
-- checks again when returning to the app
-- shows a system notification when permission is available
-- shows due/upcoming reminders in Home and More
-- uses the app icon badge where supported
-
-True background scheduled push can be added later only if an online push component is introduced.
-
-## Home Screen widgets
-
-Native iPhone Home Screen widgets are not available to this GitHub-hosted PWA. Apple's Home Screen widgets are built using WidgetKit as part of a native app/widget extension.
+Do not clear Safari website data or erase local trip data to perform this test.
 
 ## GitHub update files
 
@@ -109,5 +67,3 @@ Replace/upload:
 - icon-192.png
 - icon-512.png
 - apple-touch-icon.png
-
-Existing v8 local trip data migrates automatically.
