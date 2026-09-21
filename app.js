@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 31;
+  const APP_VERSION = 32;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -243,6 +243,18 @@
       longitude: item?.longitude === null || item?.longitude === "" || item?.longitude === undefined ? null : Number(item.longitude),
       geocodeLabel: String(item?.geocodeLabel || ""),
       geocodedAt: item?.geocodedAt ? Number(item.geocodedAt) : null,
+      flightOrigin: String(item?.flightOrigin || ""),
+      flightDestination: String(item?.flightDestination || ""),
+      flightOriginCode: String(item?.flightOriginCode || "").toUpperCase(),
+      flightDestinationCode: String(item?.flightDestinationCode || "").toUpperCase(),
+      flightOriginLatitude: item?.flightOriginLatitude === null || item?.flightOriginLatitude === "" || item?.flightOriginLatitude === undefined ? null : Number(item.flightOriginLatitude),
+      flightOriginLongitude: item?.flightOriginLongitude === null || item?.flightOriginLongitude === "" || item?.flightOriginLongitude === undefined ? null : Number(item.flightOriginLongitude),
+      flightOriginGeocodeLabel: String(item?.flightOriginGeocodeLabel || ""),
+      flightOriginGeocodedAt: item?.flightOriginGeocodedAt ? Number(item.flightOriginGeocodedAt) : null,
+      flightDestinationLatitude: item?.flightDestinationLatitude === null || item?.flightDestinationLatitude === "" || item?.flightDestinationLatitude === undefined ? null : Number(item.flightDestinationLatitude),
+      flightDestinationLongitude: item?.flightDestinationLongitude === null || item?.flightDestinationLongitude === "" || item?.flightDestinationLongitude === undefined ? null : Number(item.flightDestinationLongitude),
+      flightDestinationGeocodeLabel: String(item?.flightDestinationGeocodeLabel || ""),
+      flightDestinationGeocodedAt: item?.flightDestinationGeocodedAt ? Number(item.flightDestinationGeocodedAt) : null,
       status: String(item?.status || "Planned"),
       bookingRef: String(item?.bookingRef || ""),
       costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined ? null : Number(item.costTotal),
@@ -1214,6 +1226,27 @@
     });
   }
 
+  function flightRouteText(item) {
+    if (String(item?.type || "").toLowerCase() !== "flight") return "";
+    const origin = String(item?.flightOrigin || "").trim();
+    const destination = String(item?.flightDestination || "").trim();
+    if (!origin && !destination) return "";
+
+    const fromCode = String(item?.flightOriginCode || "").trim().toUpperCase();
+    const toCode = String(item?.flightDestinationCode || "").trim().toUpperCase();
+    const from = fromCode ? `${origin || "Departure"} (${fromCode})` : (origin || "Departure");
+    const to = toCode ? `${destination || "Arrival"} (${toCode})` : (destination || "Arrival");
+    return `${from} → ${to}`;
+  }
+
+  function setFlightEditorVisibility() {
+    const isFlight = el("itemType").value === "Flight";
+    el("flightRouteEditor").classList.toggle("hidden", !isFlight);
+    el("itemLocationWrap").classList.toggle("hidden", isFlight);
+    el("itemFlightOrigin").required = isFlight;
+    el("itemFlightDestination").required = isFlight;
+  }
+
   function itineraryItemMarkup(item) {
     const duration = item.durationText || itemCalculatedDuration(item);
     const chips = [];
@@ -1238,7 +1271,7 @@
             <span class="item-type">${escapeHtml(item.type)}</span>
           </div>
           <h3>${escapeHtml(item.title)}</h3>
-          ${item.location ? `<p class="item-location">${escapeHtml(item.location)}</p>` : ""}
+          ${flightRouteText(item) ? `<p class="item-location flight-route-card">✈ ${escapeHtml(flightRouteText(item))}</p>` : (item.location ? `<p class="item-location">${escapeHtml(item.location)}</p>` : "")}
           ${chips.length ? `<div class="item-details">${chips.map((c) => `<span class="detail-chip">${escapeHtml(c)}</span>`).join("")}</div>` : ""}
           ${hasCosts ? `
             <div class="item-cost-box">
@@ -3409,7 +3442,7 @@
   }
 
   function linkedReminderDefaults(kind, id) {
-    if (kind === "itinerary") {
+    if (kind === "itinerary" || kind === "flight-origin" || kind === "flight-destination") {
       const item = state.trip?.itinerary.find((x) => x.id === id);
       if (!item) return null;
       let due = null;
@@ -3854,6 +3887,10 @@
     el("itemEndTimeZone").value = item?.endTimeZone || "";
     el("itemDurationText").value = item?.durationText || "";
     el("itemLocation").value = item?.location || prefill?.location || "";
+    el("itemFlightOrigin").value = item?.flightOrigin || "";
+    el("itemFlightDestination").value = item?.flightDestination || "";
+    el("itemFlightOriginCode").value = item?.flightOriginCode || "";
+    el("itemFlightDestinationCode").value = item?.flightDestinationCode || "";
     el("itemStatus").value = item?.status || "Planned";
     el("itemBookingRef").value = item?.bookingRef || "";
     el("itemCostTotal").value = Number.isFinite(Number(item?.costTotal)) ? item.costTotal : "";
@@ -3875,6 +3912,7 @@
     el("itemFxRate").value = startingRate ? String(startingRate) : "";
     updateItemFxPreview(false);
     renderItemPeopleControls(item);
+    setFlightEditorVisibility();
 
     const dialog = el("itineraryItemDialog");
     showModalSafe(dialog);
@@ -4634,6 +4672,7 @@
   });
 
   el("addItineraryItemBtn").addEventListener("click", () => openItineraryItemDialog());
+  el("itemType").addEventListener("change", setFlightEditorVisibility);
   el("closeItemDialogBtn").addEventListener("click", closeItineraryItemDialog);
   el("editDayBtn").addEventListener("click", openDayDialog);
   el("closeDayDialogBtn").addEventListener("click", () => closeModalSafe(el("dayDialog")));
@@ -4706,18 +4745,54 @@
     }
 
     const existing = id ? state.trip.itinerary.find((x) => x.id === id) : null;
-    const nextLocation = el("itemLocation").value.trim();
+    const itemType = el("itemType").value;
+    const isFlight = itemType === "Flight";
+    const flightOrigin = el("itemFlightOrigin").value.trim();
+    const flightDestination = el("itemFlightDestination").value.trim();
+    const flightOriginCode = el("itemFlightOriginCode").value.trim().toUpperCase();
+    const flightDestinationCode = el("itemFlightDestinationCode").value.trim().toUpperCase();
+
+    if (isFlight && (!flightOrigin || !flightDestination)) {
+      el("itemError").textContent = "Enter both the departure and arrival locations for this flight.";
+      return;
+    }
+
+    const nextLocation = isFlight
+      ? `${flightOrigin}${flightOriginCode ? ` (${flightOriginCode})` : ""} → ${flightDestination}${flightDestinationCode ? ` (${flightDestinationCode})` : ""}`
+      : el("itemLocation").value.trim();
+
     const sameMappedLocation = Boolean(
+      !isFlight &&
       existing &&
       String(existing.location || "").trim() === nextLocation &&
       Number.isFinite(Number(existing.latitude)) &&
       Number.isFinite(Number(existing.longitude))
     );
 
+    const sameFlightOrigin = Boolean(
+      isFlight &&
+      existing &&
+      String(existing.flightOrigin || "").trim() === flightOrigin &&
+      existing.flightOriginLatitude !== null &&
+      existing.flightOriginLongitude !== null &&
+      Number.isFinite(Number(existing.flightOriginLatitude)) &&
+      Number.isFinite(Number(existing.flightOriginLongitude))
+    );
+
+    const sameFlightDestination = Boolean(
+      isFlight &&
+      existing &&
+      String(existing.flightDestination || "").trim() === flightDestination &&
+      existing.flightDestinationLatitude !== null &&
+      existing.flightDestinationLongitude !== null &&
+      Number.isFinite(Number(existing.flightDestinationLatitude)) &&
+      Number.isFinite(Number(existing.flightDestinationLongitude))
+    );
+
     const item = normalizeItineraryItem({
       id: existing?.id || uid("itin"),
       date,
-      type: el("itemType").value,
+      type: itemType,
       title,
       startTime: el("itemStartTime").value,
       endTime: el("itemEndTime").value,
@@ -4730,6 +4805,18 @@
       longitude: sameMappedLocation ? existing.longitude : null,
       geocodeLabel: sameMappedLocation ? existing.geocodeLabel : "",
       geocodedAt: sameMappedLocation ? existing.geocodedAt : null,
+      flightOrigin: isFlight ? flightOrigin : "",
+      flightDestination: isFlight ? flightDestination : "",
+      flightOriginCode: isFlight ? flightOriginCode : "",
+      flightDestinationCode: isFlight ? flightDestinationCode : "",
+      flightOriginLatitude: sameFlightOrigin ? existing.flightOriginLatitude : null,
+      flightOriginLongitude: sameFlightOrigin ? existing.flightOriginLongitude : null,
+      flightOriginGeocodeLabel: sameFlightOrigin ? existing.flightOriginGeocodeLabel : "",
+      flightOriginGeocodedAt: sameFlightOrigin ? existing.flightOriginGeocodedAt : null,
+      flightDestinationLatitude: sameFlightDestination ? existing.flightDestinationLatitude : null,
+      flightDestinationLongitude: sameFlightDestination ? existing.flightDestinationLongitude : null,
+      flightDestinationGeocodeLabel: sameFlightDestination ? existing.flightDestinationGeocodeLabel : "",
+      flightDestinationGeocodedAt: sameFlightDestination ? existing.flightDestinationGeocodedAt : null,
       status: el("itemStatus").value,
       bookingRef: el("itemBookingRef").value.trim(),
       costTotal: el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value),
@@ -4769,7 +4856,14 @@
     closeItineraryItemDialog();
     renderItinerary();
     renderSummary();
-    if (item.location && !sameMappedLocation) {
+    if (isFlight) {
+      if (item.flightOrigin && !sameFlightOrigin) {
+        window.TripMap?.queueGeocode?.("flight-origin", item.id);
+      }
+      if (item.flightDestination && !sameFlightDestination) {
+        window.TripMap?.queueGeocode?.("flight-destination", item.id);
+      }
+    } else if (item.location && !sameMappedLocation) {
       window.TripMap?.queueGeocode?.("itinerary", item.id);
     }
   });
@@ -5081,6 +5175,7 @@
     if (!state.trip) return [];
 
     const itineraryRecords = (state.trip.itinerary || [])
+      .filter((item) => String(item.type || "").toLowerCase() !== "flight")
       .filter((item) => String(item.location || "").trim())
       .map((item) => ({
         kind: "itinerary",
@@ -5099,6 +5194,62 @@
         isHotel: String(item.type || "").toLowerCase() === "accommodation",
         isWishlist: false
       }));
+
+    const flightEndpointRecords = (state.trip.itinerary || [])
+      .filter((item) => String(item.type || "").toLowerCase() === "flight")
+      .flatMap((item) => {
+        const records = [];
+        const origin = String(item.flightOrigin || "").trim();
+        const destination = String(item.flightDestination || "").trim();
+
+        if (origin) {
+          records.push({
+            kind: "flight-origin",
+            id: item.id,
+            title: `${item.title} — departure`,
+            parentTitle: item.title,
+            type: "Flight",
+            category: "Flight",
+            status: item.status || "",
+            date: item.date || "",
+            time: item.startTime || "",
+            location: origin,
+            query: `${origin}${item.flightOriginCode ? ` ${item.flightOriginCode}` : ""}`,
+            latitude: mapCoordinateValue(item.flightOriginLatitude),
+            longitude: mapCoordinateValue(item.flightOriginLongitude),
+            geocodeLabel: item.flightOriginGeocodeLabel || "",
+            isHotel: false,
+            isWishlist: false,
+            flightRole: "origin",
+            airportCode: item.flightOriginCode || ""
+          });
+        }
+
+        if (destination) {
+          records.push({
+            kind: "flight-destination",
+            id: item.id,
+            title: `${item.title} — arrival`,
+            parentTitle: item.title,
+            type: "Flight",
+            category: "Flight",
+            status: item.status || "",
+            date: item.endDate || item.date || "",
+            time: item.endTime || "",
+            location: destination,
+            query: `${destination}${item.flightDestinationCode ? ` ${item.flightDestinationCode}` : ""}`,
+            latitude: mapCoordinateValue(item.flightDestinationLatitude),
+            longitude: mapCoordinateValue(item.flightDestinationLongitude),
+            geocodeLabel: item.flightDestinationGeocodeLabel || "",
+            isHotel: false,
+            isWishlist: false,
+            flightRole: "destination",
+            airportCode: item.flightDestinationCode || ""
+          });
+        }
+
+        return records;
+      });
 
     const placeRecords = (state.trip.places || [])
       .filter((place) => String(place.location || "").trim())
@@ -5120,7 +5271,36 @@
         isWishlist: String(place.status || "").toLowerCase() === "wishlist"
       }));
 
-    return [...itineraryRecords, ...placeRecords];
+    return [...itineraryRecords, ...flightEndpointRecords, ...placeRecords];
+  }
+
+  function mapFlightRoutes() {
+    if (!state.trip) return [];
+
+    return (state.trip.itinerary || [])
+      .filter((item) => String(item.type || "").toLowerCase() === "flight")
+      .sort((a, b) => {
+        const ak = `${a.date || ""}T${a.startTime || "00:00"}`;
+        const bk = `${b.date || ""}T${b.startTime || "00:00"}`;
+        return ak.localeCompare(bk);
+      })
+      .map((item, index) => ({
+        id: item.id,
+        sequence: index + 1,
+        title: item.title || `Flight ${index + 1}`,
+        date: item.date || "",
+        startTime: item.startTime || "",
+        endDate: item.endDate || item.date || "",
+        endTime: item.endTime || "",
+        origin: item.flightOrigin || "",
+        destination: item.flightDestination || "",
+        originCode: item.flightOriginCode || "",
+        destinationCode: item.flightDestinationCode || "",
+        originLatitude: mapCoordinateValue(item.flightOriginLatitude),
+        originLongitude: mapCoordinateValue(item.flightOriginLongitude),
+        destinationLatitude: mapCoordinateValue(item.flightDestinationLatitude),
+        destinationLongitude: mapCoordinateValue(item.flightDestinationLongitude)
+      }));
   }
 
   function updateMapCoordinates(kind, id, latitude, longitude, label = "") {
@@ -5133,12 +5313,27 @@
     let item = null;
     if (kind === "itinerary") item = state.trip.itinerary.find((x) => x.id === id);
     if (kind === "place") item = state.trip.places.find((x) => x.id === id);
+    if (kind === "flight-origin" || kind === "flight-destination") {
+      item = state.trip.itinerary.find((x) => x.id === id);
+    }
     if (!item) return false;
 
-    item.latitude = lat;
-    item.longitude = lng;
-    item.geocodeLabel = String(label || "");
-    item.geocodedAt = Date.now();
+    if (kind === "flight-origin") {
+      item.flightOriginLatitude = lat;
+      item.flightOriginLongitude = lng;
+      item.flightOriginGeocodeLabel = String(label || "");
+      item.flightOriginGeocodedAt = Date.now();
+    } else if (kind === "flight-destination") {
+      item.flightDestinationLatitude = lat;
+      item.flightDestinationLongitude = lng;
+      item.flightDestinationGeocodeLabel = String(label || "");
+      item.flightDestinationGeocodedAt = Date.now();
+    } else {
+      item.latitude = lat;
+      item.longitude = lng;
+      item.geocodeLabel = String(label || "");
+      item.geocodedAt = Date.now();
+    }
     item.updatedAt = Date.now();
 
     saveState();
@@ -5151,7 +5346,23 @@
 
     let cleared = 0;
     for (const item of state.trip.itinerary || []) {
-      if (String(item.location || "").trim()) {
+      if (String(item.type || "").toLowerCase() === "flight") {
+        if (String(item.flightOrigin || "").trim()) {
+          item.flightOriginLatitude = null;
+          item.flightOriginLongitude = null;
+          item.flightOriginGeocodeLabel = "";
+          item.flightOriginGeocodedAt = null;
+          cleared += 1;
+        }
+        if (String(item.flightDestination || "").trim()) {
+          item.flightDestinationLatitude = null;
+          item.flightDestinationLongitude = null;
+          item.flightDestinationGeocodeLabel = "";
+          item.flightDestinationGeocodedAt = null;
+          cleared += 1;
+        }
+        item.updatedAt = Date.now();
+      } else if (String(item.location || "").trim()) {
         item.latitude = null;
         item.longitude = null;
         item.geocodeLabel = "";
@@ -5182,12 +5393,27 @@
     let item = null;
     if (kind === "itinerary") item = state.trip.itinerary.find((x) => x.id === id);
     if (kind === "place") item = state.trip.places.find((x) => x.id === id);
+    if (kind === "flight-origin" || kind === "flight-destination") {
+      item = state.trip.itinerary.find((x) => x.id === id);
+    }
     if (!item) return false;
 
-    item.latitude = null;
-    item.longitude = null;
-    item.geocodeLabel = "";
-    item.geocodedAt = null;
+    if (kind === "flight-origin") {
+      item.flightOriginLatitude = null;
+      item.flightOriginLongitude = null;
+      item.flightOriginGeocodeLabel = "";
+      item.flightOriginGeocodedAt = null;
+    } else if (kind === "flight-destination") {
+      item.flightDestinationLatitude = null;
+      item.flightDestinationLongitude = null;
+      item.flightDestinationGeocodeLabel = "";
+      item.flightDestinationGeocodedAt = null;
+    } else {
+      item.latitude = null;
+      item.longitude = null;
+      item.geocodeLabel = "";
+      item.geocodedAt = null;
+    }
     item.updatedAt = Date.now();
     saveState();
     window.TripMap?.dataChanged?.();
@@ -5222,12 +5448,23 @@
     let item = null;
     if (kind === "itinerary") item = state.trip?.itinerary.find((x) => x.id === id);
     if (kind === "place") item = state.trip?.places.find((x) => x.id === id);
+
+    if (kind === "flight-origin" || kind === "flight-destination") {
+      item = state.trip?.itinerary.find((x) => x.id === id);
+      if (!item) return;
+      const destination = kind === "flight-origin" ? item.flightOrigin : item.flightDestination;
+      if (!destination) return;
+      openDirectionsChooser(destination, item.title || "");
+      return;
+    }
+
     if (!item?.location) return;
     openDirectionsChooser(directionsDestination(item), item.title || "");
   }
 
   window.TravelPlannerMapBridge = {
     getRecords: mapLocationRecords,
+    getFlightRoutes: mapFlightRoutes,
     updateCoordinates: updateMapCoordinates,
     clearCoordinates: clearMapCoordinates,
     clearAllCoordinates: clearAllMapCoordinates,
