@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=25" rel="manifest"/>
+<link href="./manifest.webmanifest?v=26" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=25" rel="stylesheet"/>
+</script><link href="./styles.css?v=26" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -121,7 +121,7 @@
 <section class="hidden" id="appPanel">
 <nav aria-label="Travel planner mode" class="mode-switch">
 <button class="mode-btn active" data-mode="home" type="button">Home</button>
-<button class="mode-btn" data-mode="itinerary" type="button">Itinerary</button>
+<button class="mode-btn" data-mode="itinerary" type="button">Itinerary</button><button class="mode-btn" data-mode="map" type="button">Map</button>
 <button class="mode-btn" data-mode="summary" type="button">Summary</button>
 <button class="mode-btn" data-mode="budget" type="button">Budget</button>
 <button class="mode-btn" data-mode="more" type="button">More</button>
@@ -243,7 +243,6 @@
 <p class="eyebrow">TODAY'S PLAN</p>
 <h2 id="dayItemsHeading">Itinerary</h2>
 </div>
-
 <div class="itinerary-heading-actions"><button class="primary-compact-btn" id="addItineraryItemBtn" type="button">+ Add item</button><button class="secondary-compact-btn" id="addTimelineNoteBtn" type="button">+ Note</button></div></div>
 <div class="itinerary-list" id="itineraryItems"></div>
 </section>
@@ -292,6 +291,55 @@
 <p class="muted small share-help">Shared links contain a compressed copy of the trip after the # in the URL. GitHub does not receive that fragment, but anyone who receives the complete link can import that shared copy.</p>
 <p class="status-message" id="quickExportMessage" role="status"></p>
 </section>
+</section><section class="mode-panel" data-mode-panel="map" id="mapMode">
+<section class="map-hero">
+<div>
+<p class="eyebrow">TRIP MAP</p>
+<h2>Every place, on one globe</h2>
+<p class="muted">Satellite-style globe with 3D terrain. Saved coordinates stay with the trip and sync to family devices.</p>
+</div>
+<div class="map-hero-count" id="mapPinCount">0 pins</div>
+</section>
+<section class="panel map-toolbar-panel">
+<div class="map-filter-row" id="mapFilterRow">
+<button class="map-filter active" data-map-filter="all" type="button">All</button>
+<button class="map-filter" data-map-filter="hotel" type="button">Hotels</button>
+<button class="map-filter" data-map-filter="itinerary" type="button">Itinerary</button>
+<button class="map-filter" data-map-filter="places" type="button">Places</button>
+</div>
+<div class="map-action-row">
+<button class="secondary-btn" id="mapFitTripBtn" type="button">Fit whole trip</button>
+<button class="secondary-btn" id="mapLocateMissingBtn" type="button">Locate missing pins</button>
+</div>
+<p class="status-message" id="mapStatus" role="status"></p>
+</section>
+<section class="trip-map-shell">
+<div aria-label="Interactive trip globe" class="trip-map-canvas" id="tripMapCanvas"></div>
+<div class="trip-map-offline hidden" id="tripMapOffline">
+<strong>Map imagery needs internet</strong>
+<span>Your saved itinerary and pin coordinates are still stored locally.</span>
+</div>
+<div class="trip-map-legend">
+<span><span class="legend-hotel">🏨</span> Accommodation</span>
+<span><span class="legend-pin"></span> Itinerary / places</span>
+</div>
+</section>
+<details class="map-missing-panel" id="mapMissingPanel">
+<summary>
+<div>
+<span class="pretrip-summary-title">Locations without a pin</span>
+<span class="pretrip-summary-sub" id="mapMissingSummary">Checking locations…</span>
+</div>
+<span aria-hidden="true" class="pretrip-chevron">⌄</span>
+</summary>
+<div class="map-missing-body">
+<p class="muted small">Travel Planner only searches locations that do not already have saved coordinates. Once found, the pin becomes part of the trip.</p>
+<div class="map-missing-list" id="mapMissingList"></div>
+</div>
+</details>
+<p class="muted small map-attribution-note">
+    Satellite imagery: EOX Sentinel-2 cloudless mosaic • terrain: Mapterhorn • map data/labels: OpenFreeMap / OpenStreetMap.
+  </p>
 </section>
 <section class="mode-panel" data-mode-panel="summary" id="summaryMode">
 <div class="summary-hero" id="summaryHeroWidget">
@@ -619,7 +667,7 @@
 <option value="dark">Dark</option>
 <option value="system">Use iPhone setting</option>
 </select>
-</div><div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
+</div><div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="map">Map</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
 <div class="settings-row"><div><strong>Default itinerary view</strong><span>Day view automatically selects the correct trip day.</span></div><select class="compact-select" id="settingsItineraryView"><option value="day">Day view</option><option value="full">Full trip</option></select></div>
 <button class="secondary-btn" id="resetLayoutBtn" type="button">Reset layout preferences</button><p class="status-message" id="layoutSettingsMessage"></p></div></details>
 <details class="settings-group"><summary><div><span class="settings-group-title">Home screen</span><span class="settings-group-sub">Choose the cards you want on Home</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body"><div class="settings-toggle-list">
@@ -1443,6 +1491,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=25"></script><script src="./family-sync.js?v=25" type="module"></script>
+<script defer="" src="./app.js?v=26"></script><script src="./family-sync.js?v=26" type="module"></script><script src="./trip-map.js?v=26" type="module"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 25;
+  const APP_VERSION = 26;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -73,7 +73,7 @@
 
   function normalizeUiSettings(raw) {
     const defaults = defaultUiSettings();
-    const startScreens = ["home", "itinerary", "summary", "budget", "more"];
+    const startScreens = ["home", "itinerary", "map", "summary", "budget", "more"];
     return {
       startScreen: startScreens.includes(raw?.startScreen) ? raw.startScreen : defaults.startScreen,
       appearance: ["system", "light", "dark"].includes(raw?.appearance) ? raw.appearance : defaults.appearance,
@@ -239,6 +239,10 @@
       endTimeZone: String(item?.endTimeZone || ""),
       durationText: String(item?.durationText || ""),
       location: String(item?.location || ""),
+      latitude: item?.latitude === null || item?.latitude === "" || item?.latitude === undefined ? null : Number(item.latitude),
+      longitude: item?.longitude === null || item?.longitude === "" || item?.longitude === undefined ? null : Number(item.longitude),
+      geocodeLabel: String(item?.geocodeLabel || ""),
+      geocodedAt: item?.geocodedAt ? Number(item.geocodedAt) : null,
       status: String(item?.status || "Planned"),
       bookingRef: String(item?.bookingRef || ""),
       costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined ? null : Number(item.costTotal),
@@ -321,6 +325,10 @@
       category: String(item?.category || "Other"),
       status: String(item?.status || "Wishlist"),
       location: String(item?.location || ""),
+      latitude: item?.latitude === null || item?.latitude === "" || item?.latitude === undefined ? null : Number(item.latitude),
+      longitude: item?.longitude === null || item?.longitude === "" || item?.longitude === undefined ? null : Number(item.longitude),
+      geocodeLabel: String(item?.geocodeLabel || ""),
+      geocodedAt: item?.geocodedAt ? Number(item.geocodedAt) : null,
       website: String(item?.website || ""),
       notes: String(item?.notes || ""),
       createdAt: Number(item?.createdAt || Date.now()),
@@ -2895,6 +2903,7 @@
     renderTravellerSettings();
     updateReminderBadge();
     scheduleReminderCheck();
+    window.TripMap?.dataChanged?.();
 
     if (state.trip.budget?.configured) {
       renderDashboard();
@@ -2918,6 +2927,7 @@
     document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("active", mode !== "settings" && b.dataset.mode === mode));
     document.querySelectorAll(".mode-panel").forEach((p) => p.classList.toggle("active", p.dataset.modePanel === mode));
     if (mode === "home") renderHome();
+    if (mode === "map") window.TripMap?.activate?.();
     if (mode === "budget") renderBudgetVisibility();
     if (mode === "summary") renderSummary();
     if (mode === "more") renderMore();
@@ -4022,12 +4032,24 @@
       return;
     }
     const existing = id ? state.trip.places.find((x) => x.id === id) : null;
+    const nextLocation = el("placeLocation").value.trim();
+    const sameMappedLocation = Boolean(
+      existing &&
+      String(existing.location || "").trim() === nextLocation &&
+      Number.isFinite(Number(existing.latitude)) &&
+      Number.isFinite(Number(existing.longitude))
+    );
+
     const place = normalizePlace({
       id: existing?.id || uid("place"),
       title,
       category: el("placeCategory").value,
       status: el("placeStatus").value,
-      location: el("placeLocation").value.trim(),
+      location: nextLocation,
+      latitude: sameMappedLocation ? existing.latitude : null,
+      longitude: sameMappedLocation ? existing.longitude : null,
+      geocodeLabel: sameMappedLocation ? existing.geocodeLabel : "",
+      geocodedAt: sameMappedLocation ? existing.geocodedAt : null,
       website: el("placeWebsite").value.trim(),
       notes: el("placeNotes").value.trim(),
       createdAt: existing?.createdAt || Date.now(),
@@ -4038,6 +4060,9 @@
     saveState();
     closeModalSafe(el("placeDialog"));
     renderPlaces();
+    if (place.location && !sameMappedLocation) {
+      window.TripMap?.queueGeocode?.("place", place.id);
+    }
   });
 
   el("deletePlaceBtn").addEventListener("click", () => {
@@ -4681,6 +4706,14 @@
     }
 
     const existing = id ? state.trip.itinerary.find((x) => x.id === id) : null;
+    const nextLocation = el("itemLocation").value.trim();
+    const sameMappedLocation = Boolean(
+      existing &&
+      String(existing.location || "").trim() === nextLocation &&
+      Number.isFinite(Number(existing.latitude)) &&
+      Number.isFinite(Number(existing.longitude))
+    );
+
     const item = normalizeItineraryItem({
       id: existing?.id || uid("itin"),
       date,
@@ -4692,7 +4725,11 @@
       startTimeZone,
       endTimeZone,
       durationText: el("itemDurationText").value.trim(),
-      location: el("itemLocation").value.trim(),
+      location: nextLocation,
+      latitude: sameMappedLocation ? existing.latitude : null,
+      longitude: sameMappedLocation ? existing.longitude : null,
+      geocodeLabel: sameMappedLocation ? existing.geocodeLabel : "",
+      geocodedAt: sameMappedLocation ? existing.geocodedAt : null,
       status: el("itemStatus").value,
       bookingRef: el("itemBookingRef").value.trim(),
       costTotal: el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value),
@@ -4732,6 +4769,9 @@
     closeItineraryItemDialog();
     renderItinerary();
     renderSummary();
+    if (item.location && !sameMappedLocation) {
+      window.TripMap?.queueGeocode?.("itinerary", item.id);
+    }
   });
 
   el("deleteItemBtn").addEventListener("click", () => {
@@ -5019,6 +5059,144 @@
     }
   }
 
+
+
+  function mapRecordQuery(location, date = "") {
+    let target = directionsDestination({ location });
+    const dayLocation = date ? String(state.trip?.dayMeta?.[date]?.location || "").trim() : "";
+
+    if (dayLocation && target && !target.toLowerCase().includes(dayLocation.toLowerCase())) {
+      target = `${target}, ${dayLocation}`;
+    }
+    return target;
+  }
+
+  function mapLocationRecords() {
+    if (!state.trip) return [];
+
+    const itineraryRecords = (state.trip.itinerary || [])
+      .filter((item) => String(item.location || "").trim())
+      .map((item) => ({
+        kind: "itinerary",
+        id: item.id,
+        title: item.title,
+        type: item.type || "Other",
+        category: item.type || "Other",
+        status: item.status || "",
+        date: item.date || "",
+        time: item.startTime || "",
+        location: item.location || "",
+        query: mapRecordQuery(item.location, item.date),
+        latitude: Number.isFinite(Number(item.latitude)) ? Number(item.latitude) : null,
+        longitude: Number.isFinite(Number(item.longitude)) ? Number(item.longitude) : null,
+        geocodeLabel: item.geocodeLabel || "",
+        isHotel: String(item.type || "").toLowerCase() === "accommodation",
+        isWishlist: false
+      }));
+
+    const placeRecords = (state.trip.places || [])
+      .filter((place) => String(place.location || "").trim())
+      .map((place) => ({
+        kind: "place",
+        id: place.id,
+        title: place.title,
+        type: "Place",
+        category: place.category || "Other",
+        status: place.status || "",
+        date: "",
+        time: "",
+        location: place.location || "",
+        query: mapRecordQuery(place.location),
+        latitude: Number.isFinite(Number(place.latitude)) ? Number(place.latitude) : null,
+        longitude: Number.isFinite(Number(place.longitude)) ? Number(place.longitude) : null,
+        geocodeLabel: place.geocodeLabel || "",
+        isHotel: String(place.category || "").toLowerCase() === "hotel",
+        isWishlist: String(place.status || "").toLowerCase() === "wishlist"
+      }));
+
+    return [...itineraryRecords, ...placeRecords];
+  }
+
+  function updateMapCoordinates(kind, id, latitude, longitude, label = "") {
+    if (!state.trip) return false;
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+
+    let item = null;
+    if (kind === "itinerary") item = state.trip.itinerary.find((x) => x.id === id);
+    if (kind === "place") item = state.trip.places.find((x) => x.id === id);
+    if (!item) return false;
+
+    item.latitude = lat;
+    item.longitude = lng;
+    item.geocodeLabel = String(label || "");
+    item.geocodedAt = Date.now();
+    item.updatedAt = Date.now();
+
+    saveState();
+    window.TripMap?.dataChanged?.();
+    return true;
+  }
+
+  function clearMapCoordinates(kind, id) {
+    if (!state.trip) return false;
+    let item = null;
+    if (kind === "itinerary") item = state.trip.itinerary.find((x) => x.id === id);
+    if (kind === "place") item = state.trip.places.find((x) => x.id === id);
+    if (!item) return false;
+
+    item.latitude = null;
+    item.longitude = null;
+    item.geocodeLabel = "";
+    item.geocodedAt = null;
+    item.updatedAt = Date.now();
+    saveState();
+    window.TripMap?.dataChanged?.();
+    return true;
+  }
+
+  function openMapRecord(kind, id) {
+    if (kind === "itinerary") {
+      const item = state.trip?.itinerary.find((x) => x.id === id);
+      if (!item) return;
+      selectedItineraryDate = item.date || defaultSelectedDate();
+      itineraryViewMode = "day";
+      activateMode("itinerary");
+      renderItinerary();
+      setTimeout(() => {
+        document.querySelector(`[data-itinerary-id="${CSS.escape(id)}"]`)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+      }, 120);
+      return;
+    }
+
+    if (kind === "place") {
+      activateMode("more");
+      if (el("placesPanel")) el("placesPanel").open = true;
+      setTimeout(() => openPlaceDialog(id), 80);
+    }
+  }
+
+  function directionsForMapRecord(kind, id) {
+    let item = null;
+    if (kind === "itinerary") item = state.trip?.itinerary.find((x) => x.id === id);
+    if (kind === "place") item = state.trip?.places.find((x) => x.id === id);
+    if (!item?.location) return;
+    openDirectionsChooser(directionsDestination(item), item.title || "");
+  }
+
+  window.TravelPlannerMapBridge = {
+    getRecords: mapLocationRecords,
+    updateCoordinates: updateMapCoordinates,
+    clearCoordinates: clearMapCoordinates,
+    openRecord: openMapRecord,
+    directions: directionsForMapRecord,
+    tripName: () => state.trip?.name || "Trip"
+  };
 
   function familySharedState() {
     if (!state.trip) return null;
