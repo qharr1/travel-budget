@@ -2,7 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "tripBudgetApp.v1";
-  const APP_VERSION = 8;
+  const APP_VERSION = 9;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -35,6 +35,9 @@
   let setupVisible = false;
   let lastObservedCalendarDate = todayISO();
   let directionsTarget = "";
+  let pendingPlaceToScheduleId = "";
+  let reminderTimer = null;
+  let vaultDbPromise = null;
 
   function uid(prefix = "id") {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -54,7 +57,12 @@
       budget: { configured: false, totalBudget: null, day1HardLimit: null, destinations: [] },
       dayMeta: {},
       itinerary: [],
-      preTripTasks: []
+      preTripTasks: [],
+      documents: [],
+      travelInfo: [],
+      places: [],
+      reminders: [],
+      dayNotes: {}
     };
   }
 
@@ -109,6 +117,79 @@
     };
   }
 
+  function normalizeDocument(item) {
+    return {
+      id: String(item?.id || uid("doc")),
+      title: String(item?.title || "Document"),
+      category: String(item?.category || "Other"),
+      linkedItineraryId: String(item?.linkedItineraryId || ""),
+      bookingRef: String(item?.bookingRef || ""),
+      confirmation: String(item?.confirmation || ""),
+      phone: String(item?.phone || ""),
+      website: String(item?.website || ""),
+      notes: String(item?.notes || ""),
+      attachmentId: String(item?.attachmentId || ""),
+      attachmentName: String(item?.attachmentName || ""),
+      attachmentType: String(item?.attachmentType || ""),
+      createdAt: Number(item?.createdAt || Date.now()),
+      updatedAt: Number(item?.updatedAt || Date.now())
+    };
+  }
+
+  function normalizeTravelInfo(item) {
+    return {
+      id: String(item?.id || uid("info")),
+      type: String(item?.type || "Other"),
+      name: String(item?.name || "Travel info"),
+      reference: String(item?.reference || ""),
+      phone: String(item?.phone || ""),
+      email: String(item?.email || ""),
+      website: String(item?.website || ""),
+      notes: String(item?.notes || ""),
+      createdAt: Number(item?.createdAt || Date.now()),
+      updatedAt: Number(item?.updatedAt || Date.now())
+    };
+  }
+
+  function normalizePlace(item) {
+    return {
+      id: String(item?.id || uid("place")),
+      title: String(item?.title || "Place"),
+      category: String(item?.category || "Other"),
+      status: String(item?.status || "Wishlist"),
+      location: String(item?.location || ""),
+      website: String(item?.website || ""),
+      notes: String(item?.notes || ""),
+      createdAt: Number(item?.createdAt || Date.now()),
+      updatedAt: Number(item?.updatedAt || Date.now())
+    };
+  }
+
+  function normalizeReminder(item) {
+    return {
+      id: String(item?.id || uid("rem")),
+      title: String(item?.title || "Reminder"),
+      dueAt: String(item?.dueAt || ""),
+      notes: String(item?.notes || ""),
+      status: String(item?.status || "Active"),
+      linkedKind: String(item?.linkedKind || ""),
+      linkedId: String(item?.linkedId || ""),
+      notifiedAt: item?.notifiedAt ? Number(item.notifiedAt) : null,
+      createdAt: Number(item?.createdAt || Date.now()),
+      updatedAt: Number(item?.updatedAt || Date.now())
+    };
+  }
+
+  function normalizeDayNote(item) {
+    return {
+      id: String(item?.id || uid("note")),
+      title: String(item?.title || ""),
+      text: String(item?.text || ""),
+      createdAt: Number(item?.createdAt || Date.now()),
+      updatedAt: Number(item?.updatedAt || Date.now())
+    };
+  }
+
   function normalizeExpense(item) {
     const amount = Number(item?.amount);
     if (!Number.isFinite(amount) || amount <= 0) return null;
@@ -150,6 +231,16 @@
     trip.dayMeta = raw?.dayMeta && typeof raw.dayMeta === "object" ? raw.dayMeta : {};
     trip.itinerary = Array.isArray(raw?.itinerary) ? raw.itinerary.map(normalizeItineraryItem) : [];
     trip.preTripTasks = Array.isArray(raw?.preTripTasks) ? raw.preTripTasks.map(normalizePreTripTask) : [];
+    trip.documents = Array.isArray(raw?.documents) ? raw.documents.map(normalizeDocument) : [];
+    trip.travelInfo = Array.isArray(raw?.travelInfo) ? raw.travelInfo.map(normalizeTravelInfo) : [];
+    trip.places = Array.isArray(raw?.places) ? raw.places.map(normalizePlace) : [];
+    trip.reminders = Array.isArray(raw?.reminders) ? raw.reminders.map(normalizeReminder) : [];
+    trip.dayNotes = raw?.dayNotes && typeof raw.dayNotes === "object"
+      ? Object.fromEntries(Object.entries(raw.dayNotes).map(([date, notes]) => [
+          date,
+          Array.isArray(notes) ? notes.map(normalizeDayNote) : []
+        ]))
+      : {};
     return trip;
   }
 
@@ -651,6 +742,7 @@
           ${directionsDestination(item)
             ? `<button class="directions-btn itinerary-directions" type="button" data-id="${escapeHtml(item.id)}">Directions</button>`
             : ""}
+          <button class="mini-btn itinerary-reminder" type="button" data-id="${escapeHtml(item.id)}">Reminder</button>
           <button class="mini-btn edit-itinerary-item" type="button" data-id="${escapeHtml(item.id)}">Edit</button>
         </div>
       </article>`;
@@ -692,6 +784,7 @@
           ${task.notes ? `<p class="pretrip-card-notes">${escapeHtml(task.notes)}</p>` : ""}
           <div class="pretrip-card-actions">
             ${!isPreTripComplete(task.status) ? `<button class="mini-btn complete-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Mark done</button>` : ""}
+            <button class="mini-btn reminder-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Reminder</button>
             <button class="mini-btn edit-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Edit</button>
           </div>
         </div>
@@ -724,6 +817,10 @@
 
     el("preTripTaskList").querySelectorAll(".edit-pretrip-task").forEach((button) => {
       button.addEventListener("click", () => openPreTripTaskDialog(button.dataset.id));
+    });
+
+    el("preTripTaskList").querySelectorAll(".reminder-pretrip-task").forEach((button) => {
+      button.addEventListener("click", () => openReminderDialog("", "pretrip", button.dataset.id));
     });
 
     el("preTripTaskList").querySelectorAll(".complete-pretrip-task").forEach((button) => {
@@ -790,6 +887,10 @@
         openDirectionsChooser(directionsDestination(item), item.title);
       });
     });
+
+    el("fullItineraryList").querySelectorAll(".itinerary-reminder").forEach((button) => {
+      button.addEventListener("click", () => openReminderDialog("", "itinerary", button.dataset.id));
+    });
   }
 
   function renderItineraryViewMode() {
@@ -853,8 +954,13 @@
       });
     });
 
+    document.querySelectorAll(".itinerary-reminder").forEach((button) => {
+      button.addEventListener("click", () => openReminderDialog("", "itinerary", button.dataset.id));
+    });
+
     el("prevDayBtn").disabled = dayIndex <= 0;
     el("nextDayBtn").disabled = dayIndex >= dates.length - 1;
+    renderDayJournal();
   }
 
 
@@ -1531,6 +1637,612 @@
     }
   }
 
+  function dateTimeMs(value) {
+    if (!value) return NaN;
+    const ms = new Date(value).getTime();
+    return Number.isFinite(ms) ? ms : NaN;
+  }
+
+  function dateTimeLabel(value) {
+    const ms = dateTimeMs(value);
+    if (!Number.isFinite(ms)) return "No date";
+    return new Intl.DateTimeFormat(undefined, {
+      weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit"
+    }).format(new Date(ms));
+  }
+
+  function toDateTimeLocal(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    if (!Number.isFinite(d.getTime())) return "";
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+
+  function safeExternalUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return `https://${raw}`;
+  }
+
+  function openVaultDb() {
+    if (vaultDbPromise) return vaultDbPromise;
+    vaultDbPromise = new Promise((resolve, reject) => {
+      if (!("indexedDB" in window)) {
+        reject(new Error("Local file storage is not supported on this browser."));
+        return;
+      }
+      const request = indexedDB.open("travelPlannerVault.v1", 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains("attachments")) {
+          db.createObjectStore("attachments", { keyPath: "id" });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error("Could not open local document storage."));
+    });
+    return vaultDbPromise;
+  }
+
+  async function saveVaultAttachment(id, file) {
+    const db = await openVaultDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("attachments", "readwrite");
+      tx.objectStore("attachments").put({
+        id,
+        blob: file,
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        updatedAt: Date.now()
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("Could not save attachment."));
+    });
+  }
+
+  async function getVaultAttachment(id) {
+    if (!id) return null;
+    const db = await openVaultDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("attachments", "readonly");
+      const request = tx.objectStore("attachments").get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error("Could not load attachment."));
+    });
+  }
+
+  async function deleteVaultAttachment(id) {
+    if (!id) return;
+    try {
+      const db = await openVaultDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction("attachments", "readwrite");
+        tx.objectStore("attachments").delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch {}
+  }
+
+  async function clearVaultAttachments() {
+    try {
+      const db = await openVaultDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction("attachments", "readwrite");
+        tx.objectStore("attachments").clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    } catch {}
+  }
+
+  function homeItemTypeClass(type) {
+    const cls = typeClass(type);
+    if (cls === "type-flight") return "#2563eb";
+    if (cls === "type-accommodation") return "#7c3aed";
+    if (cls === "type-theme-park") return "#db2777";
+    if (cls === "type-activity") return "#d97706";
+    if (cls === "type-travel") return "#0891b2";
+    if (cls === "type-food") return "#ea580c";
+    if (cls === "type-shopping") return "#16a34a";
+    return "#64748b";
+  }
+
+  function upcomingItineraryItems(limit = 3) {
+    if (!state.trip) return [];
+    const today = todayISO();
+    const nowTime = `${String(new Date().getHours()).padStart(2, "0")}:${String(new Date().getMinutes()).padStart(2, "0")}`;
+    const beforeTrip = dayNumber(today) < dayNumber(state.trip.startDate);
+
+    const sorted = [...state.trip.itinerary].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.startTime || "00:00").localeCompare(b.startTime || "00:00");
+    });
+
+    return sorted.filter((item) => {
+      if (beforeTrip) return dayNumber(item.date) >= dayNumber(state.trip.startDate);
+      if (item.date > today) return true;
+      if (item.date < today) return false;
+      if (!item.startTime) return true;
+      return item.startTime >= nowTime;
+    }).slice(0, limit);
+  }
+
+  function nextOutstandingTripItem() {
+    if (!state.trip) return null;
+    const candidates = [];
+
+    for (const task of state.trip.preTripTasks || []) {
+      const cost = Number(task.costTotal);
+      if (!isPreTripComplete(task.status) && task.costTotal !== null && Number.isFinite(cost) && cost > 0) {
+        candidates.push({
+          title: task.title,
+          date: task.dueDate || "9999-12-31",
+          cost,
+          label: "Pre-trip"
+        });
+      }
+    }
+
+    for (const item of state.trip.itinerary || []) {
+      const cost = itemEffectiveCost(item);
+      if (!isPaidStatus(item.status) && cost !== null && Number.isFinite(cost) && cost > 0) {
+        candidates.push({
+          title: item.title,
+          date: item.date || "9999-12-31",
+          cost,
+          label: item.type || "Itinerary"
+        });
+      }
+    }
+
+    return candidates.sort((a, b) => a.date.localeCompare(b.date))[0] || null;
+  }
+
+  function activeReminders() {
+    return [...(state.trip?.reminders || [])]
+      .filter((r) => String(r.status).toLowerCase() !== "done")
+      .sort((a, b) => {
+        const am = dateTimeMs(a.dueAt);
+        const bm = dateTimeMs(b.dueAt);
+        if (!Number.isFinite(am)) return 1;
+        if (!Number.isFinite(bm)) return -1;
+        return am - bm;
+      });
+  }
+
+  function renderHome() {
+    if (!state.trip) return;
+
+    const trip = state.trip;
+    const today = todayISO();
+    const todayN = dayNumber(today);
+    const startN = dayNumber(trip.startDate);
+    const endN = dayNumber(trip.endDate);
+    const totalDays = daysInclusive(trip.startDate, trip.endDate);
+    const stats = trip.budget?.configured ? tripStats() : null;
+
+    let displayDate = today;
+    if (todayN < startN) displayDate = trip.startDate;
+    if (todayN > endN) displayDate = trip.endDate;
+
+    if (todayN < startN) {
+      const days = startN - todayN;
+      el("homeEyebrow").textContent = "BEFORE THE TRIP";
+      el("homeTitle").textContent = trip.name;
+      el("homeSubtitle").textContent = `Starts ${formatDate(trip.startDate, { weekday: true })}`;
+      el("homeCountdown").textContent = `${days} day${days === 1 ? "" : "s"} to go`;
+    } else if (todayN <= endN) {
+      const day = todayN - startN + 1;
+      const meta = trip.dayMeta?.[today] || {};
+      el("homeEyebrow").textContent = `DAY ${day} OF ${totalDays}`;
+      el("homeTitle").textContent = meta.headline || formatDate(today, { weekday: true });
+      el("homeSubtitle").textContent = meta.location || trip.name;
+      el("homeCountdown").textContent = "Today";
+    } else {
+      el("homeEyebrow").textContent = "TRIP COMPLETE";
+      el("homeTitle").textContent = trip.name;
+      el("homeSubtitle").textContent = `Ended ${formatDate(trip.endDate, { weekday: true })}`;
+      el("homeCountdown").textContent = `${totalDays} days`;
+    }
+
+    if (stats) {
+      el("homeBudgetLabel").textContent = stats.status === "before" ? "Day 1 budget" : "Today's budget";
+      el("homeSpentLabel").textContent = stats.status === "before" ? "Day 1 spent" : "Spent today";
+      el("homeTodayBudget").textContent = aud(stats.todayBudget);
+      el("homeTodaySpent").textContent = aud(stats.spentToday);
+      el("homeTodayBudgetNote").textContent =
+        stats.hardLimit !== null && stats.status === "before"
+          ? "Hard limit reserved"
+          : `${aud(stats.availablePerFutureDay)} / future day`;
+      el("homeSpendStatus").textContent =
+        stats.dayVariance >= 0
+          ? `${aud(stats.dayVariance)} remaining`
+          : `${aud(Math.abs(stats.dayVariance))} over`;
+      el("homeSpendStatus").classList.toggle("good", stats.dayVariance >= 0);
+      el("homeSpendStatus").classList.toggle("bad", stats.dayVariance < 0);
+    } else {
+      el("homeTodayBudget").textContent = "Not set";
+      el("homeTodaySpent").textContent = "—";
+      el("homeTodayBudgetNote").textContent = "Set up budget";
+      el("homeSpendStatus").textContent = "";
+    }
+
+    const nextItems = upcomingItineraryItems(3);
+    el("homeNextItems").innerHTML = nextItems.length
+      ? nextItems.map((item) => `
+          <div class="home-list-item" style="--home-accent:${homeItemTypeClass(item.type)}">
+            <span class="home-list-stripe"></span>
+            <div class="home-list-main">
+              <strong>${escapeHtml(item.title)}</strong>
+              <span>${escapeHtml(formatDate(item.date, { weekday: true }))}${item.startTime ? ` • ${escapeHtml(item.startTime)}` : ""}${item.location ? ` • ${escapeHtml(item.location)}` : ""}</span>
+            </div>
+            <div class="home-list-side">${escapeHtml(item.type || "")}</div>
+          </div>
+        `).join("")
+      : `<p class="expense-empty">Nothing else scheduled.</p>`;
+
+    const meta = trip.dayMeta?.[displayDate] || {};
+    let overnight = meta.overnight || "";
+    if (!overnight) {
+      const accommodationItem = trip.itinerary.find((x) => x.date === displayDate && String(x.type).toLowerCase() === "accommodation");
+      overnight = accommodationItem?.title || "";
+    }
+    el("homeAccommodation").innerHTML = overnight
+      ? `<strong>${escapeHtml(overnight)}</strong><span>${escapeHtml(meta.location || formatDate(displayDate, { weekday: true }))}</span>`
+      : `No overnight accommodation saved for this day.`;
+
+    const outstanding = nextOutstandingTripItem();
+    el("homeOutstanding").innerHTML = outstanding
+      ? `<strong>${escapeHtml(outstanding.title)}</strong><span>${escapeHtml(outstanding.label)} • ${outstanding.date !== "9999-12-31" ? escapeHtml(formatDate(outstanding.date, { weekday: true })) : "No due date"} • ${escapeHtml(aud(outstanding.cost))}</span>`
+      : `Nothing priced is currently outstanding.`;
+
+    const alertBox = el("homePreTripWarning");
+    const outstandingPreTrip = (trip.preTripTasks || [])
+      .filter((t) => !isPreTripComplete(t.status))
+      .sort((a, b) => (a.dueDate || "9999-12-31").localeCompare(b.dueDate || "9999-12-31"));
+    if (todayN < startN && outstandingPreTrip.length) {
+      const next = outstandingPreTrip[0];
+      alertBox.classList.remove("hidden");
+      alertBox.textContent = `${outstandingPreTrip.length} pre-trip task${outstandingPreTrip.length === 1 ? "" : "s"} still open. Next: ${next.title}${next.dueDate ? ` • due ${formatDate(next.dueDate, { weekday: true })}` : ""}.`;
+    } else {
+      alertBox.classList.add("hidden");
+      alertBox.textContent = "";
+    }
+
+    const reminders = activeReminders().slice(0, 3);
+    const now = Date.now();
+    el("homeReminders").innerHTML = reminders.length
+      ? reminders.map((r) => {
+          const due = dateTimeMs(r.dueAt);
+          const overdue = Number.isFinite(due) && due <= now;
+          return `
+            <div class="home-list-item" style="--home-accent:${overdue ? "#b91c1c" : "#0f766e"}">
+              <span class="home-list-stripe"></span>
+              <div class="home-list-main">
+                <strong>${escapeHtml(r.title)}</strong>
+                <span>${escapeHtml(dateTimeLabel(r.dueAt))}</span>
+              </div>
+              <div class="home-list-side">${overdue ? "Due" : "Upcoming"}</div>
+            </div>`;
+        }).join("")
+      : `<p class="expense-empty">No active reminders.</p>`;
+
+    const currentNotes = trip.dayNotes?.[today] || [];
+    const notesCard = el("homeDayNotesCard");
+    if (todayN >= startN && todayN <= endN) {
+      notesCard.classList.remove("hidden");
+      el("homeDayNotes").innerHTML = currentNotes.length
+        ? currentNotes.slice(-3).reverse().map((n) => `
+            <div class="home-list-item" style="--home-accent:#475569">
+              <span class="home-list-stripe"></span>
+              <div class="home-list-main">
+                <strong>${escapeHtml(n.title || "Note")}</strong>
+                <span>${escapeHtml(n.text)}</span>
+              </div>
+            </div>
+          `).join("")
+        : `<p class="expense-empty">No notes for today yet.</p>`;
+    } else {
+      notesCard.classList.add("hidden");
+    }
+  }
+
+  function linkedItineraryOptions(selected = "") {
+    const items = [...(state.trip?.itinerary || [])].sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.startTime || "").localeCompare(b.startTime || "");
+    });
+    return `<option value="">Not linked</option>` + items.map((item) =>
+      `<option value="${escapeHtml(item.id)}" ${item.id === selected ? "selected" : ""}>${escapeHtml(formatDate(item.date, { weekday: false }))} — ${escapeHtml(item.title)}</option>`
+    ).join("");
+  }
+
+  function renderDocuments() {
+    if (!state.trip) return;
+    const docs = [...(state.trip.documents || [])].sort((a, b) => a.title.localeCompare(b.title));
+    el("documentsSummary").textContent = `${docs.length} document${docs.length === 1 ? "" : "s"}`;
+    el("documentList").innerHTML = docs.length
+      ? docs.map((doc) => `
+          <article class="tool-card">
+            <div class="tool-card-top">
+              <div>
+                <h3>${escapeHtml(doc.title)}</h3>
+                <div class="tool-card-meta">${escapeHtml(doc.category)}${doc.bookingRef ? ` • Ref ${escapeHtml(doc.bookingRef)}` : ""}${doc.confirmation ? ` • Confirmation ${escapeHtml(doc.confirmation)}` : ""}</div>
+                ${doc.attachmentName ? `<span class="local-file-pill">${escapeHtml(doc.attachmentName)} • local file</span>` : ""}
+              </div>
+            </div>
+            ${doc.notes ? `<p class="tool-card-notes">${escapeHtml(doc.notes)}</p>` : ""}
+            <div class="tool-card-actions">
+              ${doc.phone ? `<a class="tool-link-btn" href="tel:${escapeHtml(doc.phone)}">Call</a>` : ""}
+              ${doc.website ? `<a class="tool-link-btn" href="${escapeHtml(safeExternalUrl(doc.website))}" target="_blank" rel="noopener">Website</a>` : ""}
+              ${doc.attachmentId ? `<button class="tool-link-btn open-document-file" type="button" data-id="${escapeHtml(doc.id)}">Open file</button>` : ""}
+              <button class="tool-link-btn edit-document" type="button" data-id="${escapeHtml(doc.id)}">Edit</button>
+            </div>
+          </article>
+        `).join("")
+      : `<p class="expense-empty">No documents saved yet.</p>`;
+
+    el("documentList").querySelectorAll(".edit-document").forEach((b) =>
+      b.addEventListener("click", () => openDocumentDialog(b.dataset.id))
+    );
+    el("documentList").querySelectorAll(".open-document-file").forEach((b) =>
+      b.addEventListener("click", () => openDocumentAttachment(b.dataset.id))
+    );
+  }
+
+  function renderTravelInfo() {
+    if (!state.trip) return;
+    const items = [...(state.trip.travelInfo || [])].sort((a, b) => a.type.localeCompare(b.type));
+    el("travelInfoSummary").textContent = `${items.length} saved contact${items.length === 1 ? "" : "s"}`;
+    el("travelInfoList").innerHTML = items.length
+      ? items.map((info) => `
+          <article class="tool-card">
+            <div class="tool-card-top">
+              <div>
+                <h3>${escapeHtml(info.name)}</h3>
+                <div class="tool-card-meta">${escapeHtml(info.type)}${info.reference ? ` • ${escapeHtml(info.reference)}` : ""}</div>
+              </div>
+            </div>
+            ${info.notes ? `<p class="tool-card-notes">${escapeHtml(info.notes)}</p>` : ""}
+            <div class="tool-card-actions">
+              ${info.phone ? `<a class="tool-link-btn" href="tel:${escapeHtml(info.phone)}">Call</a>` : ""}
+              ${info.email ? `<a class="tool-link-btn" href="mailto:${escapeHtml(info.email)}">Email</a>` : ""}
+              ${info.website ? `<a class="tool-link-btn" href="${escapeHtml(safeExternalUrl(info.website))}" target="_blank" rel="noopener">Website</a>` : ""}
+              <button class="tool-link-btn edit-travel-info" type="button" data-id="${escapeHtml(info.id)}">Edit</button>
+            </div>
+          </article>
+        `).join("")
+      : `<p class="expense-empty">No emergency or travel contacts saved yet.</p>`;
+
+    el("travelInfoList").querySelectorAll(".edit-travel-info").forEach((b) =>
+      b.addEventListener("click", () => openTravelInfoDialog(b.dataset.id))
+    );
+  }
+
+  function placeTypeForItinerary(category) {
+    const key = String(category || "").toLowerCase();
+    if (key === "restaurant") return "Food";
+    if (key === "shop") return "Shopping";
+    return "Activity";
+  }
+
+  function renderPlaces() {
+    if (!state.trip) return;
+    const places = [...(state.trip.places || [])].sort((a, b) => {
+      if (a.status !== b.status) return a.status.localeCompare(b.status);
+      return a.title.localeCompare(b.title);
+    });
+    el("placesSummary").textContent = `${places.length} place${places.length === 1 ? "" : "s"}`;
+    el("placeList").innerHTML = places.length
+      ? places.map((place) => `
+          <article class="tool-card">
+            <div class="tool-card-top">
+              <div>
+                <h3>${escapeHtml(place.title)}</h3>
+                <div class="tool-card-meta">${escapeHtml(place.category)} • ${escapeHtml(place.status)}${place.location ? ` • ${escapeHtml(place.location)}` : ""}</div>
+              </div>
+            </div>
+            ${place.notes ? `<p class="tool-card-notes">${escapeHtml(place.notes)}</p>` : ""}
+            <div class="tool-card-actions">
+              ${place.location ? `<button class="tool-link-btn place-directions" type="button" data-id="${escapeHtml(place.id)}">Directions</button>` : ""}
+              ${place.website ? `<a class="tool-link-btn" href="${escapeHtml(safeExternalUrl(place.website))}" target="_blank" rel="noopener">Website</a>` : ""}
+              <button class="tool-link-btn schedule-place" type="button" data-id="${escapeHtml(place.id)}">Add to itinerary</button>
+              <button class="tool-link-btn edit-place" type="button" data-id="${escapeHtml(place.id)}">Edit</button>
+            </div>
+          </article>
+        `).join("")
+      : `<p class="expense-empty">No wishlist places yet.</p>`;
+
+    el("placeList").querySelectorAll(".edit-place").forEach((b) =>
+      b.addEventListener("click", () => openPlaceDialog(b.dataset.id))
+    );
+    el("placeList").querySelectorAll(".place-directions").forEach((b) =>
+      b.addEventListener("click", () => {
+        const place = state.trip.places.find((x) => x.id === b.dataset.id);
+        if (place) openDirectionsChooser(place.location, place.title);
+      })
+    );
+    el("placeList").querySelectorAll(".schedule-place").forEach((b) =>
+      b.addEventListener("click", () => schedulePlaceIntoItinerary(b.dataset.id))
+    );
+  }
+
+  function reminderStatus(reminder) {
+    if (String(reminder.status).toLowerCase() === "done") return "Done";
+    const due = dateTimeMs(reminder.dueAt);
+    if (Number.isFinite(due) && due <= Date.now()) return "Due";
+    return "Upcoming";
+  }
+
+  function renderReminders() {
+    if (!state.trip) return;
+    const reminders = [...(state.trip.reminders || [])].sort((a, b) => {
+      if (String(a.status).toLowerCase() === "done" && String(b.status).toLowerCase() !== "done") return 1;
+      if (String(a.status).toLowerCase() !== "done" && String(b.status).toLowerCase() === "done") return -1;
+      return (dateTimeMs(a.dueAt) || Infinity) - (dateTimeMs(b.dueAt) || Infinity);
+    });
+
+    const activeCount = reminders.filter((r) => String(r.status).toLowerCase() !== "done").length;
+    el("remindersSummary").textContent = `${activeCount} active reminder${activeCount === 1 ? "" : "s"}`;
+
+    el("reminderList").innerHTML = reminders.length
+      ? reminders.map((reminder) => {
+          const status = reminderStatus(reminder);
+          return `
+            <article class="tool-card">
+              <div class="tool-card-top">
+                <div>
+                  <h3>${escapeHtml(reminder.title)} <span class="status-pill ${status === "Due" ? "overdue" : status === "Done" ? "done" : ""}">${status}</span></h3>
+                  <div class="tool-card-meta">${escapeHtml(dateTimeLabel(reminder.dueAt))}</div>
+                </div>
+              </div>
+              ${reminder.notes ? `<p class="tool-card-notes">${escapeHtml(reminder.notes)}</p>` : ""}
+              <div class="tool-card-actions">
+                ${status !== "Done" ? `<button class="tool-link-btn complete-reminder" type="button" data-id="${escapeHtml(reminder.id)}">Mark done</button>` : ""}
+                <button class="tool-link-btn edit-reminder" type="button" data-id="${escapeHtml(reminder.id)}">Edit</button>
+              </div>
+            </article>`;
+        }).join("")
+      : `<p class="expense-empty">No reminders saved yet.</p>`;
+
+    el("reminderList").querySelectorAll(".edit-reminder").forEach((b) =>
+      b.addEventListener("click", () => openReminderDialog(b.dataset.id))
+    );
+    el("reminderList").querySelectorAll(".complete-reminder").forEach((b) =>
+      b.addEventListener("click", () => {
+        const reminder = state.trip.reminders.find((x) => x.id === b.dataset.id);
+        if (!reminder) return;
+        reminder.status = "Done";
+        reminder.updatedAt = Date.now();
+        saveState();
+        renderReminders();
+        renderHome();
+        updateReminderBadge();
+        scheduleReminderCheck();
+      })
+    );
+
+    renderNotificationStatus();
+  }
+
+  function renderDayJournal() {
+    if (!state.trip || !selectedItineraryDate) return;
+    const notes = [...(state.trip.dayNotes?.[selectedItineraryDate] || [])].sort((a, b) => b.createdAt - a.createdAt);
+    el("dayJournalSummary").textContent = notes.length
+      ? `${notes.length} note${notes.length === 1 ? "" : "s"}`
+      : "No notes yet";
+
+    el("dayJournalList").innerHTML = notes.length
+      ? notes.map((note) => `
+          <article class="day-note-card">
+            <h3>${escapeHtml(note.title || "Note")}</h3>
+            <div class="day-note-meta">${new Date(note.createdAt).toLocaleString()}</div>
+            <p class="day-note-text">${escapeHtml(note.text)}</p>
+            <div class="day-note-actions">
+              <button class="tool-link-btn edit-day-note" type="button" data-id="${escapeHtml(note.id)}">Edit</button>
+            </div>
+          </article>
+        `).join("")
+      : `<p class="expense-empty">No notes for this day yet.</p>`;
+
+    el("dayJournalList").querySelectorAll(".edit-day-note").forEach((b) =>
+      b.addEventListener("click", () => openDayNoteDialog(b.dataset.id))
+    );
+  }
+
+  function renderMore() {
+    if (!state.trip) return;
+    renderDocuments();
+    renderTravelInfo();
+    renderPlaces();
+    renderReminders();
+  }
+
+  async function updateReminderBadge() {
+    const dueCount = activeReminders().filter((r) => {
+      const due = dateTimeMs(r.dueAt);
+      return Number.isFinite(due) && due <= Date.now();
+    }).length;
+    try {
+      if ("setAppBadge" in navigator) {
+        if (dueCount > 0) await navigator.setAppBadge(dueCount);
+        else if ("clearAppBadge" in navigator) await navigator.clearAppBadge();
+      }
+    } catch {}
+  }
+
+  function renderNotificationStatus() {
+    if (!el("notificationStatusText")) return;
+    const supported = "Notification" in window && "serviceWorker" in navigator;
+    if (!supported) {
+      el("notificationStatusText").textContent = "System notifications are not supported in this browser.";
+      el("enableNotificationsBtn").disabled = true;
+      return;
+    }
+
+    const permission = Notification.permission;
+    if (permission === "granted") {
+      el("notificationStatusText").textContent = "Notifications are enabled. Local reminders are checked while the app is active or when you return to it.";
+      el("enableNotificationsBtn").textContent = "Enabled";
+      el("enableNotificationsBtn").disabled = true;
+    } else if (permission === "denied") {
+      el("notificationStatusText").textContent = "Notifications are blocked in iPhone settings for this web app.";
+      el("enableNotificationsBtn").textContent = "Blocked";
+      el("enableNotificationsBtn").disabled = true;
+    } else {
+      el("notificationStatusText").textContent = "Tap enable to allow iPhone notifications for due reminders.";
+      el("enableNotificationsBtn").textContent = "Enable notifications";
+      el("enableNotificationsBtn").disabled = false;
+    }
+  }
+
+  async function checkRemindersAndNotify() {
+    if (!state.trip) return;
+    const due = activeReminders().filter((r) => {
+      const dueMs = dateTimeMs(r.dueAt);
+      return Number.isFinite(dueMs) && dueMs <= Date.now() && !r.notifiedAt;
+    });
+
+    if (due.length && "Notification" in window && Notification.permission === "granted" && "serviceWorker" in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        for (const reminder of due) {
+          await registration.showNotification(reminder.title, {
+            body: reminder.notes || dateTimeLabel(reminder.dueAt),
+            icon: "./icon-192.png",
+            badge: "./icon-192.png",
+            tag: `trip-reminder-${reminder.id}`,
+            data: { reminderId: reminder.id }
+          });
+          reminder.notifiedAt = Date.now();
+        }
+        saveState();
+      } catch {}
+    }
+
+    updateReminderBadge();
+    renderHome();
+    renderReminders();
+    scheduleReminderCheck();
+  }
+
+  function scheduleReminderCheck() {
+    if (reminderTimer) clearTimeout(reminderTimer);
+    reminderTimer = null;
+    if (!state.trip) return;
+
+    const next = activeReminders()
+      .map((r) => dateTimeMs(r.dueAt))
+      .filter((ms) => Number.isFinite(ms) && ms > Date.now())
+      .sort((a, b) => a - b)[0];
+
+    if (!next) return;
+    const delay = Math.max(1000, Math.min(next - Date.now(), 60 * 60 * 1000));
+    reminderTimer = setTimeout(checkRemindersAndNotify, delay);
+  }
+
   function render() {
     renderVisibility();
     renderHeader();
@@ -1544,6 +2256,11 @@
     renderItinerary();
     renderSummary();
     renderBudgetVisibility();
+    renderHome();
+    renderMore();
+    renderDayJournal();
+    updateReminderBadge();
+    scheduleReminderCheck();
 
     if (state.trip.budget?.configured) {
       renderDashboard();
@@ -1561,8 +2278,10 @@
   function activateMode(mode) {
     document.querySelectorAll(".mode-btn").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
     document.querySelectorAll(".mode-panel").forEach((p) => p.classList.toggle("active", p.dataset.modePanel === mode));
+    if (mode === "home") renderHome();
     if (mode === "budget") renderBudgetVisibility();
     if (mode === "summary") renderSummary();
+    if (mode === "more") renderMore();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -1599,7 +2318,7 @@
       settingsDraftDestinations = [];
       saveState();
       render();
-      activateMode("itinerary");
+      activateMode("home");
       if (messageElement) messageElement.textContent = "Trip imported.";
     } catch (error) {
       if (messageElement) messageElement.textContent = `Could not import trip: ${error.message}`;
@@ -1644,6 +2363,12 @@
     const clonedTrip = JSON.parse(JSON.stringify(state.trip));
     const clonedExpenses = includeFullTrip ? JSON.parse(JSON.stringify(state.expenses)) : [];
 
+    clonedTrip.documents = (clonedTrip.documents || []).map((doc) => ({
+      ...doc,
+      attachmentId: "",
+      attachmentName: doc.attachmentName ? `${doc.attachmentName} (local file not shared)` : ""
+    }));
+
     if (!includeFullTrip) {
       clonedTrip.budget = {
         configured: false,
@@ -1651,6 +2376,11 @@
         day1HardLimit: null,
         destinations: (clonedTrip.budget?.destinations || []).map((d) => ({ ...d, rate: null }))
       };
+      clonedTrip.documents = [];
+      clonedTrip.travelInfo = [];
+      clonedTrip.places = [];
+      clonedTrip.reminders = [];
+      clonedTrip.dayNotes = {};
     }
 
     return {
@@ -1736,7 +2466,7 @@
 
       history.replaceState(null, "", `${location.pathname}${location.search}`);
       render();
-      activateMode("itinerary");
+      activateMode("home");
     } catch (error) {
       history.replaceState(null, "", `${location.pathname}${location.search}`);
       alert(`Could not import shared trip: ${error.message}`);
@@ -1745,11 +2475,18 @@
 
   async function exportTrip(messageElement) {
     if (!state.trip) return;
+    const exportTripData = JSON.parse(JSON.stringify(state.trip));
+    exportTripData.documents = (exportTripData.documents || []).map((doc) => ({
+      ...doc,
+      attachmentId: "",
+      attachmentName: doc.attachmentName ? `${doc.attachmentName} (local file not included)` : ""
+    }));
+
     const payload = {
       kind: "travel-planner-trip",
       version: APP_VERSION,
       exportedAt: new Date().toISOString(),
-      trip: state.trip,
+      trip: exportTripData,
       expenses: state.expenses
     };
     const json = JSON.stringify(payload, null, 2);
@@ -1777,6 +2514,159 @@
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     if (messageElement) messageElement.textContent = "Trip file downloaded.";
+  }
+
+  function openDocumentDialog(id = "") {
+    if (!state.trip) return;
+    const doc = id ? state.trip.documents.find((x) => x.id === id) : null;
+    el("documentId").value = doc?.id || "";
+    el("documentDialogTitle").textContent = doc ? "Edit document" : "Add document";
+    el("documentTitle").value = doc?.title || "";
+    el("documentCategory").value = doc?.category || "Other";
+    el("documentLinkedItinerary").innerHTML = linkedItineraryOptions(doc?.linkedItineraryId || "");
+    el("documentBookingRef").value = doc?.bookingRef || "";
+    el("documentConfirmation").value = doc?.confirmation || "";
+    el("documentPhone").value = doc?.phone || "";
+    el("documentWebsite").value = doc?.website || "";
+    el("documentNotes").value = doc?.notes || "";
+    el("documentAttachment").value = "";
+    el("documentAttachmentStatus").textContent = doc?.attachmentName
+      ? `Current local file: ${doc.attachmentName}`
+      : "No local file attached.";
+    el("documentError").textContent = "";
+    el("deleteDocumentBtn").classList.toggle("hidden", !doc);
+    showModalSafe(el("documentDialog"));
+  }
+
+  async function openDocumentAttachment(id) {
+    const doc = state.trip?.documents.find((x) => x.id === id);
+    if (!doc?.attachmentId) return;
+
+    const popup = window.open("about:blank", "_blank");
+    try {
+      const record = await getVaultAttachment(doc.attachmentId);
+      if (!record?.blob) throw new Error("This attachment is not stored on this device.");
+      const url = URL.createObjectURL(record.blob);
+      if (popup) popup.location.href = url;
+      else window.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } catch (error) {
+      if (popup) popup.close();
+      alert(error.message || "Could not open this attachment.");
+    }
+  }
+
+  function openTravelInfoDialog(id = "") {
+    const info = id ? state.trip?.travelInfo.find((x) => x.id === id) : null;
+    el("travelInfoId").value = info?.id || "";
+    el("travelInfoDialogTitle").textContent = info ? "Edit travel info" : "Add travel info";
+    el("travelInfoType").value = info?.type || "Other";
+    el("travelInfoName").value = info?.name || "";
+    el("travelInfoReference").value = info?.reference || "";
+    el("travelInfoPhone").value = info?.phone || "";
+    el("travelInfoEmail").value = info?.email || "";
+    el("travelInfoWebsite").value = info?.website || "";
+    el("travelInfoNotes").value = info?.notes || "";
+    el("travelInfoError").textContent = "";
+    el("deleteTravelInfoBtn").classList.toggle("hidden", !info);
+    showModalSafe(el("travelInfoDialog"));
+  }
+
+  function openPlaceDialog(id = "") {
+    const place = id ? state.trip?.places.find((x) => x.id === id) : null;
+    el("placeId").value = place?.id || "";
+    el("placeDialogTitle").textContent = place ? "Edit place" : "Add place";
+    el("placeTitle").value = place?.title || "";
+    el("placeCategory").value = place?.category || "Other";
+    el("placeStatus").value = place?.status || "Wishlist";
+    el("placeLocation").value = place?.location || "";
+    el("placeWebsite").value = place?.website || "";
+    el("placeNotes").value = place?.notes || "";
+    el("placeError").textContent = "";
+    el("deletePlaceBtn").classList.toggle("hidden", !place);
+    showModalSafe(el("placeDialog"));
+  }
+
+  function schedulePlaceIntoItinerary(id) {
+    const place = state.trip?.places.find((x) => x.id === id);
+    if (!place) return;
+    pendingPlaceToScheduleId = place.id;
+    itineraryViewMode = "day";
+    selectedItineraryDate = defaultSelectedDate();
+    activateMode("itinerary");
+    renderItinerary();
+    openItineraryItemDialog("", {
+      date: selectedItineraryDate,
+      type: placeTypeForItinerary(place.category),
+      title: place.title,
+      location: place.location,
+      notes: place.notes
+    });
+  }
+
+  function openDayNoteDialog(id = "") {
+    if (!state.trip || !selectedItineraryDate) return;
+    const notes = state.trip.dayNotes?.[selectedItineraryDate] || [];
+    const note = id ? notes.find((x) => x.id === id) : null;
+    el("dayNoteId").value = note?.id || "";
+    el("dayNoteDialogTitle").textContent = note ? "Edit note" : "Add note";
+    el("dayNoteTitle").value = note?.title || "";
+    el("dayNoteText").value = note?.text || "";
+    el("dayNoteError").textContent = "";
+    el("deleteDayNoteBtn").classList.toggle("hidden", !note);
+    showModalSafe(el("dayNoteDialog"));
+  }
+
+  function linkedReminderDefaults(kind, id) {
+    if (kind === "itinerary") {
+      const item = state.trip?.itinerary.find((x) => x.id === id);
+      if (!item) return null;
+      let due = null;
+      if (item.startTime) {
+        due = new Date(`${item.date}T${item.startTime}`);
+        due.setHours(due.getHours() - 1);
+      } else {
+        due = new Date(`${item.date}T18:00`);
+        due.setDate(due.getDate() - 1);
+      }
+      return {
+        title: `${item.title}`,
+        dueAt: toDateTimeLocal(due),
+        notes: item.location ? `Location: ${item.location}` : "",
+        label: `Linked to itinerary: ${item.title}`
+      };
+    }
+
+    if (kind === "pretrip") {
+      const task = state.trip?.preTripTasks.find((x) => x.id === id);
+      if (!task) return null;
+      const due = task.dueDate ? new Date(`${task.dueDate}T09:00`) : new Date();
+      return {
+        title: task.title,
+        dueAt: toDateTimeLocal(due),
+        notes: task.notes || "",
+        label: `Linked to pre-trip task: ${task.title}`
+      };
+    }
+
+    return null;
+  }
+
+  function openReminderDialog(id = "", linkedKind = "", linkedId = "") {
+    const reminder = id ? state.trip?.reminders.find((x) => x.id === id) : null;
+    const defaults = !reminder && linkedKind ? linkedReminderDefaults(linkedKind, linkedId) : null;
+
+    el("reminderId").value = reminder?.id || "";
+    el("reminderLinkedKind").value = reminder?.linkedKind || linkedKind || "";
+    el("reminderLinkedId").value = reminder?.linkedId || linkedId || "";
+    el("reminderDialogTitle").textContent = reminder ? "Edit reminder" : "Add reminder";
+    el("reminderTitle").value = reminder?.title || defaults?.title || "";
+    el("reminderDueAt").value = reminder?.dueAt || defaults?.dueAt || "";
+    el("reminderNotes").value = reminder?.notes || defaults?.notes || "";
+    el("reminderLinkText").textContent = defaults?.label || (reminder?.linkedKind ? `Linked reminder • ${reminder.linkedKind}` : "");
+    el("reminderError").textContent = "";
+    el("deleteReminderBtn").classList.toggle("hidden", !reminder);
+    showModalSafe(el("reminderDialog"));
   }
 
   function openPreTripTaskDialog(id = "") {
@@ -1859,25 +2749,25 @@
     }
   }
 
-  function openItineraryItemDialog(id = "") {
+  function openItineraryItemDialog(id = "", prefill = null) {
     if (!state.trip) return;
     const item = id ? state.trip.itinerary.find((x) => x.id === id) : null;
 
     el("itineraryItemId").value = item?.id || "";
     el("itemDialogTitle").textContent = item ? "Edit item" : "Add item";
-    el("itemDate").value = item?.date || selectedItineraryDate;
-    el("itemType").value = item?.type || "Activity";
-    el("itemTitle").value = item?.title || "";
+    el("itemDate").value = item?.date || prefill?.date || selectedItineraryDate;
+    el("itemType").value = item?.type || prefill?.type || "Activity";
+    el("itemTitle").value = item?.title || prefill?.title || "";
     el("itemStartTime").value = item?.startTime || "";
     el("itemEndTime").value = item?.endTime || "";
     el("itemDurationText").value = item?.durationText || "";
-    el("itemLocation").value = item?.location || "";
+    el("itemLocation").value = item?.location || prefill?.location || "";
     el("itemStatus").value = item?.status || "Planned";
     el("itemBookingRef").value = item?.bookingRef || "";
     el("itemCostTotal").value = Number.isFinite(Number(item?.costTotal)) ? item.costTotal : "";
     el("itemAdultCost").value = Number.isFinite(Number(item?.adultCost)) ? item.adultCost : "";
     el("itemChildCost").value = Number.isFinite(Number(item?.childCost)) ? item.childCost : "";
-    el("itemNotes").value = item?.notes || "";
+    el("itemNotes").value = item?.notes || prefill?.notes || "";
     el("itemError").textContent = "";
     el("deleteItemBtn").classList.toggle("hidden", !item);
 
@@ -1891,6 +2781,7 @@
   }
 
   function closeItineraryItemDialog() {
+    pendingPlaceToScheduleId = "";
     closeModalSafe(el("itineraryItemDialog"));
   }
 
@@ -1903,6 +2794,277 @@
     el("dayNotes").value = meta.notes || "";
     showModalSafe(el("dayDialog"));
   }
+
+  el("homeOpenItineraryBtn").addEventListener("click", () => {
+    selectedItineraryDate = defaultSelectedDate();
+    itineraryViewMode = "day";
+    activateMode("itinerary");
+    renderItinerary();
+  });
+
+  el("homeOpenRemindersBtn").addEventListener("click", () => {
+    activateMode("more");
+    el("remindersPanel").open = true;
+    setTimeout(() => el("remindersPanel").scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+  });
+
+  el("homeAddNoteBtn").addEventListener("click", () => {
+    selectedItineraryDate = todayISO();
+    openDayNoteDialog();
+  });
+
+  el("addDocumentBtn").addEventListener("click", () => openDocumentDialog());
+  el("closeDocumentDialogBtn").addEventListener("click", () => closeModalSafe(el("documentDialog")));
+
+  el("documentForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const id = el("documentId").value;
+    const title = el("documentTitle").value.trim();
+    if (!title) {
+      el("documentError").textContent = "Enter a document title.";
+      return;
+    }
+
+    const existing = id ? state.trip.documents.find((x) => x.id === id) : null;
+    const file = el("documentAttachment").files?.[0] || null;
+    let attachmentId = existing?.attachmentId || "";
+    let attachmentName = existing?.attachmentName || "";
+    let attachmentType = existing?.attachmentType || "";
+
+    if (file) {
+      attachmentId = attachmentId || uid("file");
+      try {
+        await saveVaultAttachment(attachmentId, file);
+        attachmentName = file.name;
+        attachmentType = file.type || "";
+      } catch (error) {
+        el("documentError").textContent = `Could not store the local file: ${error.message}`;
+        return;
+      }
+    }
+
+    const doc = normalizeDocument({
+      id: existing?.id || uid("doc"),
+      title,
+      category: el("documentCategory").value,
+      linkedItineraryId: el("documentLinkedItinerary").value,
+      bookingRef: el("documentBookingRef").value.trim(),
+      confirmation: el("documentConfirmation").value.trim(),
+      phone: el("documentPhone").value.trim(),
+      website: el("documentWebsite").value.trim(),
+      notes: el("documentNotes").value.trim(),
+      attachmentId,
+      attachmentName,
+      attachmentType,
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now()
+    });
+
+    if (existing) state.trip.documents = state.trip.documents.map((x) => x.id === id ? doc : x);
+    else state.trip.documents.push(doc);
+
+    saveState();
+    closeModalSafe(el("documentDialog"));
+    renderDocuments();
+  });
+
+  el("deleteDocumentBtn").addEventListener("click", async () => {
+    const id = el("documentId").value;
+    const doc = state.trip?.documents.find((x) => x.id === id);
+    if (!doc || !window.confirm(`Delete "${doc.title}"?`)) return;
+    if (doc.attachmentId) await deleteVaultAttachment(doc.attachmentId);
+    state.trip.documents = state.trip.documents.filter((x) => x.id !== id);
+    saveState();
+    closeModalSafe(el("documentDialog"));
+    renderDocuments();
+  });
+
+  el("addTravelInfoBtn").addEventListener("click", () => openTravelInfoDialog());
+  el("closeTravelInfoDialogBtn").addEventListener("click", () => closeModalSafe(el("travelInfoDialog")));
+
+  el("travelInfoForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const id = el("travelInfoId").value;
+    const name = el("travelInfoName").value.trim();
+    if (!name) {
+      el("travelInfoError").textContent = "Enter a name.";
+      return;
+    }
+    const existing = id ? state.trip.travelInfo.find((x) => x.id === id) : null;
+    const info = normalizeTravelInfo({
+      id: existing?.id || uid("info"),
+      type: el("travelInfoType").value,
+      name,
+      reference: el("travelInfoReference").value.trim(),
+      phone: el("travelInfoPhone").value.trim(),
+      email: el("travelInfoEmail").value.trim(),
+      website: el("travelInfoWebsite").value.trim(),
+      notes: el("travelInfoNotes").value.trim(),
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now()
+    });
+    if (existing) state.trip.travelInfo = state.trip.travelInfo.map((x) => x.id === id ? info : x);
+    else state.trip.travelInfo.push(info);
+    saveState();
+    closeModalSafe(el("travelInfoDialog"));
+    renderTravelInfo();
+  });
+
+  el("deleteTravelInfoBtn").addEventListener("click", () => {
+    const id = el("travelInfoId").value;
+    const info = state.trip?.travelInfo.find((x) => x.id === id);
+    if (!info || !window.confirm(`Delete "${info.name}"?`)) return;
+    state.trip.travelInfo = state.trip.travelInfo.filter((x) => x.id !== id);
+    saveState();
+    closeModalSafe(el("travelInfoDialog"));
+    renderTravelInfo();
+  });
+
+  el("addPlaceBtn").addEventListener("click", () => openPlaceDialog());
+  el("closePlaceDialogBtn").addEventListener("click", () => closeModalSafe(el("placeDialog")));
+
+  el("placeForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const id = el("placeId").value;
+    const title = el("placeTitle").value.trim();
+    if (!title) {
+      el("placeError").textContent = "Enter a place name.";
+      return;
+    }
+    const existing = id ? state.trip.places.find((x) => x.id === id) : null;
+    const place = normalizePlace({
+      id: existing?.id || uid("place"),
+      title,
+      category: el("placeCategory").value,
+      status: el("placeStatus").value,
+      location: el("placeLocation").value.trim(),
+      website: el("placeWebsite").value.trim(),
+      notes: el("placeNotes").value.trim(),
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now()
+    });
+    if (existing) state.trip.places = state.trip.places.map((x) => x.id === id ? place : x);
+    else state.trip.places.push(place);
+    saveState();
+    closeModalSafe(el("placeDialog"));
+    renderPlaces();
+  });
+
+  el("deletePlaceBtn").addEventListener("click", () => {
+    const id = el("placeId").value;
+    const place = state.trip?.places.find((x) => x.id === id);
+    if (!place || !window.confirm(`Delete "${place.title}"?`)) return;
+    state.trip.places = state.trip.places.filter((x) => x.id !== id);
+    saveState();
+    closeModalSafe(el("placeDialog"));
+    renderPlaces();
+  });
+
+  el("addDayNoteBtn").addEventListener("click", () => openDayNoteDialog());
+  el("closeDayNoteDialogBtn").addEventListener("click", () => closeModalSafe(el("dayNoteDialog")));
+
+  el("dayNoteForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const id = el("dayNoteId").value;
+    const textValue = el("dayNoteText").value.trim();
+    if (!textValue) {
+      el("dayNoteError").textContent = "Enter a note.";
+      return;
+    }
+
+    if (!state.trip.dayNotes[selectedItineraryDate]) state.trip.dayNotes[selectedItineraryDate] = [];
+    const notes = state.trip.dayNotes[selectedItineraryDate];
+    const existing = id ? notes.find((x) => x.id === id) : null;
+    const note = normalizeDayNote({
+      id: existing?.id || uid("note"),
+      title: el("dayNoteTitle").value.trim(),
+      text: textValue,
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now()
+    });
+
+    if (existing) state.trip.dayNotes[selectedItineraryDate] = notes.map((x) => x.id === id ? note : x);
+    else state.trip.dayNotes[selectedItineraryDate].push(note);
+
+    saveState();
+    closeModalSafe(el("dayNoteDialog"));
+    renderDayJournal();
+    renderHome();
+  });
+
+  el("deleteDayNoteBtn").addEventListener("click", () => {
+    const id = el("dayNoteId").value;
+    const notes = state.trip?.dayNotes?.[selectedItineraryDate] || [];
+    const note = notes.find((x) => x.id === id);
+    if (!note || !window.confirm("Delete this day note?")) return;
+    state.trip.dayNotes[selectedItineraryDate] = notes.filter((x) => x.id !== id);
+    saveState();
+    closeModalSafe(el("dayNoteDialog"));
+    renderDayJournal();
+    renderHome();
+  });
+
+  el("addReminderBtn").addEventListener("click", () => openReminderDialog());
+  el("closeReminderDialogBtn").addEventListener("click", () => closeModalSafe(el("reminderDialog")));
+
+  el("reminderForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const id = el("reminderId").value;
+    const title = el("reminderTitle").value.trim();
+    const dueAt = el("reminderDueAt").value;
+
+    if (!title || !dueAt || !Number.isFinite(dateTimeMs(dueAt))) {
+      el("reminderError").textContent = "Enter a reminder and valid date/time.";
+      return;
+    }
+
+    const existing = id ? state.trip.reminders.find((x) => x.id === id) : null;
+    const reminder = normalizeReminder({
+      id: existing?.id || uid("rem"),
+      title,
+      dueAt,
+      notes: el("reminderNotes").value.trim(),
+      status: existing?.status || "Active",
+      linkedKind: el("reminderLinkedKind").value,
+      linkedId: el("reminderLinkedId").value,
+      notifiedAt: existing?.dueAt === dueAt && existing?.title === title ? existing?.notifiedAt : null,
+      createdAt: existing?.createdAt || Date.now(),
+      updatedAt: Date.now()
+    });
+
+    if (existing) state.trip.reminders = state.trip.reminders.map((x) => x.id === id ? reminder : x);
+    else state.trip.reminders.push(reminder);
+
+    saveState();
+    closeModalSafe(el("reminderDialog"));
+    renderReminders();
+    renderHome();
+    checkRemindersAndNotify();
+  });
+
+  el("deleteReminderBtn").addEventListener("click", () => {
+    const id = el("reminderId").value;
+    const reminder = state.trip?.reminders.find((x) => x.id === id);
+    if (!reminder || !window.confirm(`Delete "${reminder.title}"?`)) return;
+    state.trip.reminders = state.trip.reminders.filter((x) => x.id !== id);
+    saveState();
+    closeModalSafe(el("reminderDialog"));
+    renderReminders();
+    renderHome();
+    updateReminderBadge();
+    scheduleReminderCheck();
+  });
+
+  el("enableNotificationsBtn").addEventListener("click", async () => {
+    if (!("Notification" in window)) return;
+    try {
+      const permission = await Notification.requestPermission();
+      renderNotificationStatus();
+      if (permission === "granted") await checkRemindersAndNotify();
+    } catch {
+      el("notificationStatusText").textContent = "Could not request notification permission on this device.";
+    }
+  });
 
   el("welcomeCreateBtn").addEventListener("click", showCreate);
   el("cancelCreateBtn").addEventListener("click", showLanding);
@@ -1973,7 +3135,7 @@
     settingsDraftDestinations = [];
     saveState();
     render();
-    activateMode("itinerary");
+    activateMode("home");
   });
 
   document.querySelectorAll(".mode-btn").forEach((button) => {
@@ -2146,6 +3308,15 @@
 
     if (existing) state.trip.itinerary = state.trip.itinerary.map((x) => x.id === id ? item : x);
     else state.trip.itinerary.push(item);
+
+    if (!existing && pendingPlaceToScheduleId) {
+      const place = state.trip.places.find((x) => x.id === pendingPlaceToScheduleId);
+      if (place) {
+        place.status = "Scheduled";
+        place.updatedAt = Date.now();
+      }
+      pendingPlaceToScheduleId = "";
+    }
 
     selectedItineraryDate = date;
     saveState();
@@ -2393,6 +3564,7 @@
   });
 
   function resetAll() {
+    clearVaultAttachments();
     state = blankState();
     localStorage.removeItem(STORAGE_KEY);
     setupDraftDestinations = [];
@@ -2430,9 +3602,15 @@
   }
 
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") refreshCurrentTripDayIfNeeded();
+    if (document.visibilityState === "visible") {
+      refreshCurrentTripDayIfNeeded();
+      checkRemindersAndNotify();
+    }
   });
-  window.addEventListener("focus", refreshCurrentTripDayIfNeeded);
+  window.addEventListener("focus", () => {
+    refreshCurrentTripDayIfNeeded();
+    checkRemindersAndNotify();
+  });
 
   function updateConnection() {
     const badge = el("connectionBadge");
@@ -2454,4 +3632,5 @@
   updateConnection();
   render();
   importSharedLinkFromHash();
+  checkRemindersAndNotify();
 })();

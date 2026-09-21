@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-title" content="Travel Planner">
   <meta name="format-detection" content="telephone=no">
   <title>Travel Planner</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=8">
+  <link rel="manifest" href="./manifest.webmanifest?v=9">
   <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-  <link rel="stylesheet" href="./styles.css?v=8">
+  <link rel="stylesheet" href="./styles.css?v=9">
 </head>
 <body>
   <div class="app-shell">
@@ -122,12 +122,86 @@
 
       <section id="appPanel" class="hidden">
         <nav class="mode-switch" aria-label="Travel planner mode">
-          <button class="mode-btn active" type="button" data-mode="itinerary">Itinerary</button>
+          <button class="mode-btn active" type="button" data-mode="home">Home</button>
+          <button class="mode-btn" type="button" data-mode="itinerary">Itinerary</button>
           <button class="mode-btn" type="button" data-mode="summary">Summary</button>
           <button class="mode-btn" type="button" data-mode="budget">Budget</button>
+          <button class="mode-btn" type="button" data-mode="more">More</button>
         </nav>
 
-        <section id="itineraryMode" class="mode-panel active" data-mode-panel="itinerary">
+        <section id="homeMode" class="mode-panel active" data-mode-panel="home">
+          <section class="home-hero">
+            <div>
+              <p id="homeEyebrow" class="eyebrow">TRIP HOME</p>
+              <h2 id="homeTitle">Your trip</h2>
+              <p id="homeSubtitle" class="home-subtitle"></p>
+            </div>
+            <div id="homeCountdown" class="home-countdown"></div>
+          </section>
+
+          <div class="home-budget-grid">
+            <article class="home-stat-card">
+              <p id="homeBudgetLabel" class="metric-label">Day 1 budget</p>
+              <p id="homeTodayBudget" class="home-stat-value">$0.00</p>
+              <p id="homeTodayBudgetNote" class="metric-note"></p>
+            </article>
+            <article class="home-stat-card">
+              <p id="homeSpentLabel" class="metric-label">Spent</p>
+              <p id="homeTodaySpent" class="home-stat-value">$0.00</p>
+              <p id="homeSpendStatus" class="metric-note"></p>
+            </article>
+          </div>
+
+          <section id="homePreTripWarning" class="home-alert hidden"></section>
+
+          <section class="panel home-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">UP NEXT</p>
+                <h2>Next on the itinerary</h2>
+              </div>
+              <button id="homeOpenItineraryBtn" class="text-btn" type="button">Open itinerary</button>
+            </div>
+            <div id="homeNextItems" class="home-list"></div>
+          </section>
+
+          <div class="home-two-col">
+            <section class="panel home-section">
+              <div class="section-heading compact-heading">
+                <div><p class="eyebrow">TONIGHT</p><h3>Accommodation</h3></div>
+              </div>
+              <div id="homeAccommodation" class="home-simple-card"></div>
+            </section>
+
+            <section class="panel home-section">
+              <div class="section-heading compact-heading">
+                <div><p class="eyebrow">PAYMENTS</p><h3>Next outstanding</h3></div>
+              </div>
+              <div id="homeOutstanding" class="home-simple-card"></div>
+            </section>
+          </div>
+
+          <section class="panel home-section">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">REMINDERS</p>
+                <h2>Coming up</h2>
+              </div>
+              <button id="homeOpenRemindersBtn" class="text-btn" type="button">All reminders</button>
+            </div>
+            <div id="homeReminders" class="home-list"></div>
+          </section>
+
+          <section id="homeDayNotesCard" class="panel home-section hidden">
+            <div class="section-heading">
+              <div><p class="eyebrow">TODAY'S NOTES</p><h2>Travel notebook</h2></div>
+              <button id="homeAddNoteBtn" class="text-btn" type="button">+ Add note</button>
+            </div>
+            <div id="homeDayNotes" class="home-list"></div>
+          </section>
+        </section>
+
+        <section id="itineraryMode" class="mode-panel" data-mode-panel="itinerary">
           <section class="itinerary-view-control">
             <div>
               <p class="eyebrow">ITINERARY VIEW</p>
@@ -199,6 +273,23 @@
               </div>
               <div id="itineraryItems" class="itinerary-list"></div>
             </section>
+
+            <details class="day-journal-panel">
+              <summary>
+                <div>
+                  <span class="pretrip-summary-title">Day notes / journal</span>
+                  <span id="dayJournalSummary" class="pretrip-summary-sub">No notes yet</span>
+                </div>
+                <span class="pretrip-chevron" aria-hidden="true">⌄</span>
+              </summary>
+              <div class="day-journal-body">
+                <div class="section-heading">
+                  <div><p class="eyebrow">TRAVEL NOTEBOOK</p><h2>Notes for this day</h2></div>
+                  <button id="addDayNoteBtn" class="primary-compact-btn" type="button">+ Add note</button>
+                </div>
+                <div id="dayJournalList" class="day-journal-list"></div>
+              </div>
+            </details>
           </div>
 
           <div id="fullItineraryView" class="hidden">
@@ -543,7 +634,7 @@
                 <div class="section-heading">
                   <div><p class="eyebrow">YOUR DATA</p><h2>Export / import</h2></div>
                 </div>
-                <p class="muted">The exported trip file includes itinerary, budget setup and expenses so another device can import the same data.</p>
+                <p class="muted">The exported trip file includes itinerary, budget setup, expenses and trip-tool metadata. Local PDF/image attachments in the document vault are not embedded in the export.</p>
                 <div class="stack-actions">
                   <button id="exportBtn" class="secondary-btn" type="button">Export / Share Trip</button>
                   <label class="secondary-btn file-btn">
@@ -567,6 +658,92 @@
               </section>
             </section>
           </section>
+        </section>
+
+        <section id="moreMode" class="mode-panel" data-mode-panel="more">
+          <section class="more-hero">
+            <p class="eyebrow">TRIP TOOLS</p>
+            <h2>Everything else you need</h2>
+            <p class="muted">Documents, travel contacts, wishlist places and reminders all stay available offline on this device.</p>
+          </section>
+
+          <details id="documentsPanel" class="tool-panel" open>
+            <summary>
+              <div>
+                <span class="tool-panel-title">Booking & document vault</span>
+                <span id="documentsSummary" class="tool-panel-sub">0 documents</span>
+              </div>
+              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="tool-panel-body">
+              <div class="section-heading">
+                <div><p class="eyebrow">VAULT</p><h2>Bookings & documents</h2></div>
+                <button id="addDocumentBtn" class="primary-compact-btn" type="button">+ Add</button>
+              </div>
+              <p class="muted small">PDFs and screenshots are stored locally in the browser on this device. Export/share files include the document details, but not the attached PDF/image itself.</p>
+              <div id="documentList" class="tool-list"></div>
+            </div>
+          </details>
+
+          <details id="travelInfoPanel" class="tool-panel">
+            <summary>
+              <div>
+                <span class="tool-panel-title">Emergency & travel info</span>
+                <span id="travelInfoSummary" class="tool-panel-sub">0 saved contacts</span>
+              </div>
+              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="tool-panel-body">
+              <div class="section-heading">
+                <div><p class="eyebrow">OFFLINE INFO</p><h2>Emergency & travel contacts</h2></div>
+                <button id="addTravelInfoBtn" class="primary-compact-btn" type="button">+ Add</button>
+              </div>
+              <div id="travelInfoList" class="tool-list"></div>
+            </div>
+          </details>
+
+          <details id="placesPanel" class="tool-panel">
+            <summary>
+              <div>
+                <span class="tool-panel-title">Places / wishlist</span>
+                <span id="placesSummary" class="tool-panel-sub">0 places</span>
+              </div>
+              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="tool-panel-body">
+              <div class="section-heading">
+                <div><p class="eyebrow">MAYBE LATER</p><h2>Places & wishlist</h2></div>
+                <button id="addPlaceBtn" class="primary-compact-btn" type="button">+ Add</button>
+              </div>
+              <div id="placeList" class="tool-list"></div>
+            </div>
+          </details>
+
+          <details id="remindersPanel" class="tool-panel">
+            <summary>
+              <div>
+                <span class="tool-panel-title">Reminders</span>
+                <span id="remindersSummary" class="tool-panel-sub">0 active reminders</span>
+              </div>
+              <span class="pretrip-chevron" aria-hidden="true">⌄</span>
+            </summary>
+            <div class="tool-panel-body">
+              <section id="notificationCapability" class="notification-box">
+                <div>
+                  <strong>iPhone notifications</strong>
+                  <p id="notificationStatusText" class="muted small">Checking notification support…</p>
+                </div>
+                <button id="enableNotificationsBtn" class="secondary-btn" type="button">Enable notifications</button>
+              </section>
+              <p class="muted small">Local-only limitation: without a push server, reminders are checked when the app is open or returns to the foreground. The app cannot reliably wake itself from a fully closed/suspended state at a scheduled time.</p>
+
+              <div class="section-heading">
+                <div><p class="eyebrow">REMIND ME</p><h2>Trip reminders</h2></div>
+                <button id="addReminderBtn" class="primary-compact-btn" type="button">+ Add</button>
+              </div>
+              <div id="reminderList" class="tool-list"></div>
+            </div>
+          </details>
         </section>
       </section>
     </main>
@@ -833,6 +1010,187 @@
     </form>
   </dialog>
 
+  <dialog id="documentDialog">
+    <form id="documentForm" class="dialog-form">
+      <div class="section-heading">
+        <div><p class="eyebrow">DOCUMENT VAULT</p><h2 id="documentDialogTitle">Add document</h2></div>
+        <button id="closeDocumentDialogBtn" class="text-btn" type="button">Close</button>
+      </div>
+      <input id="documentId" type="hidden">
+
+      <label>Title<input id="documentTitle" type="text" maxlength="140" required></label>
+
+      <div class="two-col">
+        <label>
+          Category
+          <select id="documentCategory">
+            <option>Flight</option>
+            <option>Hotel</option>
+            <option>Train</option>
+            <option>Activity</option>
+            <option>Insurance</option>
+            <option>Ticket</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>
+          Linked itinerary item
+          <select id="documentLinkedItinerary"><option value="">Not linked</option></select>
+        </label>
+      </div>
+
+      <div class="two-col">
+        <label>Booking reference<input id="documentBookingRef" type="text" maxlength="100"></label>
+        <label>Confirmation number<input id="documentConfirmation" type="text" maxlength="100"></label>
+      </div>
+
+      <div class="two-col">
+        <label>Contact number<input id="documentPhone" type="tel" maxlength="100"></label>
+        <label>Website / link<input id="documentWebsite" type="url" maxlength="500" placeholder="https://"></label>
+      </div>
+
+      <label>
+        Attach PDF / screenshot <span class="optional">(local only)</span>
+        <input id="documentAttachment" type="file" accept="image/*,.pdf,application/pdf">
+      </label>
+      <p id="documentAttachmentStatus" class="muted small"></p>
+
+      <label>Notes<textarea id="documentNotes" rows="5" maxlength="3000"></textarea></label>
+
+      <p id="documentError" class="error"></p>
+      <div class="dialog-actions">
+        <button id="deleteDocumentBtn" class="danger-btn hidden" type="button">Delete</button>
+        <button class="primary-btn" type="submit">Save document</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="travelInfoDialog">
+    <form id="travelInfoForm" class="dialog-form">
+      <div class="section-heading">
+        <div><p class="eyebrow">TRAVEL INFO</p><h2 id="travelInfoDialogTitle">Add travel info</h2></div>
+        <button id="closeTravelInfoDialogBtn" class="text-btn" type="button">Close</button>
+      </div>
+      <input id="travelInfoId" type="hidden">
+
+      <div class="two-col">
+        <label>
+          Type
+          <select id="travelInfoType">
+            <option>Travel insurance</option>
+            <option>Embassy / consulate</option>
+            <option>Airline</option>
+            <option>Hotel</option>
+            <option>Emergency contact</option>
+            <option>Medical</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>Name<input id="travelInfoName" type="text" maxlength="140" required></label>
+      </div>
+
+      <label>Policy / reference number<input id="travelInfoReference" type="text" maxlength="140"></label>
+
+      <div class="two-col">
+        <label>Phone<input id="travelInfoPhone" type="tel" maxlength="100"></label>
+        <label>Email<input id="travelInfoEmail" type="email" maxlength="200"></label>
+      </div>
+
+      <label>Website<input id="travelInfoWebsite" type="url" maxlength="500" placeholder="https://"></label>
+      <label>Notes<textarea id="travelInfoNotes" rows="5" maxlength="3000"></textarea></label>
+
+      <p id="travelInfoError" class="error"></p>
+      <div class="dialog-actions">
+        <button id="deleteTravelInfoBtn" class="danger-btn hidden" type="button">Delete</button>
+        <button class="primary-btn" type="submit">Save info</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="placeDialog">
+    <form id="placeForm" class="dialog-form">
+      <div class="section-heading">
+        <div><p class="eyebrow">WISHLIST</p><h2 id="placeDialogTitle">Add place</h2></div>
+        <button id="closePlaceDialogBtn" class="text-btn" type="button">Close</button>
+      </div>
+      <input id="placeId" type="hidden">
+
+      <label>Name<input id="placeTitle" type="text" maxlength="140" required></label>
+
+      <div class="two-col">
+        <label>
+          Category
+          <select id="placeCategory">
+            <option>Restaurant</option>
+            <option>Shop</option>
+            <option>Attraction</option>
+            <option>Park</option>
+            <option>Activity</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>
+          Status
+          <select id="placeStatus">
+            <option>Wishlist</option>
+            <option>Scheduled</option>
+            <option>Visited</option>
+          </select>
+        </label>
+      </div>
+
+      <label>Location / address<input id="placeLocation" type="text" maxlength="500"></label>
+      <label>Website<input id="placeWebsite" type="url" maxlength="500" placeholder="https://"></label>
+      <label>Notes<textarea id="placeNotes" rows="5" maxlength="3000"></textarea></label>
+
+      <p id="placeError" class="error"></p>
+      <div class="dialog-actions">
+        <button id="deletePlaceBtn" class="danger-btn hidden" type="button">Delete</button>
+        <button class="primary-btn" type="submit">Save place</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dayNoteDialog">
+    <form id="dayNoteForm" class="dialog-form">
+      <div class="section-heading">
+        <div><p class="eyebrow">DAY NOTE</p><h2 id="dayNoteDialogTitle">Add note</h2></div>
+        <button id="closeDayNoteDialogBtn" class="text-btn" type="button">Close</button>
+      </div>
+      <input id="dayNoteId" type="hidden">
+      <label>Heading <span class="optional">(optional)</span><input id="dayNoteTitle" type="text" maxlength="140"></label>
+      <label>Note<textarea id="dayNoteText" rows="8" maxlength="4000" required></textarea></label>
+      <p id="dayNoteError" class="error"></p>
+      <div class="dialog-actions">
+        <button id="deleteDayNoteBtn" class="danger-btn hidden" type="button">Delete</button>
+        <button class="primary-btn" type="submit">Save note</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="reminderDialog">
+    <form id="reminderForm" class="dialog-form">
+      <div class="section-heading">
+        <div><p class="eyebrow">REMINDER</p><h2 id="reminderDialogTitle">Add reminder</h2></div>
+        <button id="closeReminderDialogBtn" class="text-btn" type="button">Close</button>
+      </div>
+      <input id="reminderId" type="hidden">
+      <input id="reminderLinkedKind" type="hidden">
+      <input id="reminderLinkedId" type="hidden">
+
+      <label>Reminder<input id="reminderTitle" type="text" maxlength="180" required></label>
+      <label>Date & time<input id="reminderDueAt" type="datetime-local" required></label>
+      <label>Notes<textarea id="reminderNotes" rows="5" maxlength="3000"></textarea></label>
+
+      <p id="reminderLinkText" class="muted small"></p>
+      <p id="reminderError" class="error"></p>
+      <div class="dialog-actions">
+        <button id="deleteReminderBtn" class="danger-btn hidden" type="button">Delete</button>
+        <button class="primary-btn" type="submit">Save reminder</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="confirmDialog">
     <form method="dialog">
       <h2>Erase local trip?</h2>
@@ -844,6 +1202,6 @@
     </form>
   </dialog>
 
-  <script src="./app.js?v=8" defer></script>
+  <script src="./app.js?v=9" defer></script>
 </body>
 </html>
