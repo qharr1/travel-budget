@@ -1,12 +1,12 @@
-const MAPLIBRE_VERSION = "6.10.0";
+const MAPLIBRE_VERSION = "5.24.0";
 const MAPLIBRE_IMPORTS = [
-  `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.mjs`,
-  `https://cdn.jsdelivr.net/npm/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.mjs`
+  `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`,
+  `https://cdn.jsdelivr.net/npm/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`
 ];
 const MAPLIBRE_CSS = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`;
 
-const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/bright";
-const FALLBACK_STYLE = "https://demotiles.maplibre.org/globe.json";
+const OPENFREEMAP_STYLE = "https://demotiles.maplibre.org/globe.json";
+const FALLBACK_STYLE = "https://demotiles.maplibre.org/style.json";
 const SATELLITE_TILES = "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2020_3857/default/g/{z}/{y}/{x}.jpg";
 const TERRAIN_TILEJSON = "https://tiles.mapterhorn.com/tilejson.json";
 const NOMINATIM_SEARCH = "https://nominatim.openstreetmap.org/search";
@@ -107,16 +107,53 @@ function setSourceState(id, label, state) {
   node.dataset.state = state;
 }
 
+function loadClassicMapLibreScript(url) {
+  return new Promise((resolve, reject) => {
+    if (window.maplibregl?.Map) {
+      resolve(window.maplibregl);
+      return;
+    }
+
+    const existing = [...document.scripts].find((script) => script.src === url);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(window.maplibregl), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`Failed to load ${url}`)), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = url;
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.onload = () => {
+      if (window.maplibregl?.Map) resolve(window.maplibregl);
+      else reject(new Error("MapLibre loaded but did not expose window.maplibregl."));
+    };
+    script.onerror = () => reject(new Error(`Failed to load ${url}`));
+    document.head.appendChild(script);
+  });
+}
+
 async function loadMapLibre() {
   if (maplibregl) return maplibregl;
   if (!navigator.onLine) throw new Error("Map imagery needs an internet connection.");
 
   addMapLibreCss();
   let lastError = null;
+
   for (let i = 0; i < MAPLIBRE_IMPORTS.length; i++) {
     try {
       setSourceState("mapEngineState", "Engine", i ? "backup" : "loading");
-      maplibregl = await import(MAPLIBRE_IMPORTS[i]);
+      maplibregl = await loadClassicMapLibreScript(MAPLIBRE_IMPORTS[i]);
+
+      if (!maplibregl?.Map) {
+        throw new Error("MapLibre Map constructor was not found.");
+      }
+
+      if (typeof maplibregl.supported === "function" && !maplibregl.supported()) {
+        throw new Error("WebGL is disabled or unavailable in this browser.");
+      }
+
       setSourceState("mapEngineState", "Engine", "ready");
       return maplibregl;
     } catch (error) {
@@ -124,6 +161,7 @@ async function loadMapLibre() {
       console.warn("MapLibre source failed", MAPLIBRE_IMPORTS[i], error);
     }
   }
+
   setSourceState("mapEngineState", "Engine", "failed");
   throw lastError || new Error("Map engine could not load.");
 }
