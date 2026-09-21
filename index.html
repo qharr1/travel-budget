@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=26" rel="manifest"/>
+<link href="./manifest.webmanifest?v=27" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=26" rel="stylesheet"/>
+</script><link href="./styles.css?v=27" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -312,12 +312,18 @@
 <button class="secondary-btn" id="mapLocateMissingBtn" type="button">Locate missing pins</button>
 </div>
 <p class="status-message" id="mapStatus" role="status"></p>
+<div class="map-source-status" id="mapSourceStatus">
+<span id="mapEngineState">Engine: waiting</span>
+<span id="mapBaseState">Base: waiting</span>
+<span id="mapSatelliteState">Satellite: waiting</span>
+<span id="mapTerrainState">Terrain: waiting</span>
+</div>
 </section>
 <section class="trip-map-shell">
 <div aria-label="Interactive trip globe" class="trip-map-canvas" id="tripMapCanvas"></div>
 <div class="trip-map-offline hidden" id="tripMapOffline">
-<strong>Map imagery needs internet</strong>
-<span>Your saved itinerary and pin coordinates are still stored locally.</span>
+<strong id="tripMapOverlayTitle">Map imagery needs internet</strong>
+<span id="tripMapOverlayText">Your saved itinerary and pin coordinates are still stored locally.</span>
 </div>
 <div class="trip-map-legend">
 <span><span class="legend-hotel">🏨</span> Accommodation</span>
@@ -1491,6 +1497,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=26"></script><script src="./family-sync.js?v=26" type="module"></script><script src="./trip-map.js?v=26" type="module"></script>
+<script defer="" src="./app.js?v=27"></script><script src="./family-sync.js?v=27" type="module"></script><script src="./trip-map.js?v=27" type="module"></script>
 </body>
 </html>

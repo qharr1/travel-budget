@@ -3086,3 +3086,14 @@ html[data-theme="dark"] .map-missing-panel {
     align-items: flex-start;
   }
 }
+
+
+/* v27 — Trip Map source diagnostics */
+.map-source-status { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.map-source-status span { padding:5px 8px; border:1px solid var(--line); border-radius:999px; background:var(--surface2); color:var(--muted); font-size:.62rem; font-weight:800; }
+.map-source-status span[data-state="ready"] { border-color:#86efac; background:#f0fdf4; color:#166534; }
+.map-source-status span[data-state="fallback"], .map-source-status span[data-state="backup"] { border-color:#fde68a; background:#fffbeb; color:#92400e; }
+.map-source-status span[data-state="failed"] { border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+html[data-theme="dark"] .map-source-status span[data-state="ready"] { background:#12331f; color:#86efac; }
+html[data-theme="dark"] .map-source-status span[data-state="fallback"], html[data-theme="dark"] .map-source-status span[data-state="backup"] { background:#3b2a0d; color:#fde68a; }
+html[data-theme="dark"] .map-source-status span[data-state="failed"] { background:#3b1515; color:#fecaca; }
