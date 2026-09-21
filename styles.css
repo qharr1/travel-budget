@@ -2404,3 +2404,43 @@ html[data-theme="dark"] .fx-preview-card {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v20 — import trip from share link */
+.link-import-box {
+  margin-top: 12px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: #f8fafc;
+}
+.link-import-heading {
+  margin-bottom: 9px;
+}
+.link-import-heading strong,
+.link-import-heading span {
+  display: block;
+}
+.link-import-heading strong {
+  font-size: .86rem;
+}
+.link-import-heading span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.4;
+}
+.link-import-box textarea {
+  width: 100%;
+  min-height: 82px;
+  margin-bottom: 8px;
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+.link-import-box .secondary-btn {
+  width: 100%;
+}
+html[data-theme="dark"] .link-import-box {
+  background: #0b1728;
+  border-color: var(--line);
+}

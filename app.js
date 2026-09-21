@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 19;
+  const APP_VERSION = 20;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -2846,6 +2846,106 @@
     };
   }
 
+  function extractTripSharePacked(value) {
+    const text = String(value || "").trim();
+    if (!text) throw new Error("Paste a Travel Planner share link first.");
+
+    // Accept:
+    // - full URL containing #tripshare=
+    // - copied message/text containing the URL
+    // - #tripshare=...
+    // - tripshare=...
+    // - raw gzip.xxx / plain.xxx payload
+    const marker = "tripshare=";
+    const markerIndex = text.indexOf(marker);
+    let packed = markerIndex >= 0 ? text.slice(markerIndex + marker.length) : text;
+
+    // If copied from a message, stop at whitespace after the payload.
+    packed = packed.split(/\s/)[0].trim();
+
+    // Remove harmless trailing punctuation often introduced by messaging apps.
+    packed = packed.replace(/[)>.,]+$/g, "");
+
+    if (packed.startsWith("#")) packed = packed.slice(1);
+    if (packed.startsWith("tripshare=")) packed = packed.slice("tripshare=".length);
+
+    const dot = packed.indexOf(".");
+    if (dot <= 0) throw new Error("This does not look like a valid Travel Planner share link.");
+
+    const method = packed.slice(0, dot);
+    if (!["gzip", "plain"].includes(method)) {
+      throw new Error("This Travel Planner link uses an unsupported share format.");
+    }
+
+    if (!packed.slice(dot + 1)) {
+      throw new Error("The Travel Planner share link is incomplete.");
+    }
+
+    return packed;
+  }
+
+  async function decodeTripSharePacked(packed) {
+    const dot = packed.indexOf(".");
+    const method = packed.slice(0, dot);
+    const bytes = base64UrlToBytes(packed.slice(dot + 1));
+    const payload = JSON.parse(await decompressText(method, bytes));
+
+    if (payload?.kind !== "travel-planner-share" || !payload?.trip) {
+      throw new Error("Invalid shared trip link.");
+    }
+
+    return payload;
+  }
+
+  async function importSharedTripPayload(payload, messageElement = null) {
+    const tripName = String(payload.trip?.name || "this trip");
+    const modeLabel = payload.shareMode === "full"
+      ? "full trip, including budget data"
+      : "itinerary only";
+
+    const promptText = state.trip
+      ? `Import ${tripName} (${modeLabel}) and replace the trip currently stored on this device?`
+      : `Import ${tripName} (${modeLabel})?`;
+
+    if (!window.confirm(promptText)) {
+      if (messageElement) messageElement.textContent = "Import cancelled.";
+      return false;
+    }
+
+    state = migrateState({
+      version: APP_VERSION,
+      trip: payload.trip,
+      expenses: Array.isArray(payload.expenses) ? payload.expenses : []
+    });
+
+    setupVisible = false;
+    selectedItineraryDate = defaultSelectedDate();
+    itineraryViewMode = uiSettings.itineraryDefaultView;
+    settingsDraftDestinations = [];
+    saveState();
+    render();
+    activateMode(uiSettings.startScreen);
+
+    if (messageElement) {
+      messageElement.textContent =
+        `${tripName} imported from ${payload.shareMode === "full" ? "a full-trip" : "an itinerary"} link.`;
+    }
+
+    return true;
+  }
+
+  async function importTripFromPastedLink(value, messageElement) {
+    try {
+      if (messageElement) messageElement.textContent = "Reading share link…";
+      const packed = extractTripSharePacked(value);
+      const payload = await decodeTripSharePacked(packed);
+      return await importSharedTripPayload(payload, messageElement);
+    } catch (error) {
+      if (messageElement) messageElement.textContent = `Could not import link: ${error.message}`;
+      return false;
+    }
+  }
+
   async function buildShareLink(includeFullTrip) {
     const payload = JSON.stringify(sharePayload(includeFullTrip));
     const packed = await compressText(payload);
@@ -2878,51 +2978,14 @@
     const rawHash = location.hash || "";
     if (!rawHash.startsWith("#tripshare=")) return;
 
-    const packed = rawHash.slice("#tripshare=".length);
-    const dot = packed.indexOf(".");
-    if (dot <= 0) return;
-
     try {
-      const method = packed.slice(0, dot);
-      const bytes = base64UrlToBytes(packed.slice(dot + 1));
-      const payload = JSON.parse(await decompressText(method, bytes));
-
-      if (payload?.kind !== "travel-planner-share" || !payload?.trip) {
-        throw new Error("Invalid shared trip link.");
-      }
-
-      const tripName = String(payload.trip.name || "this trip");
-      const modeLabel = payload.shareMode === "full"
-        ? "full trip, including budget data"
-        : "itinerary";
-
-      const promptText = state.trip
-        ? `Import ${tripName} (${modeLabel}) and replace the trip currently stored on this device?`
-        : `Import ${tripName} (${modeLabel})?`;
-
-      if (!window.confirm(promptText)) {
-        history.replaceState(null, "", `${location.pathname}${location.search}`);
-        return;
-      }
-
-      state = migrateState({
-        version: APP_VERSION,
-        trip: payload.trip,
-        expenses: Array.isArray(payload.expenses) ? payload.expenses : []
-      });
-
-      setupVisible = false;
-      selectedItineraryDate = defaultSelectedDate();
-      itineraryViewMode = uiSettings.itineraryDefaultView;
-      settingsDraftDestinations = [];
-      saveState();
-
-      history.replaceState(null, "", `${location.pathname}${location.search}`);
-      render();
-      activateMode(uiSettings.startScreen);
+      const packed = extractTripSharePacked(rawHash);
+      const payload = await decodeTripSharePacked(packed);
+      await importSharedTripPayload(payload);
     } catch (error) {
-      history.replaceState(null, "", `${location.pathname}${location.search}`);
       alert(`Could not import shared trip: ${error.message}`);
+    } finally {
+      history.replaceState(null, "", `${location.pathname}${location.search}`);
     }
   }
 
@@ -4352,6 +4415,12 @@
       await importTripFile(file, el("backupMessage"));
     }
     event.target.value = "";
+  });
+
+  el("importLinkBtn").addEventListener("click", async () => {
+    const value = el("importLinkInput").value.trim();
+    const imported = await importTripFromPastedLink(value, el("importLinkMessage"));
+    if (imported) el("importLinkInput").value = "";
   });
 
   el("configureBudgetForm").addEventListener("submit", (event) => {

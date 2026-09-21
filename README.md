@@ -1,59 +1,67 @@
-# Travel Planner v19 — Foreign-currency cost conversion
+# Travel Planner v20 — Import a trip using a share link
 
-## Fixed bug
+## Settings > Backup, data & privacy
 
-Foreign itinerary costs are no longer treated as AUD.
+You can now import a trip in two ways:
 
-Example:
-- JPY 16,000
-- planning rate 110 JPY per A$1
-- Summary uses about A$145.45
+1. Import from file
+2. Import using a share link
 
-The original JPY 16,000 remains visible on the itinerary item.
+## Import using a share link
 
-## Planning exchange rates
+Paste a Travel Planner share link into the new field and tap:
 
-Settings > Trip & budget > Destinations & currencies now clearly treats each
-stored destination rate as a planning exchange rate.
+`Import from link`
 
-These rates are used for:
-- itinerary costs
-- pre-trip costs
-- Summary totals
+The importer accepts:
+- a full Travel Planner URL
+- copied text containing the Travel Planner URL
+- a `#tripshare=...` fragment
+- the raw Travel Planner share payload
+
+The link is decoded locally in the browser. No server fetch is needed.
+
+## Full Trip vs Itinerary link
+
+Before importing, Travel Planner tells you whether the link contains:
+
+- `full trip, including budget data`
+- `itinerary only`
+
+If a trip is already stored on the device, you are asked to confirm before it
+is replaced.
+
+## PC -> iPhone workflow
+
+A simple workflow is now:
+
+1. Export/share Full Trip link on iPhone
+2. Open/import link on PC
+3. Make changes on PC
+4. Create a new Full Trip link on PC
+5. Send/copy that link to the iPhone
+6. Settings > Backup, data & privacy > Import using a share link
+7. Paste the link and import
+
+## Privacy
+
+The trip payload remains inside the URL fragment after `#tripshare=`.
+Travel Planner decodes it locally.
+
+As before, anyone who receives the complete share link can import that snapshot,
+so treat Full Trip links as private.
+
+## Existing features retained
+
+v20 keeps:
+- foreign-currency conversion and rate snapshots
+- traveller attendance and split costs
 - Who Pays What
-- outstanding payments
-- pre-trip outstanding totals
-
-## Snapshot behaviour
-
-When a priced itinerary or pre-trip item is saved, v19 stores:
-- original local cost
-- local currency
-- rate used
-- AUD equivalent
-- timestamp of the rate snapshot
-
-Later Settings rate changes do not silently rewrite already-saved booking values.
-
-## Item editor
-
-Foreign-currency items show:
-- planning rate used
-- AUD equivalent
-
-The rate can be manually changed before saving.
-
-New itinerary items prefer the destination currency that matches the itinerary date.
-
-## Existing foreign-currency items
-
-Legacy JPY/CNY/etc items without a saved AUD snapshot are converted using the
-current matching planning rate from Settings. Once edited and saved, the AUD
-value/rate become fixed to the item.
-
-## Offline
-
-No live FX API is required. The stored rate and snapshots work in Airplane Mode.
+- dark mode / light default
+- offline caching
+- document vault
+- reminders
+- directions
 
 ## GitHub update files
 

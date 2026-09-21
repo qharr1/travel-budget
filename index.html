@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=19" rel="manifest"/>
+<link href="./manifest.webmanifest?v=20" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=19" rel="stylesheet"/>
+</script><link href="./styles.css?v=20" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -727,9 +727,17 @@
 <div class="stack-actions">
 <button class="secondary-btn" id="exportBtn" type="button">Export / Share Trip</button>
 <label class="secondary-btn file-btn">
-                    Import / Replace Trip
+                    Import from file
                     <input accept=".json,application/json" id="importInput" type="file"/>
 </label>
+</div><div class="link-import-box">
+<div class="link-import-heading">
+<strong>Import using a share link</strong>
+<span>Paste a Travel Planner Full Trip or Itinerary share link.</span>
+</div>
+<textarea id="importLinkInput" placeholder="Paste Travel Planner link here…" rows="3"></textarea>
+<button class="secondary-btn" id="importLinkBtn" type="button">Import from link</button>
+<p class="status-message" id="importLinkMessage" role="status"></p>
 </div>
 <p class="status-message" id="backupMessage" role="status"></p>
 </section><section class="settings-embedded-section danger-panel">
@@ -1272,6 +1280,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=19"></script>
+<script defer="" src="./app.js?v=20"></script>
 </body>
 </html>
