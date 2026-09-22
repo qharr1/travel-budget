@@ -1,4 +1,4 @@
-const CACHE_NAME = "travel-planner-v32";
+const CACHE_NAME = "travel-planner-v33";
 
 const APP_SHELL = [
   "./",
@@ -13,6 +13,54 @@ const APP_SHELL = [
   "./apple-touch-icon.png",
   "./robots.txt"
 ];
+
+const SATELLITE_FIRST_PATCH = `
+
+;(() => {
+  const originalInstallSatelliteLayer = installSatelliteLayer;
+
+  installSatelliteLayer = function () {
+    originalInstallSatelliteLayer();
+
+    const applySatelliteFirst = () => {
+      if (!map || !mapReady) return;
+
+      const style = map.getStyle();
+      const layers = style?.layers || [];
+
+      for (const layer of layers) {
+        if (!layer?.id) continue;
+        if (layer.id === "trip-satellite") continue;
+        if (layer.id.startsWith("trip-flight-path")) continue;
+
+        if (
+          layer.type === "fill" ||
+          layer.type === "fill-extrusion" ||
+          layer.type === "background"
+        ) {
+          try {
+            map.setLayoutProperty(layer.id, "visibility", "none");
+          } catch {}
+        }
+      }
+
+      try {
+        if (map.getLayer("trip-satellite")) {
+          map.setPaintProperty("trip-satellite", "raster-opacity", 1);
+          map.setPaintProperty("trip-satellite", "raster-saturation", 0);
+          map.setPaintProperty("trip-satellite", "raster-contrast", 0.08);
+        }
+      } catch {}
+
+      setStatus("Satellite map loaded.");
+    };
+
+    setTimeout(applySatelliteFirst, 0);
+    setTimeout(applySatelliteFirst, 250);
+    setTimeout(applySatelliteFirst, 900);
+  };
+})();
+`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -74,14 +122,38 @@ async function cacheFirst(request) {
   return response;
 }
 
+async function patchedTripMap(request) {
+  const cache = await caches.open(CACHE_NAME);
+
+  try {
+    const response = await fetch(request, { cache: "no-store" });
+    if (!response || !response.ok) throw new Error("trip-map.js unavailable");
+
+    const source = await response.text();
+    const patched = new Response(source + SATELLITE_FIRST_PATCH, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        "Content-Type": "text/javascript; charset=utf-8",
+        "Cache-Control": "no-cache"
+      }
+    });
+
+    await cache.put(request, patched.clone());
+    return patched;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error("Travel Planner map script is unavailable.");
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
 
-  // App navigation: prefer fresh HTML while online; always fall back to the
-  // matching v10 cached shell when offline.
   if (event.request.mode === "navigate") {
     event.respondWith(
       (async () => {
@@ -105,21 +177,22 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (requestUrl.pathname.endsWith("/trip-map.js")) {
+    event.respondWith(patchedTripMap(event.request));
+    return;
+  }
+
   const isCoreAsset =
     requestUrl.pathname.endsWith("/app.js") ||
     requestUrl.pathname.endsWith("/family-sync.js") ||
-    requestUrl.pathname.endsWith("/trip-map.js") ||
     requestUrl.pathname.endsWith("/styles.css") ||
     requestUrl.pathname.endsWith("/manifest.webmanifest");
 
-  // Core assets are versioned in the HTML and pre-cached during install.
-  // Cache-first guarantees the matching v10 JS/CSS is available offline.
   if (isCoreAsset) {
     event.respondWith(cacheFirst(event.request));
     return;
   }
 
-  // Icons / other same-origin static assets.
   event.respondWith(cacheFirst(event.request));
 });
 
