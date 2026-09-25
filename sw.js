@@ -1,13 +1,13 @@
-const CACHE_NAME = "travel-planner-v34";
+const CACHE_NAME = "travel-planner-v35";
 
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=32",
-  "./app.js?v=32",
-  "./family-sync.js?v=32",
-  "./trip-map.js?v=32",
-  "./manifest.webmanifest?v=32",
+  "./styles.css?v=35",
+  "./app.js?v=35",
+  "./family-sync.js?v=35",
+  "./trip-map.js?v=35",
+  "./manifest.webmanifest?v=35",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
@@ -356,23 +356,51 @@ const MAP_V34_PATCH = `
 
   async function safeRecheckAllPins() {
     if (geocoding) return;
+
     const all = records().filter((record) => String(record.location || "").trim());
+    const locked = all.filter((record) => record.coordinateSource === "manual");
+    const recheckable = all.filter((record) => record.coordinateSource !== "manual");
+
     if (!all.length) return setStatus("There are no map locations to recheck.");
-    if (!window.confirm(`Recheck all ${all.length} map location${all.length === 1 ? "" : "s"}? Existing good pins stay in place if a lookup fails.`)) return;
+    if (!recheckable.length) {
+      return setStatus(`All ${locked.length} saved map location${locked.length === 1 ? " is" : "s are"} manually locked, so nothing was changed.`);
+    }
+
+    const lockedText = locked.length
+      ? ` ${locked.length} manual pin${locked.length === 1 ? "" : "s"} will be left untouched.`
+      : "";
+
+    if (!window.confirm(
+      `Recheck ${recheckable.length} automatic map location${recheckable.length === 1 ? "" : "s"}?${lockedText} Existing good automatic pins stay in place if a lookup fails.`
+    )) return;
+
     geocoding = true;
     renderStatusCounts();
     let updated = 0;
-    for (let i = 0; i < all.length; i++) {
-      const record = all[i];
-      setStatus(`Rechecking ${i + 1} of ${all.length}: ${record.title}…`);
-      try { if (await geocodeSafely(record)) updated += 1; } catch (error) { console.warn("Safe map recheck failed:", error); }
+
+    for (let i = 0; i < recheckable.length; i++) {
+      const record = recheckable[i];
+      setStatus(`Rechecking ${i + 1} of ${recheckable.length}: ${record.title}…`);
+      try {
+        if (await geocodeSafely(record)) updated += 1;
+      } catch (error) {
+        console.warn("Safe map recheck failed:", error);
+      }
       refreshMarkers();
-      if (i < all.length - 1) await sleep(850);
+      if (i < recheckable.length - 1) await sleep(850);
     }
+
     geocoding = false;
     renderStatusCounts();
     refreshMarkers();
-    setStatus(`Rechecked the trip and updated ${updated} location${updated === 1 ? "" : "s"}. Failed lookups kept their previous pins.`);
+
+    const protectedText = locked.length
+      ? ` ${locked.length} manual pin${locked.length === 1 ? "" : "s"} stayed locked.`
+      : "";
+
+    setStatus(
+      `Rechecked the trip and updated ${updated} automatic location${updated === 1 ? "" : "s"}.${protectedText} Failed lookups kept their previous pins.`
+    );
   }
 
   function replaceRecheckButton() {
