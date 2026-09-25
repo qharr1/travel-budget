@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=32" rel="manifest"/>
+<link href="./manifest.webmanifest?v=35" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=32" rel="stylesheet"/>
+</script><link href="./styles.css?v=35" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -1012,6 +1012,26 @@
         Location
         <input id="itemLocation" maxlength="160" type="text"/>
 </label>
+<div class="timezone-editor" id="itemCoordinatesWrap">
+  <div class="section-heading compact-heading">
+    <div>
+      <p class="eyebrow">MAP PIN</p>
+      <h3>Latitude &amp; longitude</h3>
+    </div>
+    <span class="optional">optional</span>
+  </div>
+  <div class="two-col">
+    <label>
+      Latitude
+      <input id="itemLatitude" inputmode="decimal" min="-90" max="90" step="any" placeholder="-33.8688" type="number"/>
+    </label>
+    <label>
+      Longitude
+      <input id="itemLongitude" inputmode="decimal" min="-180" max="180" step="any" placeholder="151.2093" type="number"/>
+    </label>
+  </div>
+  <p class="muted small">Enter both values to set or edit this pin manually. Manual coordinates are locked and will not be overwritten when you recheck/rebuild map pins. Clear both fields and save if you want the app to search for the location again.</p>
+</div>
 <div class="two-col">
 <label>
           Status
@@ -1508,6 +1528,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=32"></script><script src="./family-sync.js?v=32" type="module"></script><script src="./trip-map.js?v=32" type="module"></script>
+<script defer="" src="./app.js?v=35"></script><script src="./family-sync.js?v=35" type="module"></script><script src="./trip-map.js?v=35" type="module"></script>
 </body>
 </html>
