@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 32;
+  const APP_VERSION = 35;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -243,6 +243,9 @@
       longitude: item?.longitude === null || item?.longitude === "" || item?.longitude === undefined ? null : Number(item.longitude),
       geocodeLabel: String(item?.geocodeLabel || ""),
       geocodedAt: item?.geocodedAt ? Number(item.geocodedAt) : null,
+      coordinateSource: ["manual", "geocoded"].includes(item?.coordinateSource)
+        ? item.coordinateSource
+        : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.geocodeLabel || "")) ? "manual" : ""),
       flightOrigin: String(item?.flightOrigin || ""),
       flightDestination: String(item?.flightDestination || ""),
       flightOriginCode: String(item?.flightOriginCode || "").toUpperCase(),
@@ -251,10 +254,16 @@
       flightOriginLongitude: item?.flightOriginLongitude === null || item?.flightOriginLongitude === "" || item?.flightOriginLongitude === undefined ? null : Number(item.flightOriginLongitude),
       flightOriginGeocodeLabel: String(item?.flightOriginGeocodeLabel || ""),
       flightOriginGeocodedAt: item?.flightOriginGeocodedAt ? Number(item.flightOriginGeocodedAt) : null,
+      flightOriginCoordinateSource: ["manual", "geocoded"].includes(item?.flightOriginCoordinateSource)
+        ? item.flightOriginCoordinateSource
+        : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.flightOriginGeocodeLabel || "")) ? "manual" : ""),
       flightDestinationLatitude: item?.flightDestinationLatitude === null || item?.flightDestinationLatitude === "" || item?.flightDestinationLatitude === undefined ? null : Number(item.flightDestinationLatitude),
       flightDestinationLongitude: item?.flightDestinationLongitude === null || item?.flightDestinationLongitude === "" || item?.flightDestinationLongitude === undefined ? null : Number(item.flightDestinationLongitude),
       flightDestinationGeocodeLabel: String(item?.flightDestinationGeocodeLabel || ""),
       flightDestinationGeocodedAt: item?.flightDestinationGeocodedAt ? Number(item.flightDestinationGeocodedAt) : null,
+      flightDestinationCoordinateSource: ["manual", "geocoded"].includes(item?.flightDestinationCoordinateSource)
+        ? item.flightDestinationCoordinateSource
+        : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.flightDestinationGeocodeLabel || "")) ? "manual" : ""),
       status: String(item?.status || "Planned"),
       bookingRef: String(item?.bookingRef || ""),
       costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined ? null : Number(item.costTotal),
@@ -341,6 +350,9 @@
       longitude: item?.longitude === null || item?.longitude === "" || item?.longitude === undefined ? null : Number(item.longitude),
       geocodeLabel: String(item?.geocodeLabel || ""),
       geocodedAt: item?.geocodedAt ? Number(item.geocodedAt) : null,
+      coordinateSource: ["manual", "geocoded"].includes(item?.coordinateSource)
+        ? item.coordinateSource
+        : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.geocodeLabel || "")) ? "manual" : ""),
       website: String(item?.website || ""),
       notes: String(item?.notes || ""),
       createdAt: Number(item?.createdAt || Date.now()),
@@ -1243,6 +1255,7 @@
     const isFlight = el("itemType").value === "Flight";
     el("flightRouteEditor").classList.toggle("hidden", !isFlight);
     el("itemLocationWrap").classList.toggle("hidden", isFlight);
+    el("itemCoordinatesWrap").classList.toggle("hidden", isFlight);
     el("itemFlightOrigin").required = isFlight;
     el("itemFlightDestination").required = isFlight;
   }
@@ -3887,6 +3900,8 @@
     el("itemEndTimeZone").value = item?.endTimeZone || "";
     el("itemDurationText").value = item?.durationText || "";
     el("itemLocation").value = item?.location || prefill?.location || "";
+    el("itemLatitude").value = item?.latitude !== null && item?.latitude !== undefined && Number.isFinite(Number(item.latitude)) ? String(item.latitude) : "";
+    el("itemLongitude").value = item?.longitude !== null && item?.longitude !== undefined && Number.isFinite(Number(item.longitude)) ? String(item.longitude) : "";
     el("itemFlightOrigin").value = item?.flightOrigin || "";
     el("itemFlightDestination").value = item?.flightDestination || "";
     el("itemFlightOriginCode").value = item?.flightOriginCode || "";
@@ -4761,12 +4776,60 @@
       ? `${flightOrigin}${flightOriginCode ? ` (${flightOriginCode})` : ""} → ${flightDestination}${flightDestinationCode ? ` (${flightDestinationCode})` : ""}`
       : el("itemLocation").value.trim();
 
+    const latitudeText = isFlight ? "" : el("itemLatitude").value.trim();
+    const longitudeText = isFlight ? "" : el("itemLongitude").value.trim();
+
+    if (!isFlight && Boolean(latitudeText) !== Boolean(longitudeText)) {
+      el("itemError").textContent = "Enter both latitude and longitude, or leave both blank.";
+      return;
+    }
+
+    let enteredLatitude = null;
+    let enteredLongitude = null;
+    const coordinatePairProvided = !isFlight && Boolean(latitudeText) && Boolean(longitudeText);
+
+    if (coordinatePairProvided) {
+      enteredLatitude = Number(latitudeText);
+      enteredLongitude = Number(longitudeText);
+
+      if (
+        !Number.isFinite(enteredLatitude) ||
+        !Number.isFinite(enteredLongitude) ||
+        Math.abs(enteredLatitude) > 90 ||
+        Math.abs(enteredLongitude) > 180
+      ) {
+        el("itemError").textContent = "Latitude must be between -90 and 90, and longitude between -180 and 180.";
+        return;
+      }
+    }
+
+    const existingHasCoordinates = Boolean(
+      existing &&
+      existing.latitude !== null &&
+      existing.latitude !== undefined &&
+      existing.longitude !== null &&
+      existing.longitude !== undefined &&
+      Number.isFinite(Number(existing.latitude)) &&
+      Number.isFinite(Number(existing.longitude))
+    );
+
+    const sameCoordinatePair = Boolean(
+      coordinatePairProvided &&
+      existingHasCoordinates &&
+      Math.abs(Number(existing.latitude) - enteredLatitude) < 0.0000001 &&
+      Math.abs(Number(existing.longitude) - enteredLongitude) < 0.0000001
+    );
+
+    const existingCoordinateSource = existing?.coordinateSource ||
+      (/^(manual pin|placed manually|manual coordinates)/i.test(String(existing?.geocodeLabel || ""))
+        ? "manual"
+        : (existingHasCoordinates ? "geocoded" : ""));
+
     const sameMappedLocation = Boolean(
       !isFlight &&
       existing &&
       String(existing.location || "").trim() === nextLocation &&
-      Number.isFinite(Number(existing.latitude)) &&
-      Number.isFinite(Number(existing.longitude))
+      sameCoordinatePair
     );
 
     const sameFlightOrigin = Boolean(
@@ -4801,10 +4864,17 @@
       endTimeZone,
       durationText: el("itemDurationText").value.trim(),
       location: nextLocation,
-      latitude: sameMappedLocation ? existing.latitude : null,
-      longitude: sameMappedLocation ? existing.longitude : null,
-      geocodeLabel: sameMappedLocation ? existing.geocodeLabel : "",
-      geocodedAt: sameMappedLocation ? existing.geocodedAt : null,
+      latitude: coordinatePairProvided ? enteredLatitude : null,
+      longitude: coordinatePairProvided ? enteredLongitude : null,
+      coordinateSource: coordinatePairProvided
+        ? (sameCoordinatePair ? existingCoordinateSource : "manual")
+        : "",
+      geocodeLabel: coordinatePairProvided
+        ? (sameCoordinatePair ? String(existing?.geocodeLabel || "") : "Manual coordinates")
+        : "",
+      geocodedAt: coordinatePairProvided
+        ? (sameCoordinatePair ? (existing?.geocodedAt || Date.now()) : Date.now())
+        : null,
       flightOrigin: isFlight ? flightOrigin : "",
       flightDestination: isFlight ? flightDestination : "",
       flightOriginCode: isFlight ? flightOriginCode : "",
@@ -4813,10 +4883,12 @@
       flightOriginLongitude: sameFlightOrigin ? existing.flightOriginLongitude : null,
       flightOriginGeocodeLabel: sameFlightOrigin ? existing.flightOriginGeocodeLabel : "",
       flightOriginGeocodedAt: sameFlightOrigin ? existing.flightOriginGeocodedAt : null,
+      flightOriginCoordinateSource: sameFlightOrigin ? (existing.flightOriginCoordinateSource || "") : "",
       flightDestinationLatitude: sameFlightDestination ? existing.flightDestinationLatitude : null,
       flightDestinationLongitude: sameFlightDestination ? existing.flightDestinationLongitude : null,
       flightDestinationGeocodeLabel: sameFlightDestination ? existing.flightDestinationGeocodeLabel : "",
       flightDestinationGeocodedAt: sameFlightDestination ? existing.flightDestinationGeocodedAt : null,
+      flightDestinationCoordinateSource: sameFlightDestination ? (existing.flightDestinationCoordinateSource || "") : "",
       status: el("itemStatus").value,
       bookingRef: el("itemBookingRef").value.trim(),
       costTotal: el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value),
@@ -4863,7 +4935,7 @@
       if (item.flightDestination && !sameFlightDestination) {
         window.TripMap?.queueGeocode?.("flight-destination", item.id);
       }
-    } else if (item.location && !sameMappedLocation) {
+    } else if (item.location && !coordinatePairProvided) {
       window.TripMap?.queueGeocode?.("itinerary", item.id);
     }
   });
@@ -5191,6 +5263,7 @@
         latitude: mapCoordinateValue(item.latitude),
         longitude: mapCoordinateValue(item.longitude),
         geocodeLabel: item.geocodeLabel || "",
+        coordinateSource: item.coordinateSource || "",
         isHotel: String(item.type || "").toLowerCase() === "accommodation",
         isWishlist: false
       }));
@@ -5218,6 +5291,7 @@
             latitude: mapCoordinateValue(item.flightOriginLatitude),
             longitude: mapCoordinateValue(item.flightOriginLongitude),
             geocodeLabel: item.flightOriginGeocodeLabel || "",
+            coordinateSource: item.flightOriginCoordinateSource || "",
             isHotel: false,
             isWishlist: false,
             flightRole: "origin",
@@ -5241,6 +5315,7 @@
             latitude: mapCoordinateValue(item.flightDestinationLatitude),
             longitude: mapCoordinateValue(item.flightDestinationLongitude),
             geocodeLabel: item.flightDestinationGeocodeLabel || "",
+            coordinateSource: item.flightDestinationCoordinateSource || "",
             isHotel: false,
             isWishlist: false,
             flightRole: "destination",
@@ -5267,6 +5342,7 @@
         latitude: mapCoordinateValue(place.latitude),
         longitude: mapCoordinateValue(place.longitude),
         geocodeLabel: place.geocodeLabel || "",
+        coordinateSource: place.coordinateSource || "",
         isHotel: String(place.category || "").toLowerCase() === "hotel",
         isWishlist: String(place.status || "").toLowerCase() === "wishlist"
       }));
@@ -5310,6 +5386,11 @@
     const lng = Number(longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
 
+    const labelText = String(label || "");
+    const coordinateSource = /^(manual pin|placed manually|manual coordinates)/i.test(labelText)
+      ? "manual"
+      : "geocoded";
+
     let item = null;
     if (kind === "itinerary") item = state.trip.itinerary.find((x) => x.id === id);
     if (kind === "place") item = state.trip.places.find((x) => x.id === id);
@@ -5321,18 +5402,21 @@
     if (kind === "flight-origin") {
       item.flightOriginLatitude = lat;
       item.flightOriginLongitude = lng;
-      item.flightOriginGeocodeLabel = String(label || "");
+      item.flightOriginGeocodeLabel = labelText;
       item.flightOriginGeocodedAt = Date.now();
+      item.flightOriginCoordinateSource = coordinateSource;
     } else if (kind === "flight-destination") {
       item.flightDestinationLatitude = lat;
       item.flightDestinationLongitude = lng;
-      item.flightDestinationGeocodeLabel = String(label || "");
+      item.flightDestinationGeocodeLabel = labelText;
       item.flightDestinationGeocodedAt = Date.now();
+      item.flightDestinationCoordinateSource = coordinateSource;
     } else {
       item.latitude = lat;
       item.longitude = lng;
-      item.geocodeLabel = String(label || "");
+      item.geocodeLabel = labelText;
       item.geocodedAt = Date.now();
+      item.coordinateSource = coordinateSource;
     }
     item.updatedAt = Date.now();
 
@@ -5347,37 +5431,53 @@
     let cleared = 0;
     for (const item of state.trip.itinerary || []) {
       if (String(item.type || "").toLowerCase() === "flight") {
-        if (String(item.flightOrigin || "").trim()) {
+        if (
+          String(item.flightOrigin || "").trim() &&
+          item.flightOriginCoordinateSource !== "manual"
+        ) {
           item.flightOriginLatitude = null;
           item.flightOriginLongitude = null;
           item.flightOriginGeocodeLabel = "";
           item.flightOriginGeocodedAt = null;
+          item.flightOriginCoordinateSource = "";
           cleared += 1;
         }
-        if (String(item.flightDestination || "").trim()) {
+        if (
+          String(item.flightDestination || "").trim() &&
+          item.flightDestinationCoordinateSource !== "manual"
+        ) {
           item.flightDestinationLatitude = null;
           item.flightDestinationLongitude = null;
           item.flightDestinationGeocodeLabel = "";
           item.flightDestinationGeocodedAt = null;
+          item.flightDestinationCoordinateSource = "";
           cleared += 1;
         }
         item.updatedAt = Date.now();
-      } else if (String(item.location || "").trim()) {
+      } else if (
+        String(item.location || "").trim() &&
+        item.coordinateSource !== "manual"
+      ) {
         item.latitude = null;
         item.longitude = null;
         item.geocodeLabel = "";
         item.geocodedAt = null;
+        item.coordinateSource = "";
         item.updatedAt = Date.now();
         cleared += 1;
       }
     }
 
     for (const place of state.trip.places || []) {
-      if (String(place.location || "").trim()) {
+      if (
+        String(place.location || "").trim() &&
+        place.coordinateSource !== "manual"
+      ) {
         place.latitude = null;
         place.longitude = null;
         place.geocodeLabel = "";
         place.geocodedAt = null;
+        place.coordinateSource = "";
         place.updatedAt = Date.now();
         cleared += 1;
       }
@@ -5403,16 +5503,19 @@
       item.flightOriginLongitude = null;
       item.flightOriginGeocodeLabel = "";
       item.flightOriginGeocodedAt = null;
+      item.flightOriginCoordinateSource = "";
     } else if (kind === "flight-destination") {
       item.flightDestinationLatitude = null;
       item.flightDestinationLongitude = null;
       item.flightDestinationGeocodeLabel = "";
       item.flightDestinationGeocodedAt = null;
+      item.flightDestinationCoordinateSource = "";
     } else {
       item.latitude = null;
       item.longitude = null;
       item.geocodeLabel = "";
       item.geocodedAt = null;
+      item.coordinateSource = "";
     }
     item.updatedAt = Date.now();
     saveState();
