@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 36;
+  const APP_VERSION = 37;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -41,6 +41,7 @@
   let pendingPlaceToScheduleId = "";
   let reminderTimer = null;
   let vaultDbPromise = null;
+  let preTripFilter = "all";
 
   function defaultUiSettings() {
     return {
@@ -307,6 +308,8 @@
       dueDate: String(item?.dueDate || ""),
       category: String(item?.category || "Other"),
       status: String(item?.status || "Planned"),
+      statusBeforeComplete: String(item?.statusBeforeComplete || ""),
+      assigneeId: String(item?.assigneeId || ""),
       costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined
         ? null
         : Number(item.costTotal),
