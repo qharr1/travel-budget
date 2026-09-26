@@ -1361,6 +1361,11 @@
     if (key === "hotel") return "category-hotel";
     if (key === "app / setup") return "category-app-setup";
     if (key === "documents") return "category-documents";
+    if (key === "packing") return "category-packing";
+    if (key === "money") return "category-money";
+    if (key === "health") return "category-health";
+    if (key === "tickets / bookings") return "category-tickets";
+    if (key === "kids") return "category-kids";
     return "category-other";
   }
 
@@ -1370,27 +1375,42 @@
   }
 
   function preTripTaskMarkup(task) {
+    const complete = isPreTripComplete(task.status);
     const due = task.dueDate ? formatDate(task.dueDate, { weekday: true }) : "No due date";
+    const overdue = Boolean(task.dueDate && !complete && task.dueDate < todayISO());
     const cost = task.costTotal !== null && Number.isFinite(Number(task.costTotal))
       ? money(task.costTotal, task.costCurrency || "AUD")
       : "No cost";
+    const assignee = task.assigneeId ? travellerById(task.assigneeId) : null;
 
     return `
-      <article class="pretrip-task-card ${preTripCategoryClass(task.category)}">
+      <article class="pretrip-task-card ${preTripCategoryClass(task.category)} ${complete ? "pretrip-complete" : ""} ${overdue ? "pretrip-overdue" : ""}">
         <span class="pretrip-stripe" aria-hidden="true"></span>
+        <div class="pretrip-check-wrap">
+          <input
+            aria-label="${complete ? "Mark incomplete" : "Mark complete"}: ${escapeHtml(task.title)}"
+            class="pretrip-check-toggle"
+            data-id="${escapeHtml(task.id)}"
+            type="checkbox"
+            ${complete ? "checked" : ""}
+          />
+        </div>
         <div class="pretrip-card-content">
           <div class="pretrip-card-top">
             <div>
               <h3 class="pretrip-card-title">${escapeHtml(task.title)}</h3>
-              <div class="pretrip-card-meta">${escapeHtml(due)} • ${escapeHtml(task.category)} • ${escapeHtml(task.status)}</div>
+              <div class="pretrip-card-meta">
+                ${overdue ? '<span class="pretrip-overdue-badge">Overdue</span> • ' : ""}
+                ${escapeHtml(due)} • ${escapeHtml(task.category)} • ${escapeHtml(task.status)}
+              </div>
+              ${assignee ? `<div class="pretrip-assignee">Assigned to: <strong>${escapeHtml(assignee.name)}</strong></div>` : ""}
             </div>
             <div class="pretrip-card-cost">${escapeHtml(cost)}</div>
           </div>
           ${task.costCurrency !== "AUD" && preTripEffectiveCost(task) !== null ? `<div class="aud-equivalent-line pretrip-aud-equivalent">≈ ${escapeHtml(aud(preTripEffectiveCost(task)))} AUD${Number.isFinite(Number(task.fxRate)) ? ` • saved at 1 AUD = ${escapeHtml(String(task.fxRate))} ${escapeHtml(task.costCurrency)}` : ""}</div>` : ""}
-          ${preTripPaymentText(task) ? `<div class="item-payment-line pretrip-payment-line"><strong>${task.paymentMode === "split" ? "Split:" : "Responsible:"}</strong> ${escapeHtml(preTripPaymentText(task))}</div>` : ""}
+          ${preTripPaymentText(task) ? `<div class="item-payment-line pretrip-payment-line"><strong>${task.paymentMode === "split" ? "Split:" : "Paying:"}</strong> ${escapeHtml(preTripPaymentText(task))}</div>` : ""}
           ${task.notes ? `<p class="pretrip-card-notes">${escapeHtml(task.notes)}</p>` : ""}
           <div class="pretrip-card-actions">
-            ${!isPreTripComplete(task.status) ? `<button class="mini-btn complete-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Mark done</button>` : ""}
             <button class="mini-btn reminder-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Reminder</button>
             <button class="mini-btn edit-pretrip-task" type="button" data-id="${escapeHtml(task.id)}">Edit</button>
           </div>
@@ -1398,29 +1418,80 @@
       </article>`;
   }
 
+  function setPreTripTaskComplete(task, complete) {
+    if (!task) return;
+
+    if (complete) {
+      if (!isPreTripComplete(task.status)) {
+        task.statusBeforeComplete = task.status || "Planned";
+      }
+      task.status = "Completed";
+    } else {
+      task.status = task.statusBeforeComplete || "Planned";
+      task.statusBeforeComplete = "";
+    }
+
+    task.updatedAt = Date.now();
+    saveState();
+    renderPreTrip();
+    renderSummary();
+  }
+
   function renderPreTrip() {
     if (!state.trip) return;
-    const tasks = [...(state.trip.preTripTasks || [])].sort((a, b) => {
+
+    const allTasks = [...(state.trip.preTripTasks || [])].sort((a, b) => {
+      const aComplete = isPreTripComplete(a.status);
+      const bComplete = isPreTripComplete(b.status);
+      if (aComplete !== bComplete) return aComplete ? 1 : -1;
       if (!a.dueDate && !b.dueDate) return a.title.localeCompare(b.title);
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
       return a.dueDate.localeCompare(b.dueDate);
     });
 
-    const complete = tasks.filter((x) => isPreTripComplete(x.status)).length;
-    const outstandingCost = tasks.reduce((sum, task) => {
+    const complete = allTasks.filter((task) => isPreTripComplete(task.status)).length;
+    const outstanding = allTasks.length - complete;
+    const outstandingCost = allTasks.reduce((sum, task) => {
       if (isPreTripComplete(task.status)) return sum;
       const cost = preTripEffectiveCost(task);
       return cost !== null && Number.isFinite(cost) ? sum + cost : sum;
     }, 0);
 
-    el("preTripSummaryText").textContent = tasks.length
-      ? `${complete}/${tasks.length} complete${outstandingCost > 0 ? ` • ${aud(outstandingCost)} still to pay` : ""}`
-      : "No tasks yet";
+    const filteredTasks = allTasks.filter((task) => {
+      const done = isPreTripComplete(task.status);
+      if (preTripFilter === "todo") return !done;
+      if (preTripFilter === "done") return done;
+      return true;
+    });
 
-    el("preTripTaskList").innerHTML = tasks.length
-      ? tasks.map(preTripTaskMarkup).join("")
-      : `<p class="expense-empty">No pre-trip tasks yet. Add insurance, eSIM, booking reminders or anything else you need before departure.</p>`;
+    el("preTripSummaryText").textContent = allTasks.length
+      ? `${complete}/${allTasks.length} complete • ${outstanding} to do${outstandingCost > 0 ? ` • ${aud(outstandingCost)} still to pay` : ""}`
+      : "No checklist items yet";
+
+    if (el("preTripProgressText")) {
+      el("preTripProgressText").textContent = allTasks.length
+        ? `${complete} of ${allTasks.length} complete`
+        : "Nothing added yet";
+    }
+
+    if (el("preTripProgressBar")) {
+      const percent = allTasks.length ? Math.round((complete / allTasks.length) * 100) : 0;
+      el("preTripProgressBar").style.width = percent + "%";
+      el("preTripProgressBar").setAttribute("aria-valuenow", String(percent));
+    }
+
+    document.querySelectorAll("[data-pretrip-filter]").forEach((button) => {
+      const active = button.dataset.pretripFilter === preTripFilter;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+
+    el("preTripTaskList").innerHTML = allTasks.length
+      ? (filteredTasks.length
+          ? filteredTasks.map(preTripTaskMarkup).join("")
+          : `<p class="expense-empty">No ${preTripFilter === "done" ? "completed" : "outstanding"} checklist items.</p>`)
+      : `<p class="expense-empty">No checklist items yet. Add packing, insurance, eSIM, passports, tickets or anything else you need before departure.</p>`;
 
     el("preTripTaskList").querySelectorAll(".edit-pretrip-task").forEach((button) => {
       button.addEventListener("click", () => openPreTripTaskDialog(button.dataset.id));
@@ -1430,15 +1501,10 @@
       button.addEventListener("click", () => openReminderDialog("", "pretrip", button.dataset.id));
     });
 
-    el("preTripTaskList").querySelectorAll(".complete-pretrip-task").forEach((button) => {
-      button.addEventListener("click", () => {
-        const task = state.trip.preTripTasks.find((x) => x.id === button.dataset.id);
-        if (!task) return;
-        task.status = "Completed";
-        task.updatedAt = Date.now();
-        saveState();
-        renderPreTrip();
-        renderSummary();
+    el("preTripTaskList").querySelectorAll(".pretrip-check-toggle").forEach((input) => {
+      input.addEventListener("change", () => {
+        const task = state.trip.preTripTasks.find((item) => item.id === input.dataset.id);
+        setPreTripTaskComplete(task, input.checked);
       });
     });
   }
