@@ -5635,11 +5635,10 @@
 
     let cleared = 0;
     for (const item of state.trip.itinerary || []) {
-      if (String(item.type || "").toLowerCase() === "flight") {
-        if (
-          String(item.flightOrigin || "").trim() &&
-          item.flightOriginCoordinateSource !== "manual"
-        ) {
+      const type = String(item.type || "").toLowerCase();
+
+      if (type === "flight") {
+        if (String(item.flightOrigin || "").trim() && item.flightOriginCoordinateSource !== "manual") {
           item.flightOriginLatitude = null;
           item.flightOriginLongitude = null;
           item.flightOriginGeocodeLabel = "";
@@ -5647,10 +5646,7 @@
           item.flightOriginCoordinateSource = "";
           cleared += 1;
         }
-        if (
-          String(item.flightDestination || "").trim() &&
-          item.flightDestinationCoordinateSource !== "manual"
-        ) {
+        if (String(item.flightDestination || "").trim() && item.flightDestinationCoordinateSource !== "manual") {
           item.flightDestinationLatitude = null;
           item.flightDestinationLongitude = null;
           item.flightDestinationGeocodeLabel = "";
@@ -5659,10 +5655,25 @@
           cleared += 1;
         }
         item.updatedAt = Date.now();
-      } else if (
-        String(item.location || "").trim() &&
-        item.coordinateSource !== "manual"
-      ) {
+      } else if (type === "travel" && (String(item.travelOrigin || "").trim() || String(item.travelDestination || "").trim())) {
+        if (String(item.travelOrigin || "").trim() && item.travelOriginCoordinateSource !== "manual") {
+          item.travelOriginLatitude = null;
+          item.travelOriginLongitude = null;
+          item.travelOriginGeocodeLabel = "";
+          item.travelOriginGeocodedAt = null;
+          item.travelOriginCoordinateSource = "";
+          cleared += 1;
+        }
+        if (String(item.travelDestination || "").trim() && item.travelDestinationCoordinateSource !== "manual") {
+          item.travelDestinationLatitude = null;
+          item.travelDestinationLongitude = null;
+          item.travelDestinationGeocodeLabel = "";
+          item.travelDestinationGeocodedAt = null;
+          item.travelDestinationCoordinateSource = "";
+          cleared += 1;
+        }
+        item.updatedAt = Date.now();
+      } else if (String(item.location || "").trim() && item.coordinateSource !== "manual") {
         item.latitude = null;
         item.longitude = null;
         item.geocodeLabel = "";
