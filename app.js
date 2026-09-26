@@ -1268,13 +1268,37 @@
     return `${from} → ${to}`;
   }
 
+  function travelModeIcon(mode) {
+    const key = String(mode || "").toLowerCase();
+    if (key === "bullet train") return "🚄";
+    if (key === "train") return "🚆";
+    if (key === "bus") return "🚌";
+    if (key === "car") return "🚗";
+    if (key === "ferry") return "⛴️";
+    if (key === "walk") return "🚶";
+    return "🧭";
+  }
+
+  function travelRouteText(item) {
+    if (String(item?.type || "").toLowerCase() !== "travel") return "";
+    const origin = String(item?.travelOrigin || "").trim();
+    const destination = String(item?.travelDestination || "").trim();
+    if (!origin && !destination) return "";
+    return (origin || "Departure") + " → " + (destination || "Arrival");
+  }
+
   function setFlightEditorVisibility() {
-    const isFlight = el("itemType").value === "Flight";
+    const type = el("itemType").value;
+    const isFlight = type === "Flight";
+    const isTravel = type === "Travel";
     el("flightRouteEditor").classList.toggle("hidden", !isFlight);
-    el("itemLocationWrap").classList.toggle("hidden", isFlight);
-    el("itemCoordinatesWrap").classList.toggle("hidden", isFlight);
+    el("travelRouteEditor").classList.toggle("hidden", !isTravel);
+    el("itemLocationWrap").classList.toggle("hidden", isFlight || isTravel);
+    el("itemCoordinatesWrap").classList.toggle("hidden", isFlight || isTravel);
     el("itemFlightOrigin").required = isFlight;
     el("itemFlightDestination").required = isFlight;
+    el("itemTravelOrigin").required = isTravel;
+    el("itemTravelDestination").required = isTravel;
   }
 
   function itineraryItemMarkup(item) {
@@ -1301,7 +1325,7 @@
             <span class="item-type">${escapeHtml(item.type)}</span>
           </div>
           <h3>${escapeHtml(item.title)}</h3>
-          ${flightRouteText(item) ? `<p class="item-location flight-route-card">✈ ${escapeHtml(flightRouteText(item))}</p>` : (item.location ? `<p class="item-location">${escapeHtml(item.location)}</p>` : "")}
+          ${flightRouteText(item) ? `<p class="item-location flight-route-card">✈ ${escapeHtml(flightRouteText(item))}</p>` : (travelRouteText(item) ? `<p class="item-location flight-route-card">${travelModeIcon(item.travelMode)} ${escapeHtml(item.travelMode || "Travel")} • ${escapeHtml(travelRouteText(item))}</p>` : (item.location ? `<p class="item-location">${escapeHtml(item.location)}</p>` : ""))}
           ${chips.length ? `<div class="item-details">${chips.map((c) => `<span class="detail-chip">${escapeHtml(c)}</span>`).join("")}</div>` : ""}
           ${hasCosts ? `
             <div class="item-cost-box">
