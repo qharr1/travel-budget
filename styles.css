@@ -3307,3 +3307,39 @@ html[data-theme="dark"] .map-source-status span[data-state="WebGL1"] {
 .flight-route-popup .single-action { grid-template-columns: 1fr; }
 html[data-theme="dark"] .flight-route-editor { border-color: #315c86; background: #102847; }
 html[data-theme="dark"] .flight-route-hint { color: #93c5fd; }
+
+/* v36 — mapped travel routes */
+.legend-travel-line {
+  display: inline-block;
+  width: 24px;
+  height: 0;
+  border-top: 4px solid #0f766e;
+  border-radius: 999px;
+  box-shadow: 0 -1px 0 rgba(255,255,255,.9), 0 1px 0 rgba(255,255,255,.9);
+}
+
+.travel-path-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 40px;
+  height: 29px;
+  padding: 0 7px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #0f766e;
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,.35);
+  font: inherit;
+  cursor: pointer;
+}
+
+.travel-path-marker span {
+  font-size: .95rem;
+  line-height: 1;
+}
+
+.travel-path-marker strong {
+  font-size: .67rem;
+  line-height: 1;
+}
