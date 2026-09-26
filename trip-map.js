@@ -29,6 +29,8 @@ let enginePromise = null;
 let mapPromise = null;
 let flightPathMarkers = [];
 let flightPathsVisible = localStorage.getItem("travelPlanner.map.flightPaths.v1") !== "off";
+let travelPathMarkers = [];
+let travelPathsVisible = localStorage.getItem("travelPlanner.map.travelPaths.v1") !== "off";
 
 const $ = (id) => document.getElementById(id);
 
@@ -379,6 +381,13 @@ function markerMeta(record) {
     return { icon: "🎢", label: "Theme park", className: "marker-themepark" };
   }
   if (type === "travel") {
+    const mode = String(record?.travelMode || record?.category || "").toLowerCase();
+    if (mode === "bullet train") return { icon: "🚄", label: "Bullet train", className: "marker-travel" };
+    if (mode === "train") return { icon: "🚆", label: "Train", className: "marker-travel" };
+    if (mode === "bus") return { icon: "🚌", label: "Bus", className: "marker-travel" };
+    if (mode === "car") return { icon: "🚗", label: "Car", className: "marker-travel" };
+    if (mode === "ferry") return { icon: "⛴️", label: "Ferry", className: "marker-travel" };
+    if (mode === "walk") return { icon: "🚶", label: "Walk", className: "marker-travel" };
     return { icon: "🚆", label: "Travel", className: "marker-travel" };
   }
   if (type === "food" || category === "restaurant") {
@@ -417,6 +426,10 @@ function validRouteCoords(route) {
 
 function flightRoutes() {
   return bridge?.getFlightRoutes?.() || [];
+}
+
+function travelRoutes() {
+  return bridge?.getTravelRoutes?.() || [];
 }
 
 function unwrapLongitude(startLng, endLng) {
