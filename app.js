@@ -4966,6 +4966,19 @@
       flightDestinationGeocodeLabel: sameFlightDestination ? existing.flightDestinationGeocodeLabel : "",
       flightDestinationGeocodedAt: sameFlightDestination ? existing.flightDestinationGeocodedAt : null,
       flightDestinationCoordinateSource: sameFlightDestination ? (existing.flightDestinationCoordinateSource || "") : "",
+      travelMode: isTravel ? travelMode : "",
+      travelOrigin: isTravel ? travelOrigin : "",
+      travelDestination: isTravel ? travelDestination : "",
+      travelOriginLatitude: sameTravelOrigin ? existing.travelOriginLatitude : null,
+      travelOriginLongitude: sameTravelOrigin ? existing.travelOriginLongitude : null,
+      travelOriginGeocodeLabel: sameTravelOrigin ? existing.travelOriginGeocodeLabel : "",
+      travelOriginGeocodedAt: sameTravelOrigin ? existing.travelOriginGeocodedAt : null,
+      travelOriginCoordinateSource: sameTravelOrigin ? (existing.travelOriginCoordinateSource || "") : "",
+      travelDestinationLatitude: sameTravelDestination ? existing.travelDestinationLatitude : null,
+      travelDestinationLongitude: sameTravelDestination ? existing.travelDestinationLongitude : null,
+      travelDestinationGeocodeLabel: sameTravelDestination ? existing.travelDestinationGeocodeLabel : "",
+      travelDestinationGeocodedAt: sameTravelDestination ? existing.travelDestinationGeocodedAt : null,
+      travelDestinationCoordinateSource: sameTravelDestination ? (existing.travelDestinationCoordinateSource || "") : "",
       status: el("itemStatus").value,
       bookingRef: el("itemBookingRef").value.trim(),
       costTotal: el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value),
@@ -5011,6 +5024,13 @@
       }
       if (item.flightDestination && !sameFlightDestination) {
         window.TripMap?.queueGeocode?.("flight-destination", item.id);
+      }
+    } else if (isTravel) {
+      if (item.travelOrigin && !sameTravelOrigin) {
+        window.TripMap?.queueGeocode?.("travel-origin", item.id);
+      }
+      if (item.travelDestination && !sameTravelDestination) {
+        window.TripMap?.queueGeocode?.("travel-destination", item.id);
       }
     } else if (item.location && !coordinatePairProvided) {
       window.TripMap?.queueGeocode?.("itinerary", item.id);
