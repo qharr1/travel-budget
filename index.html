@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=35" rel="manifest"/>
+<link href="./manifest.webmanifest?v=36" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=35" rel="stylesheet"/>
+</script><link href="./styles.css?v=36" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -305,7 +305,7 @@
 <button class="map-filter active" data-map-filter="all" type="button">All</button>
 <button class="map-filter" data-map-filter="hotel" type="button">Hotels</button>
 <button class="map-filter" data-map-filter="itinerary" type="button">Itinerary</button>
-<button class="map-filter" data-map-filter="places" type="button">Places</button><button aria-pressed="true" class="map-filter active" id="mapFlightPathsToggle" type="button">✈ Flight paths</button>
+<button class="map-filter" data-map-filter="places" type="button">Places</button><button aria-pressed="true" class="map-filter active" id="mapFlightPathsToggle" type="button">✈ Flight paths</button><button aria-pressed="true" class="map-filter active" id="mapTravelPathsToggle" type="button">🚄 Travel routes</button>
 </div>
 <div class="map-action-row">
 <button class="secondary-btn" id="mapFitTripBtn" type="button">Fit whole trip</button>
@@ -323,7 +323,7 @@
 </div>
 <div class="trip-map-legend">
 <span><span class="legend-hotel">🏨</span> Accommodation</span>
-<span><span class="legend-pin"></span> Itinerary / places</span><span><span class="legend-flight-line"></span> Flight path</span>
+<span><span class="legend-pin"></span> Itinerary / places</span><span><span class="legend-flight-line"></span> Flight path</span><span><span class="legend-travel-line"></span> Travel route</span>
 </div>
 </section>
 <details class="map-missing-panel" id="mapMissingPanel">
@@ -1004,6 +1004,29 @@
 </div>
 <p class="muted small">Travel Planner saves both airport coordinates. The Map uses them to draw the curved flight path and number flights in chronological order.</p>
 </section>
+<section class="flight-route-editor hidden" id="travelRouteEditor">
+<div class="section-heading compact-heading">
+<div><p class="eyebrow">TRAVEL ROUTE</p><h3>Departure → arrival</h3></div>
+<span class="flight-route-hint">Used for the map travel line</span>
+</div>
+<label>
+  Transport mode
+  <select id="itemTravelMode">
+    <option>Bullet train</option>
+    <option>Train</option>
+    <option>Bus</option>
+    <option>Car</option>
+    <option>Ferry</option>
+    <option>Walk</option>
+    <option>Other</option>
+  </select>
+</label>
+<div class="two-col flight-route-location-row">
+<label>From<input id="itemTravelOrigin" maxlength="180" placeholder="Tokyo Station" type="text"/></label>
+<label>To<input id="itemTravelDestination" maxlength="180" placeholder="Shin-Osaka Station" type="text"/></label>
+</div>
+<p class="muted small">Travel Planner saves both endpoint pins and draws a schematic ground route between them. Missing endpoints can still be positioned manually on the Map.</p>
+</section>
 <label>
         Duration <span class="optional">(optional override)</span>
 <input id="itemDurationText" maxlength="40" placeholder="2 h 25 min" type="text"/>
@@ -1528,6 +1551,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=35"></script><script src="./family-sync.js?v=35" type="module"></script><script src="./trip-map.js?v=35" type="module"></script>
+<script defer="" src="./app.js?v=36"></script><script src="./family-sync.js?v=36" type="module"></script><script src="./trip-map.js?v=36" type="module"></script>
 </body>
 </html>
