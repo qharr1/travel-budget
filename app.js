@@ -4807,31 +4807,42 @@
     const existing = id ? state.trip.itinerary.find((x) => x.id === id) : null;
     const itemType = el("itemType").value;
     const isFlight = itemType === "Flight";
+    const isTravel = itemType === "Travel";
     const flightOrigin = el("itemFlightOrigin").value.trim();
     const flightDestination = el("itemFlightDestination").value.trim();
     const flightOriginCode = el("itemFlightOriginCode").value.trim().toUpperCase();
     const flightDestinationCode = el("itemFlightDestinationCode").value.trim().toUpperCase();
+    const travelMode = el("itemTravelMode").value;
+    const travelOrigin = el("itemTravelOrigin").value.trim();
+    const travelDestination = el("itemTravelDestination").value.trim();
 
     if (isFlight && (!flightOrigin || !flightDestination)) {
       el("itemError").textContent = "Enter both the departure and arrival locations for this flight.";
       return;
     }
 
+    if (isTravel && (!travelOrigin || !travelDestination)) {
+      el("itemError").textContent = "Enter both the departure and arrival locations for this travel route.";
+      return;
+    }
+
     const nextLocation = isFlight
       ? `${flightOrigin}${flightOriginCode ? ` (${flightOriginCode})` : ""} → ${flightDestination}${flightDestinationCode ? ` (${flightDestinationCode})` : ""}`
-      : el("itemLocation").value.trim();
+      : isTravel
+        ? `${travelOrigin} → ${travelDestination}`
+        : el("itemLocation").value.trim();
 
-    const latitudeText = isFlight ? "" : el("itemLatitude").value.trim();
-    const longitudeText = isFlight ? "" : el("itemLongitude").value.trim();
+    const latitudeText = (isFlight || isTravel) ? "" : el("itemLatitude").value.trim();
+    const longitudeText = (isFlight || isTravel) ? "" : el("itemLongitude").value.trim();
 
-    if (!isFlight && Boolean(latitudeText) !== Boolean(longitudeText)) {
+    if (!isFlight && !isTravel && Boolean(latitudeText) !== Boolean(longitudeText)) {
       el("itemError").textContent = "Enter both latitude and longitude, or leave both blank.";
       return;
     }
 
     let enteredLatitude = null;
     let enteredLongitude = null;
-    const coordinatePairProvided = !isFlight && Boolean(latitudeText) && Boolean(longitudeText);
+    const coordinatePairProvided = !isFlight && !isTravel && Boolean(latitudeText) && Boolean(longitudeText);
 
     if (coordinatePairProvided) {
       enteredLatitude = Number(latitudeText);
@@ -4872,6 +4883,7 @@
 
     const sameMappedLocation = Boolean(
       !isFlight &&
+      !isTravel &&
       existing &&
       String(existing.location || "").trim() === nextLocation &&
       sameCoordinatePair
@@ -4895,6 +4907,26 @@
       existing.flightDestinationLongitude !== null &&
       Number.isFinite(Number(existing.flightDestinationLatitude)) &&
       Number.isFinite(Number(existing.flightDestinationLongitude))
+    );
+
+    const sameTravelOrigin = Boolean(
+      isTravel &&
+      existing &&
+      String(existing.travelOrigin || "").trim() === travelOrigin &&
+      existing.travelOriginLatitude !== null &&
+      existing.travelOriginLongitude !== null &&
+      Number.isFinite(Number(existing.travelOriginLatitude)) &&
+      Number.isFinite(Number(existing.travelOriginLongitude))
+    );
+
+    const sameTravelDestination = Boolean(
+      isTravel &&
+      existing &&
+      String(existing.travelDestination || "").trim() === travelDestination &&
+      existing.travelDestinationLatitude !== null &&
+      existing.travelDestinationLongitude !== null &&
+      Number.isFinite(Number(existing.travelDestinationLatitude)) &&
+      Number.isFinite(Number(existing.travelDestinationLongitude))
     );
 
     const item = normalizeItineraryItem({
