@@ -5345,6 +5345,10 @@
 
     const itineraryRecords = (state.trip.itinerary || [])
       .filter((item) => String(item.type || "").toLowerCase() !== "flight")
+      .filter((item) => !(
+        String(item.type || "").toLowerCase() === "travel" &&
+        (String(item.travelOrigin || "").trim() || String(item.travelDestination || "").trim())
+      ))
       .filter((item) => String(item.location || "").trim())
       .map((item) => ({
         kind: "itinerary",
@@ -5423,6 +5427,65 @@
         return records;
       });
 
+    const travelEndpointRecords = (state.trip.itinerary || [])
+      .filter((item) => String(item.type || "").toLowerCase() === "travel")
+      .filter((item) => String(item.travelOrigin || "").trim() || String(item.travelDestination || "").trim())
+      .flatMap((item) => {
+        const records = [];
+        const origin = String(item.travelOrigin || "").trim();
+        const destination = String(item.travelDestination || "").trim();
+        const mode = String(item.travelMode || "Travel");
+
+        if (origin) {
+          records.push({
+            kind: "travel-origin",
+            id: item.id,
+            title: item.title + " — departure",
+            parentTitle: item.title,
+            type: "Travel",
+            category: mode,
+            travelMode: mode,
+            status: item.status || "",
+            date: item.date || "",
+            time: item.startTime || "",
+            location: origin,
+            query: mapRecordQuery(origin, item.date),
+            latitude: mapCoordinateValue(item.travelOriginLatitude),
+            longitude: mapCoordinateValue(item.travelOriginLongitude),
+            geocodeLabel: item.travelOriginGeocodeLabel || "",
+            coordinateSource: item.travelOriginCoordinateSource || "",
+            isHotel: false,
+            isWishlist: false,
+            travelRole: "origin"
+          });
+        }
+
+        if (destination) {
+          records.push({
+            kind: "travel-destination",
+            id: item.id,
+            title: item.title + " — arrival",
+            parentTitle: item.title,
+            type: "Travel",
+            category: mode,
+            travelMode: mode,
+            status: item.status || "",
+            date: item.endDate || item.date || "",
+            time: item.endTime || "",
+            location: destination,
+            query: mapRecordQuery(destination, item.endDate || item.date),
+            latitude: mapCoordinateValue(item.travelDestinationLatitude),
+            longitude: mapCoordinateValue(item.travelDestinationLongitude),
+            geocodeLabel: item.travelDestinationGeocodeLabel || "",
+            coordinateSource: item.travelDestinationCoordinateSource || "",
+            isHotel: false,
+            isWishlist: false,
+            travelRole: "destination"
+          });
+        }
+
+        return records;
+      });
     const placeRecords = (state.trip.places || [])
       .filter((place) => String(place.location || "").trim())
       .map((place) => ({
@@ -5444,7 +5507,7 @@
         isWishlist: String(place.status || "").toLowerCase() === "wishlist"
       }));
 
-    return [...itineraryRecords, ...flightEndpointRecords, ...placeRecords];
+    return [...itineraryRecords, ...flightEndpointRecords, ...travelEndpointRecords, ...placeRecords];
   }
 
   function mapFlightRoutes() {
@@ -5476,6 +5539,34 @@
       }));
   }
 
+  function mapTravelRoutes() {
+    if (!state.trip) return [];
+
+    return (state.trip.itinerary || [])
+      .filter((item) => String(item.type || "").toLowerCase() === "travel")
+      .filter((item) => String(item.travelOrigin || "").trim() && String(item.travelDestination || "").trim())
+      .sort((a, b) => {
+        const ak = (a.date || "") + "T" + (a.startTime || "00:00");
+        const bk = (b.date || "") + "T" + (b.startTime || "00:00");
+        return ak.localeCompare(bk);
+      })
+      .map((item, index) => ({
+        id: item.id,
+        sequence: index + 1,
+        title: item.title || ("Travel " + (index + 1)),
+        mode: item.travelMode || "Travel",
+        date: item.date || "",
+        startTime: item.startTime || "",
+        endDate: item.endDate || item.date || "",
+        endTime: item.endTime || "",
+        origin: item.travelOrigin || "",
+        destination: item.travelDestination || "",
+        originLatitude: mapCoordinateValue(item.travelOriginLatitude),
+        originLongitude: mapCoordinateValue(item.travelOriginLongitude),
+        destinationLatitude: mapCoordinateValue(item.travelDestinationLatitude),
+        destinationLongitude: mapCoordinateValue(item.travelDestinationLongitude)
+      }));
+  }
   function updateMapCoordinates(kind, id, latitude, longitude, label = "") {
     if (!state.trip) return false;
 
