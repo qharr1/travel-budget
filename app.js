@@ -3698,6 +3698,13 @@
     el("preTripDueDate").value = task?.dueDate || "";
     el("preTripCategory").value = task?.category || "Other";
     el("preTripStatus").value = task?.status || "Planned";
+    const checklistPeople = state.trip.travellerProfiles || [];
+    el("preTripAssignee").innerHTML =
+      '<option value="">Unassigned</option>' +
+      checklistPeople.map((person) =>
+        `<option value="${escapeHtml(person.id)}">${escapeHtml(person.name)}</option>`
+      ).join("");
+    el("preTripAssignee").value = task?.assigneeId || "";
     el("preTripCost").value =
       task?.costTotal !== null && task?.costTotal !== undefined && Number.isFinite(Number(task.costTotal))
         ? task.costTotal
@@ -4475,7 +4482,8 @@
       let paymentMode = task.paymentMode || "none";
       if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
       if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
-      return { ...task, payerIds, paymentMode };
+      const assigneeId = task.assigneeId === id ? "" : (task.assigneeId || "");
+      return { ...task, payerIds, paymentMode, assigneeId };
     });
 
     syncTravellerCounts();
@@ -4707,6 +4715,39 @@
   el("preTripFxRate").addEventListener("input", () => updatePreTripFxPreview(false));
 
   el("addPreTripTaskBtn").addEventListener("click", () => openPreTripTaskDialog());
+
+  el("preTripQuickAddForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const title = el("preTripQuickAdd").value.trim();
+    if (!title || !state.trip) return;
+
+    state.trip.preTripTasks.push(normalizePreTripTask({
+      id: uid("pre"),
+      title,
+      category: "Other",
+      status: "Planned",
+      assigneeId: "",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }));
+
+    el("preTripQuickAdd").value = "";
+    preTripFilter = "all";
+    saveState();
+    renderPreTrip();
+    renderSummary();
+    el("preTripPanel").open = true;
+  });
+
+  document.querySelectorAll("[data-pretrip-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      preTripFilter = ["all", "todo", "done"].includes(button.dataset.pretripFilter)
+        ? button.dataset.pretripFilter
+        : "all";
+      renderPreTrip();
+    });
+  });
+
   el("closePreTripDialogBtn").addEventListener("click", () => closeModalSafe(el("preTripTaskDialog")));
 
   el("preTripTaskForm").addEventListener("submit", (event) => {
@@ -4747,12 +4788,15 @@
     }
 
     const existing = id ? state.trip.preTripTasks.find((x) => x.id === id) : null;
+    const selectedStatus = el("preTripStatus").value;
     const task = normalizePreTripTask({
       id: existing?.id || uid("pre"),
       title,
       dueDate: el("preTripDueDate").value,
       category: el("preTripCategory").value,
-      status: el("preTripStatus").value,
+      status: selectedStatus,
+      statusBeforeComplete: isPreTripComplete(selectedStatus) ? (existing?.statusBeforeComplete || "") : "",
+      assigneeId: el("preTripAssignee").value,
       costTotal: taskCost,
       costCurrency,
       costAud: capturedAudCost,
