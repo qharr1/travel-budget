@@ -5582,7 +5582,12 @@
     let item = null;
     if (kind === "itinerary") item = state.trip.itinerary.find((x) => x.id === id);
     if (kind === "place") item = state.trip.places.find((x) => x.id === id);
-    if (kind === "flight-origin" || kind === "flight-destination") {
+    if (
+      kind === "flight-origin" ||
+      kind === "flight-destination" ||
+      kind === "travel-origin" ||
+      kind === "travel-destination"
+    ) {
       item = state.trip.itinerary.find((x) => x.id === id);
     }
     if (!item) return false;
@@ -5599,6 +5604,18 @@
       item.flightDestinationGeocodeLabel = labelText;
       item.flightDestinationGeocodedAt = Date.now();
       item.flightDestinationCoordinateSource = coordinateSource;
+    } else if (kind === "travel-origin") {
+      item.travelOriginLatitude = lat;
+      item.travelOriginLongitude = lng;
+      item.travelOriginGeocodeLabel = labelText;
+      item.travelOriginGeocodedAt = Date.now();
+      item.travelOriginCoordinateSource = coordinateSource;
+    } else if (kind === "travel-destination") {
+      item.travelDestinationLatitude = lat;
+      item.travelDestinationLongitude = lng;
+      item.travelDestinationGeocodeLabel = labelText;
+      item.travelDestinationGeocodedAt = Date.now();
+      item.travelDestinationCoordinateSource = coordinateSource;
     } else {
       item.latitude = lat;
       item.longitude = lng;
