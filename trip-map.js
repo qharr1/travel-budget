@@ -589,6 +589,175 @@ function toggleFlightPaths() {
   refreshFlightPaths();
 }
 
+function groundRouteCoordinates(route) {
+  const x0 = Number(route.originLongitude);
+  const y0 = Number(route.originLatitude);
+  const x1 = unwrapLongitude(x0, Number(route.destinationLongitude));
+  const y1 = Number(route.destinationLatitude);
+  const points = [];
+  const steps = 48;
+
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    points.push([
+      wrapLongitude(x0 + (x1 - x0) * t),
+      y0 + (y1 - y0) * t
+    ]);
+  }
+
+  return points;
+}
+
+function travelRouteGeoJson() {
+  return {
+    type: "FeatureCollection",
+    features: travelRoutes().filter(validRouteCoords).map((route) => ({
+      type: "Feature",
+      properties: {
+        id: route.id,
+        sequence: route.sequence,
+        title: route.title,
+        mode: route.mode || "Travel"
+      },
+      geometry: {
+        type: "LineString",
+        coordinates: groundRouteCoordinates(route)
+      }
+    }))
+  };
+}
+
+function clearTravelPathMarkers() {
+  travelPathMarkers.forEach((marker) => marker.remove());
+  travelPathMarkers = [];
+}
+
+function travelModeMapIcon(mode) {
+  const key = String(mode || "").toLowerCase();
+  if (key === "bullet train") return "🚄";
+  if (key === "train") return "🚆";
+  if (key === "bus") return "🚌";
+  if (key === "car") return "🚗";
+  if (key === "ferry") return "⛴️";
+  if (key === "walk") return "🚶";
+  return "🧭";
+}
+
+function travelRouteMidpoint(route) {
+  const points = groundRouteCoordinates(route);
+  return points[Math.floor(points.length / 2)];
+}
+
+function travelRoutePopupHtml(route) {
+  const icon = travelModeMapIcon(route.mode);
+  const timing = [route.date || "", route.startTime || "", route.endTime ? `→ ${route.endTime}` : ""]
+    .filter(Boolean)
+    .join(" ");
+
+  return `
+    <div class="trip-map-popup travel-route-popup">
+      <span class="trip-map-popup-type">${icon} ${escapeHtml(route.mode || "Travel")} ${route.sequence}</span>
+      <strong>${escapeHtml(route.title || `Travel ${route.sequence}`)}</strong>
+      <small>${escapeHtml(timing)}</small>
+      <p>${escapeHtml(route.origin)}<br>→ ${escapeHtml(route.destination)}</p>
+      <small>Schematic route between saved endpoints</small>
+      <div class="trip-map-popup-actions single-action">
+        <button type="button" data-travel-open="${escapeHtml(route.id)}">Open itinerary</button>
+      </div>
+    </div>
+  `;
+}
+
+function refreshTravelPaths() {
+  if (!map || !mapReady || !maplibregl) return;
+
+  const sourceData = travelRouteGeoJson();
+  let source = map.getSource("trip-travel-paths");
+
+  if (!source) {
+    map.addSource("trip-travel-paths", { type: "geojson", data: sourceData });
+    source = map.getSource("trip-travel-paths");
+  } else {
+    source.setData(sourceData);
+  }
+
+  if (!map.getLayer("trip-travel-path-shadow")) {
+    map.addLayer({
+      id: "trip-travel-path-shadow",
+      type: "line",
+      source: "trip-travel-paths",
+      layout: { "line-cap": "round", "line-join": "round", visibility: travelPathsVisible ? "visible" : "none" },
+      paint: { "line-color": "#ffffff", "line-width": 6, "line-opacity": 0.72 }
+    });
+  }
+
+  if (!map.getLayer("trip-travel-path-line")) {
+    map.addLayer({
+      id: "trip-travel-path-line",
+      type: "line",
+      source: "trip-travel-paths",
+      layout: { "line-cap": "round", "line-join": "round", visibility: travelPathsVisible ? "visible" : "none" },
+      paint: { "line-color": "#0f766e", "line-width": 4, "line-opacity": 0.92 }
+    });
+  }
+
+  if (!map.getLayer("trip-travel-path-ties")) {
+    map.addLayer({
+      id: "trip-travel-path-ties",
+      type: "line",
+      source: "trip-travel-paths",
+      layout: { "line-cap": "butt", "line-join": "round", visibility: travelPathsVisible ? "visible" : "none" },
+      paint: { "line-color": "#ffffff", "line-width": 1.2, "line-opacity": 0.9, "line-dasharray": [1, 3] }
+    });
+  }
+
+  for (const layerId of ["trip-travel-path-shadow", "trip-travel-path-line", "trip-travel-path-ties"]) {
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", travelPathsVisible ? "visible" : "none");
+    }
+  }
+
+  clearTravelPathMarkers();
+
+  if (travelPathsVisible) {
+    for (const route of travelRoutes().filter(validRouteCoords)) {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = "travel-path-marker";
+      element.innerHTML = `<span>${travelModeMapIcon(route.mode)}</span><strong>${route.sequence}</strong>`;
+
+      const popup = new maplibregl.Popup({ offset: 22, closeButton: true, maxWidth: "300px" })
+        .setHTML(travelRoutePopupHtml(route));
+
+      const marker = new maplibregl.Marker({ element, anchor: "center" })
+        .setLngLat(travelRouteMidpoint(route))
+        .setPopup(popup)
+        .addTo(map);
+
+      popup.on("open", () => {
+        popup.getElement()?.querySelector("[data-travel-open]")?.addEventListener("click", () => {
+          popup.remove();
+          bridge.openRecord?.("itinerary", route.id);
+        });
+      });
+
+      travelPathMarkers.push(marker);
+    }
+  }
+
+  const toggle = $("mapTravelPathsToggle");
+  if (toggle) {
+    toggle.classList.toggle("active", travelPathsVisible);
+    toggle.setAttribute("aria-pressed", String(travelPathsVisible));
+    toggle.textContent = travelPathsVisible ? "🚄 Travel routes on" : "🚄 Travel routes off";
+  }
+}
+
+function toggleTravelPaths() {
+  travelPathsVisible = !travelPathsVisible;
+  localStorage.setItem("travelPlanner.map.travelPaths.v1", travelPathsVisible ? "on" : "off");
+  refreshTravelPaths();
+}
 function markerElement(record) {
   const wrapper = document.createElement("button");
   wrapper.type = "button";
