@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=36" rel="manifest"/>
+<link href="./manifest.webmanifest?v=37" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=36" rel="stylesheet"/>
+</script><link href="./styles.css?v=37" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -194,8 +194,8 @@
 <details class="pretrip-panel" id="preTripPanel">
 <summary>
 <div>
-<span class="pretrip-summary-title">Pre-trip</span>
-<span class="pretrip-summary-sub" id="preTripSummaryText">No tasks yet</span>
+<span class="pretrip-summary-title">Pre-trip checklist</span>
+<span class="pretrip-summary-sub" id="preTripSummaryText">No checklist items yet</span>
 </div>
 <span aria-hidden="true" class="pretrip-chevron">⌄</span>
 </summary>
@@ -203,9 +203,28 @@
 <div class="section-heading">
 <div>
 <p class="eyebrow">BEFORE YOU LEAVE</p>
-<h2>Pre-trip tasks</h2>
+<h2>Things to do</h2>
 </div>
-<button class="primary-compact-btn" id="addPreTripTaskBtn" type="button">+ Add task</button>
+<button class="primary-compact-btn" id="addPreTripTaskBtn" type="button">+ Details</button>
+</div>
+<div class="pretrip-progress-card">
+<div class="pretrip-progress-head">
+<strong>Checklist progress</strong>
+<span id="preTripProgressText">Nothing added yet</span>
+</div>
+<div class="pretrip-progress-track">
+<span aria-valuemax="100" aria-valuemin="0" aria-valuenow="0" id="preTripProgressBar" role="progressbar"></span>
+</div>
+</div>
+<form class="pretrip-quick-add" id="preTripQuickAddForm">
+<label class="sr-only" for="preTripQuickAdd">Add a checklist item</label>
+<input autocomplete="off" id="preTripQuickAdd" maxlength="140" placeholder="Add something to do…" type="text"/>
+<button class="primary-compact-btn" type="submit">+ Add</button>
+</form>
+<div aria-label="Checklist filter" class="pretrip-filter-row">
+<button aria-pressed="true" class="pretrip-filter active" data-pretrip-filter="all" type="button">All</button>
+<button aria-pressed="false" class="pretrip-filter" data-pretrip-filter="todo" type="button">To do</button>
+<button aria-pressed="false" class="pretrip-filter" data-pretrip-filter="done" type="button">Done</button>
 </div>
 <div class="pretrip-task-list" id="preTripTaskList"></div>
 <div class="pretrip-import-box">
@@ -1258,10 +1277,21 @@
 <option>Hotel</option>
 <option>App / setup</option>
 <option>Documents</option>
+<option>Packing</option>
+<option>Money</option>
+<option>Health</option>
+<option>Tickets / bookings</option>
+<option>Kids</option>
 <option>Other</option>
 </select>
 </label>
 </div>
+<label>
+          Assigned to <span class="optional">(optional)</span>
+          <select id="preTripAssignee">
+            <option value="">Unassigned</option>
+          </select>
+</label>
 <div class="two-col">
 <label>
           Status
@@ -1551,6 +1581,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=36"></script><script src="./family-sync.js?v=36" type="module"></script><script src="./trip-map.js?v=36" type="module"></script>
+<script defer="" src="./app.js?v=37"></script><script src="./family-sync.js?v=37" type="module"></script><script src="./trip-map.js?v=37" type="module"></script>
 </body>
 </html>
