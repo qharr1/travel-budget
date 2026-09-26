@@ -842,6 +842,7 @@ function refreshMarkers() {
   }
 
   refreshFlightPaths();
+  refreshTravelPaths();
 }
 
 function renderStatusCounts() {
@@ -1141,6 +1142,7 @@ function bindUi() {
   });
 
   $("mapFlightPathsToggle")?.addEventListener("click", toggleFlightPaths);
+  $("mapTravelPathsToggle")?.addEventListener("click", toggleTravelPaths);
   $("mapFitTripBtn")?.addEventListener("click", () => fitTrip(true));
   $("mapLocateMissingBtn")?.addEventListener("click", locateAllMissing);
   $("mapRebuildPinsBtn")?.addEventListener("click", rebuildAllPins);
@@ -1194,7 +1196,7 @@ init();
     const style = document.createElement("style");
     style.id = "travelPlannerMapV34Styles";
     style.textContent = `
-      #mapLabelsToggle, #mapFlightPathsToggle { white-space: nowrap; }
+      #mapLabelsToggle, #mapFlightPathsToggle, #mapTravelPathsToggle { white-space: nowrap; }
       #tripMapCanvas.pin-placement-active { cursor: crosshair; }
       .map-v34-placement-banner {
         position:absolute;z-index:8;top:12px;left:12px;right:66px;
