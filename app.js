@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 35;
+  const APP_VERSION = 36;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -264,6 +264,23 @@
       flightDestinationCoordinateSource: ["manual", "geocoded"].includes(item?.flightDestinationCoordinateSource)
         ? item.flightDestinationCoordinateSource
         : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.flightDestinationGeocodeLabel || "")) ? "manual" : ""),
+      travelMode: String(item?.travelMode || ""),
+      travelOrigin: String(item?.travelOrigin || ""),
+      travelDestination: String(item?.travelDestination || ""),
+      travelOriginLatitude: item?.travelOriginLatitude === null || item?.travelOriginLatitude === "" || item?.travelOriginLatitude === undefined ? null : Number(item.travelOriginLatitude),
+      travelOriginLongitude: item?.travelOriginLongitude === null || item?.travelOriginLongitude === "" || item?.travelOriginLongitude === undefined ? null : Number(item.travelOriginLongitude),
+      travelOriginGeocodeLabel: String(item?.travelOriginGeocodeLabel || ""),
+      travelOriginGeocodedAt: item?.travelOriginGeocodedAt ? Number(item.travelOriginGeocodedAt) : null,
+      travelOriginCoordinateSource: ["manual", "geocoded"].includes(item?.travelOriginCoordinateSource)
+        ? item.travelOriginCoordinateSource
+        : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.travelOriginGeocodeLabel || "")) ? "manual" : ""),
+      travelDestinationLatitude: item?.travelDestinationLatitude === null || item?.travelDestinationLatitude === "" || item?.travelDestinationLatitude === undefined ? null : Number(item.travelDestinationLatitude),
+      travelDestinationLongitude: item?.travelDestinationLongitude === null || item?.travelDestinationLongitude === "" || item?.travelDestinationLongitude === undefined ? null : Number(item.travelDestinationLongitude),
+      travelDestinationGeocodeLabel: String(item?.travelDestinationGeocodeLabel || ""),
+      travelDestinationGeocodedAt: item?.travelDestinationGeocodedAt ? Number(item.travelDestinationGeocodedAt) : null,
+      travelDestinationCoordinateSource: ["manual", "geocoded"].includes(item?.travelDestinationCoordinateSource)
+        ? item.travelDestinationCoordinateSource
+        : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.travelDestinationGeocodeLabel || "")) ? "manual" : ""),
       status: String(item?.status || "Planned"),
       bookingRef: String(item?.bookingRef || ""),
       costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined ? null : Number(item.costTotal),
