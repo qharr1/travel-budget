@@ -5709,7 +5709,12 @@
     let item = null;
     if (kind === "itinerary") item = state.trip.itinerary.find((x) => x.id === id);
     if (kind === "place") item = state.trip.places.find((x) => x.id === id);
-    if (kind === "flight-origin" || kind === "flight-destination") {
+    if (
+      kind === "flight-origin" ||
+      kind === "flight-destination" ||
+      kind === "travel-origin" ||
+      kind === "travel-destination"
+    ) {
       item = state.trip.itinerary.find((x) => x.id === id);
     }
     if (!item) return false;
@@ -5726,6 +5731,18 @@
       item.flightDestinationGeocodeLabel = "";
       item.flightDestinationGeocodedAt = null;
       item.flightDestinationCoordinateSource = "";
+    } else if (kind === "travel-origin") {
+      item.travelOriginLatitude = null;
+      item.travelOriginLongitude = null;
+      item.travelOriginGeocodeLabel = "";
+      item.travelOriginGeocodedAt = null;
+      item.travelOriginCoordinateSource = "";
+    } else if (kind === "travel-destination") {
+      item.travelDestinationLatitude = null;
+      item.travelDestinationLongitude = null;
+      item.travelDestinationGeocodeLabel = "";
+      item.travelDestinationGeocodedAt = null;
+      item.travelDestinationCoordinateSource = "";
     } else {
       item.latitude = null;
       item.longitude = null;
@@ -5740,7 +5757,13 @@
   }
 
   function openMapRecord(kind, id) {
-    if (kind === "itinerary") {
+    if (
+      kind === "itinerary" ||
+      kind === "flight-origin" ||
+      kind === "flight-destination" ||
+      kind === "travel-origin" ||
+      kind === "travel-destination"
+    ) {
       const item = state.trip?.itinerary.find((x) => x.id === id);
       if (!item) return;
       selectedItineraryDate = item.date || defaultSelectedDate();
@@ -5777,6 +5800,15 @@
       return;
     }
 
+    if (kind === "travel-origin" || kind === "travel-destination") {
+      item = state.trip?.itinerary.find((x) => x.id === id);
+      if (!item) return;
+      const destination = kind === "travel-origin" ? item.travelOrigin : item.travelDestination;
+      if (!destination) return;
+      openDirectionsChooser(destination, item.title || "");
+      return;
+    }
+
     if (!item?.location) return;
     openDirectionsChooser(directionsDestination(item), item.title || "");
   }
@@ -5784,6 +5816,7 @@
   window.TravelPlannerMapBridge = {
     getRecords: mapLocationRecords,
     getFlightRoutes: mapFlightRoutes,
+    getTravelRoutes: mapTravelRoutes,
     updateCoordinates: updateMapCoordinates,
     clearCoordinates: clearMapCoordinates,
     clearAllCoordinates: clearAllMapCoordinates,
