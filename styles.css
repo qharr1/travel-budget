@@ -974,7 +974,7 @@ dialog[open] {
 .pretrip-task-card {
   --pretrip-color: #64748b;
   display: grid;
-  grid-template-columns: 5px minmax(0, 1fr);
+  grid-template-columns: 5px 42px minmax(0, 1fr);
   gap: 11px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -3342,4 +3342,151 @@ html[data-theme="dark"] .flight-route-hint { color: #93c5fd; }
 .travel-path-marker strong {
   font-size: .67rem;
   line-height: 1;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+
+/* v37 — pre-trip checklist */
+.pretrip-progress-card {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 12px;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.pretrip-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: .78rem;
+}
+.pretrip-progress-head span {
+  color: var(--muted);
+  font-size: .7rem;
+}
+.pretrip-progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+#preTripProgressBar {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--good);
+  transition: width 180ms ease;
+}
+
+.pretrip-quick-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pretrip-quick-add input {
+  min-width: 0;
+  min-height: 42px;
+}
+
+.pretrip-filter-row {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pretrip-filter-row::-webkit-scrollbar { display: none; }
+.pretrip-filter {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pretrip-filter.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pretrip-check-wrap {
+  display: grid;
+  place-items: center;
+  min-width: 42px;
+  min-height: 48px;
+}
+.pretrip-check-toggle {
+  width: 23px;
+  height: 23px;
+  margin: 0;
+  accent-color: var(--good);
+  cursor: pointer;
+}
+.pretrip-complete {
+  opacity: .72;
+}
+.pretrip-complete .pretrip-card-title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.pretrip-complete .pretrip-stripe {
+  background: var(--good);
+}
+.pretrip-overdue {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+}
+.pretrip-overdue-badge {
+  color: var(--danger);
+  font-weight: 850;
+}
+.pretrip-assignee {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: .7rem;
+}
+.pretrip-assignee strong {
+  color: var(--text);
+}
+
+.pretrip-task-card.category-packing { --pretrip-color: #9333ea; }
+.pretrip-task-card.category-money { --pretrip-color: #15803d; }
+.pretrip-task-card.category-health { --pretrip-color: #dc2626; }
+.pretrip-task-card.category-tickets { --pretrip-color: #2563eb; }
+.pretrip-task-card.category-kids { --pretrip-color: #ea580c; }
+
+@media (max-width: 520px) {
+  .pretrip-quick-add {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .pretrip-quick-add .primary-compact-btn {
+    min-width: 68px;
+  }
+  .pretrip-card-top {
+    gap: 7px;
+  }
+  .pretrip-card-cost {
+    font-size: .74rem;
+  }
 }
