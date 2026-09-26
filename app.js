@@ -3947,6 +3947,10 @@
     el("itemFlightDestination").value = item?.flightDestination || "";
     el("itemFlightOriginCode").value = item?.flightOriginCode || "";
     el("itemFlightDestinationCode").value = item?.flightDestinationCode || "";
+    const suggestedTravelMode = /\b(nozomi|shinkansen|bullet train)\b/i.test(item?.title || prefill?.title || "") ? "Bullet train" : "Train";
+    el("itemTravelMode").value = item?.travelMode || suggestedTravelMode;
+    el("itemTravelOrigin").value = item?.travelOrigin || "";
+    el("itemTravelDestination").value = item?.travelDestination || "";
     el("itemStatus").value = item?.status || "Planned";
     el("itemBookingRef").value = item?.bookingRef || "";
     el("itemCostTotal").value = Number.isFinite(Number(item?.costTotal)) ? item.costTotal : "";
