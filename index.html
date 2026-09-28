@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=41" rel="manifest"/>
+<link href="./manifest.webmanifest?v=42" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=41" rel="stylesheet"/>
+</script><link href="./styles.css?v=42" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -752,12 +752,22 @@
 <h2>Where are you based each day?</h2>
 </div>
 </div>
-<p class="muted small">This is the only source used for local counters such as “Tokyo • Day 3 of 7”. It is not guessed from hotels, activities, map pins or event addresses.</p>
+<p class="muted small">Each location is stored against that actual trip date and Family Sync shares it with everyone on the trip. It is never guessed from hotels, activities, map pins or event addresses.</p>
 <div class="settings-day-location-list" id="settingsDayLocationsList"></div>
 <div class="settings-day-location-actions">
 <button class="primary-btn" id="settingsSaveDayLocationsBtn" type="button">Save day locations</button>
 </div>
 <p class="status-message" id="settingsDayLocationsMessage" role="status"></p>
+<div class="location-colour-settings">
+<div class="section-heading compact-heading">
+<div>
+<p class="eyebrow">FULL TRIP COLOURS</p>
+<h3>Location header colours</h3>
+</div>
+</div>
+<p class="muted small">Choose the colour used for each location group and its day headers in Full Trip view.</p>
+<div class="location-colour-list" id="settingsLocationColoursList"></div>
+</div>
 </div>
 </details>
 <details class="settings-group" id="settingsTripBudgetGroup"><summary><div><span class="settings-group-title">Trip &amp; budget</span><span class="settings-group-sub">Dates, total budget, Day 1 limit and currencies</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsTripBudgetBody"><section class="settings-embedded-section">
@@ -1617,6 +1627,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=41"></script><script src="./family-sync.js?v=41" type="module"></script><script src="./trip-map.js?v=41" type="module"></script>
+<script defer="" src="./app.js?v=42"></script><script src="./family-sync.js?v=42" type="module"></script><script src="./trip-map.js?v=42" type="module"></script>
 </body>
 </html>
