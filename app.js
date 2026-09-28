@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 38;
+  const APP_VERSION = 39;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -1509,12 +1509,46 @@
     });
   }
 
+  function areaDayProgress(date) {
+    if (!state.trip) return null;
+
+    const dates = tripDates();
+    const index = dates.indexOf(date);
+    if (index < 0) return null;
+
+    const area = String(state.trip.dayMeta?.[date]?.location || "").trim();
+    if (!area) return null;
+
+    const key = area.toLocaleLowerCase();
+    let start = index;
+    let end = index;
+
+    while (start > 0) {
+      const previousArea = String(state.trip.dayMeta?.[dates[start - 1]]?.location || "").trim().toLocaleLowerCase();
+      if (previousArea !== key) break;
+      start -= 1;
+    }
+
+    while (end < dates.length - 1) {
+      const nextArea = String(state.trip.dayMeta?.[dates[end + 1]]?.location || "").trim().toLocaleLowerCase();
+      if (nextArea !== key) break;
+      end += 1;
+    }
+
+    return {
+      area,
+      day: index - start + 1,
+      total: end - start + 1
+    };
+  }
+
   function fullDayMarkup(date, index) {
     const meta = state.trip.dayMeta?.[date] || {};
     const entries = timelineEntriesForDate(date);
     const todayClass = date === todayISO() ? "today-full-day" : "";
     const location = String(meta.location || "").trim();
     const headline = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
+    const areaProgress = areaDayProgress(date);
 
     return `
       <article class="full-day-card ${todayClass}" data-day-number="${index + 1}">
@@ -1523,7 +1557,7 @@
             <span class="full-day-day-number">DAY ${index + 1}</span>
             <div class="full-day-title">
               <strong>${escapeHtml(formatDate(date, { weekday: true }))}</strong>
-              ${location ? `<span class="full-day-location">📍 ${escapeHtml(location)}</span>` : ""}
+              ${areaProgress ? `<span class="full-day-area-progress">${escapeHtml(areaProgress.area)} • DAY ${areaProgress.day} OF ${areaProgress.total}</span>` : (location ? `<span class="full-day-location">📍 ${escapeHtml(location)}</span>` : "")}
               <p class="full-day-headline">${escapeHtml(headline)}</p>
             </div>
           </div>
@@ -1595,7 +1629,10 @@
     const timelineNotes = (state.trip.timelineNotes || []).filter((x) => x.date === selectedItineraryDate);
     const entries = timelineEntriesForDate(selectedItineraryDate);
 
-    el("itineraryDayLabel").textContent = `DAY ${dayIndex + 1} OF ${dates.length}`;
+    const selectedAreaProgress = areaDayProgress(selectedItineraryDate);
+    el("itineraryDayLabel").textContent = selectedAreaProgress
+      ? `DAY ${dayIndex + 1} OF ${dates.length} • ${selectedAreaProgress.area.toUpperCase()} DAY ${selectedAreaProgress.day} OF ${selectedAreaProgress.total}`
+      : `DAY ${dayIndex + 1} OF ${dates.length}`;
     el("itineraryDateTitle").textContent = formatDate(selectedItineraryDate, { weekday: true });
     el("itineraryHeadline").textContent = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
     el("itineraryLocation").textContent = meta.location || "";
