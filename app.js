@@ -2827,21 +2827,6 @@
     saveState();
   }
 
-  async function loadImageElement(file) {
-    const objectUrl = URL.createObjectURL(file);
-    try {
-      const image = new Image();
-      image.decoding = "async";
-      await new Promise((resolve, reject) => {
-        image.onload = resolve;
-        image.onerror = () => reject(new Error("The selected image could not be opened."));
-        image.src = objectUrl;
-      });
-      return image;
-    } finally {
-      // Revoked by the caller after drawing; Safari can otherwise release it too early.
-    }
-  }
 
   async function prepareTripLocationHeaderImage(file) {
     if (!(file instanceof File) || !String(file.type || "").startsWith("image/")) {
@@ -2978,19 +2963,44 @@
     const entries = tripLocationColourEntries();
     root.innerHTML = entries.length
       ? entries.map((entry) => `
-          <div class="location-colour-row">
-            <div class="location-colour-name">
-              <span class="location-colour-preview" style="background:${escapeHtml(entry.color)}"></span>
-              <strong>${escapeHtml(entry.location)}</strong>
+          <div class="location-style-row" data-location-style-row>
+            <div class="location-header-image-preview" style="background:${escapeHtml(entry.color)}">
+              ${entry.imageUrl
+                ? `<img alt="" loading="lazy" src="${escapeHtml(entry.imageUrl)}"/>`
+                : '<span>Image optional</span>'}
             </div>
-            <input
-              aria-label="Header colour for ${escapeHtml(entry.location)}"
-              data-location-colour-name="${escapeHtml(entry.location)}"
-              type="color"
-              value="${escapeHtml(entry.color)}"
-            />
+            <div class="location-style-main">
+              <div class="location-colour-row">
+                <div class="location-colour-name">
+                  <span class="location-colour-preview" style="background:${escapeHtml(entry.color)}"></span>
+                  <strong>${escapeHtml(entry.location)}</strong>
+                </div>
+                <input
+                  aria-label="Header colour for ${escapeHtml(entry.location)}"
+                  data-location-colour-name="${escapeHtml(entry.location)}"
+                  type="color"
+                  value="${escapeHtml(entry.color)}"
+                />
+              </div>
+              <div class="location-image-actions">
+                <button
+                  class="secondary-btn location-image-choose"
+                  data-location-image-location="${escapeHtml(entry.location)}"
+                  type="button"
+                >${entry.imageUrl ? "Change image" : "Choose image"}</button>
+                ${entry.imageUrl
+                  ? `<button class="text-btn location-image-remove" data-location-image-location="${escapeHtml(entry.location)}" type="button">Remove image</button>`
+                  : ""}
+                <input
+                  accept="image/*"
+                  class="hidden"
+                  data-location-image-input="${escapeHtml(entry.location)}"
+                  type="file"
+                />
+              </div>
+            </div>
           </div>`).join("")
-      : '<p class="expense-empty">Save your day locations first, then their header colours will appear here.</p>';
+      : '<p class="expense-empty">Save your day locations first, then their header colours and images will appear here.</p>';
 
     root.querySelectorAll("[data-location-colour-name]").forEach((input) => {
       input.addEventListener("change", () => {
@@ -3015,6 +3025,31 @@
         saveState();
         renderTripLocationColourSettings();
         renderItinerary();
+      });
+    });
+
+    root.querySelectorAll(".location-image-choose").forEach((button) => {
+      button.addEventListener("click", () => {
+        const row = button.closest("[data-location-style-row]");
+        row?.querySelector("[data-location-image-input]")?.click();
+      });
+    });
+
+    root.querySelectorAll("[data-location-image-input]").forEach((input) => {
+      input.addEventListener("change", async () => {
+        const location = String(input.dataset.locationImageInput || "").trim();
+        const file = input.files?.[0];
+        if (!location || !file) return;
+        input.value = "";
+        await uploadTripLocationHeaderImage(location, file);
+      });
+    });
+
+    root.querySelectorAll(".location-image-remove").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const location = String(button.dataset.locationImageLocation || "").trim();
+        if (!location) return;
+        await removeTripLocationHeaderImage(location);
       });
     });
   }
@@ -3070,8 +3105,15 @@
   function saveTripDayLocationsSettings() {
     if (!state.trip) return;
 
+    const existingEntries = tripLocationColourEntries();
     const existingColours = new Map(
-      tripLocationColourEntries().map((entry) => [entry.key, entry.color])
+      existingEntries.map((entry) => [entry.key, entry.color])
+    );
+    const existingImages = new Map(
+      existingEntries.map((entry) => [entry.key, {
+        url: entry.imageUrl || "",
+        path: entry.imagePath || ""
+      }])
     );
     const stamp = Date.now();
     let configured = 0;
@@ -3092,12 +3134,27 @@
           ? currentMeta.tripLocationColor
           : (existingColours.get(key) || defaultTripLocationColor(location));
 
+        const inheritedImage = existingImages.get(key) || { url: "", path: "" };
+
         currentMeta.tripLocation = location;
         currentMeta.tripLocationColor = color;
+
+        if (!currentSameLocation) {
+          if (inheritedImage.url) {
+            currentMeta.tripLocationHeaderImageUrl = inheritedImage.url;
+            currentMeta.tripLocationHeaderImagePath = inheritedImage.path;
+          } else {
+            delete currentMeta.tripLocationHeaderImageUrl;
+            delete currentMeta.tripLocationHeaderImagePath;
+          }
+        }
+
         configured += 1;
       } else {
         delete currentMeta.tripLocation;
         delete currentMeta.tripLocationColor;
+        delete currentMeta.tripLocationHeaderImageUrl;
+        delete currentMeta.tripLocationHeaderImagePath;
       }
 
       currentMeta.updatedAt = stamp;
