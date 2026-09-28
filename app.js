@@ -1769,11 +1769,17 @@
       const key = location ? location.toLocaleLowerCase() : "__unset__";
 
       if (!current || current.key !== key) {
+        const headerImage = location
+          ? tripLocationHeaderImage(location)
+          : { url: "", path: "" };
+
         current = {
           id: `location-${date}`,
           key,
           location: displayLocation,
           color: location ? tripDayLocationColor(date) : "#64748b",
+          imageUrl: headerImage.url,
+          imagePath: headerImage.path,
           startIndex: index,
           endIndex: index,
           dates: []
@@ -1831,17 +1837,21 @@
     const dateLabel = firstDate === lastDate
       ? formatDate(firstDate, { weekday: false })
       : `${formatDate(firstDate, { weekday: false, year: false })} – ${formatDate(lastDate, { weekday: false })}`;
-    const textColor = tripLocationTextColor(group.color);
+    const hasImage = Boolean(String(group.imageUrl || "").trim());
+    const textColor = hasImage ? "#ffffff" : tripLocationTextColor(group.color);
 
     return `
       <section class="full-location-group" data-location-group="${escapeHtml(group.id)}">
         <button
           aria-expanded="${collapsed ? "false" : "true"}"
-          class="full-location-group-toggle"
+          class="full-location-group-toggle ${hasImage ? "has-image" : ""}"
           data-location-group-toggle="${escapeHtml(group.id)}"
           style="background:${escapeHtml(group.color)};color:${escapeHtml(textColor)}"
           type="button"
         >
+          ${hasImage
+            ? `<img alt="" class="full-location-group-image" loading="lazy" src="${escapeHtml(group.imageUrl)}"/><span class="full-location-group-image-shade"></span>`
+            : ""}
           <span class="full-location-group-copy">
             <strong>${escapeHtml(group.location)}</strong>
             <small>${escapeHtml(dayLabel)} • ${escapeHtml(dateLabel)}</small>
