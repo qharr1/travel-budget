@@ -3696,3 +3696,130 @@ html[data-theme="dark"] .full-day-card {
     white-space: normal;
   }
 }
+
+
+/* v40 — explicit trip locations and high-contrast area counters */
+.full-day-area-progress {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 7px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 0 rgba(15,23,42,.08);
+  font-size: .74rem;
+  font-weight: 900;
+  letter-spacing: .025em;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.itinerary-area-progress {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px 0 5px;
+  padding: 7px 10px;
+  border: 1px solid #99f6e4;
+  border-radius: 10px;
+  background: #ccfbf1;
+  color: #134e4a;
+  font-size: .8rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.day-location-settings-note {
+  display: grid;
+  gap: 3px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.day-location-settings-note strong {
+  font-size: .82rem;
+}
+.day-location-settings-note span {
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.settings-day-location-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.settings-day-location-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.settings-day-location-row:last-child {
+  border-bottom: 0;
+}
+.settings-day-location-date strong,
+.settings-day-location-date span {
+  display: block;
+}
+.settings-day-location-date strong {
+  font-size: .8rem;
+}
+.settings-day-location-date span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .67rem;
+  line-height: 1.3;
+}
+.settings-day-location-input-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+}
+.settings-day-location-input-wrap input {
+  min-width: 0;
+}
+.settings-day-location-copy {
+  white-space: nowrap;
+  padding: 5px 3px;
+  font-size: .68rem;
+}
+.settings-day-location-actions {
+  margin-top: 14px;
+}
+
+html[data-theme="dark"] .full-day-area-progress {
+  background: #f8fafc;
+  color: #0f172a;
+}
+html[data-theme="dark"] .itinerary-area-progress {
+  border-color: #115e59;
+  background: #0f3f3a;
+  color: #ccfbf1;
+}
+
+@media (max-width: 520px) {
+  .settings-day-location-row {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 8px;
+  }
+  .settings-day-location-input-wrap {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .settings-day-location-copy {
+    justify-self: start;
+  }
+  .full-day-area-progress {
+    font-size: .72rem;
+  }
+}
