@@ -1,13 +1,13 @@
-const CACHE_NAME = "travel-planner-v40";
+const CACHE_NAME = "travel-planner-v41";
 
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=40",
-  "./app.js?v=40",
-  "./family-sync.js?v=40",
-  "./trip-map.js?v=40",
-  "./manifest.webmanifest?v=40",
+  "./styles.css?v=41",
+  "./app.js?v=41",
+  "./family-sync.js?v=41",
+  "./trip-map.js?v=41",
+  "./manifest.webmanifest?v=41",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
