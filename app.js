@@ -1645,7 +1645,7 @@
       : "";
     el("itineraryDateTitle").textContent = formatDate(selectedItineraryDate, { weekday: true });
     el("itineraryHeadline").textContent = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
-    el("itineraryLocation").textContent = tripDayLocation(selectedItineraryDate);
+    el("itineraryLocation").textContent = selectedAreaProgress ? "" : tripDayLocation(selectedItineraryDate);
     el("overnightBanner").classList.toggle("hidden", !meta.overnight);
     el("overnightBanner").textContent = meta.overnight ? `Overnight: ${meta.overnight}` : "";
     el("dayNotesBanner").classList.toggle("hidden", !meta.notes);
@@ -6112,6 +6112,9 @@
     const preservedDayNotes = sameTrip
       ? JSON.parse(JSON.stringify(currentTrip.dayNotes || {}))
       : {};
+    const preservedDayLocations = sameTrip
+      ? JSON.parse(JSON.stringify(currentTrip.dayLocations || {}))
+      : {};
 
     if (!sameTrip) {
       state = blankState();
@@ -6168,7 +6171,7 @@
       : {};
     state.trip.dayLocations = shared.dayLocations && typeof shared.dayLocations === "object"
       ? Object.fromEntries(Object.entries(shared.dayLocations).map(([date, location]) => [date, String(location || "").trim()]))
-      : {};
+      : preservedDayLocations;
 
     // Journal notes remain device-local in v23.
     state.trip.dayNotes = preservedDayNotes;
