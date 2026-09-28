@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 41;
+  const APP_VERSION = 42;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -469,10 +469,48 @@
         : Number(raw.budget.day1HardLimit),
       destinations: Array.isArray(raw?.budget?.destinations) ? raw.budget.destinations.map(normalizeDestination) : []
     };
-    trip.dayMeta = raw?.dayMeta && typeof raw.dayMeta === "object" ? raw.dayMeta : {};
-    trip.dayLocations = raw?.dayLocations && typeof raw.dayLocations === "object"
+    const rawDayMeta = raw?.dayMeta && typeof raw.dayMeta === "object" ? raw.dayMeta : {};
+    const legacyDayLocations = raw?.dayLocations && typeof raw.dayLocations === "object"
       ? Object.fromEntries(Object.entries(raw.dayLocations).map(([date, location]) => [date, String(location || "").trim()]))
       : {};
+
+    trip.dayMeta = Object.fromEntries(
+      Object.entries(rawDayMeta).map(([date, value]) => {
+        const meta = value && typeof value === "object" ? { ...value } : {};
+        const migratedLocation = String(
+          meta.tripLocation ||
+          legacyDayLocations[date] ||
+          meta.location ||
+          ""
+        ).trim();
+
+        if (migratedLocation) {
+          meta.tripLocation = migratedLocation;
+          meta.tripLocationColor = validTripLocationColor(meta.tripLocationColor)
+            ? meta.tripLocationColor
+            : defaultTripLocationColor(migratedLocation);
+        }
+
+        meta.updatedAt = Number(meta.updatedAt || raw?.updatedAt || Date.now());
+        return [date, meta];
+      })
+    );
+
+    for (const [date, location] of Object.entries(legacyDayLocations)) {
+      if (!location) continue;
+      const meta = trip.dayMeta[date] && typeof trip.dayMeta[date] === "object"
+        ? { ...trip.dayMeta[date] }
+        : {};
+      if (!String(meta.tripLocation || "").trim()) {
+        meta.tripLocation = location;
+        meta.tripLocationColor = defaultTripLocationColor(location);
+        meta.updatedAt = Number(meta.updatedAt || raw?.updatedAt || Date.now());
+        trip.dayMeta[date] = meta;
+      }
+    }
+
+    // Kept only for migration compatibility with v40; v42 reads day locations from dayMeta.
+    trip.dayLocations = legacyDayLocations;
     trip.itinerary = Array.isArray(raw?.itinerary) ? raw.itinerary.map(normalizeItineraryItem) : [];
     trip.travellerProfiles = Array.isArray(raw?.travellerProfiles) ? raw.travellerProfiles.map(normalizeTravellerProfile) : [];
     trip.preTripTasks = Array.isArray(raw?.preTripTasks) ? raw.preTripTasks.map(normalizePreTripTask) : [];
@@ -1618,8 +1656,48 @@
     });
   }
 
+  function validTripLocationColor(value) {
+    return /^#[0-9a-f]{6}$/i.test(String(value || "").trim());
+  }
+
+  function defaultTripLocationColor(location) {
+    const palette = [
+      "#0f766e",
+      "#2563eb",
+      "#7c3aed",
+      "#db2777",
+      "#d97706",
+      "#0891b2",
+      "#16a34a",
+      "#b45309"
+    ];
+    const text = String(location || "Trip").trim().toLocaleLowerCase();
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) {
+      hash = ((hash << 5) - hash + text.charCodeAt(i)) | 0;
+    }
+    return palette[Math.abs(hash) % palette.length];
+  }
+
+  function tripLocationTextColor(color) {
+    const hex = validTripLocationColor(color) ? color.slice(1) : "0f766e";
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.62 ? "#0f172a" : "#ffffff";
+  }
+
   function tripDayLocation(date) {
-    return String(state.trip?.dayLocations?.[date] || "").trim();
+    return String(state.trip?.dayMeta?.[date]?.tripLocation || "").trim();
+  }
+
+  function tripDayLocationColor(date) {
+    const location = tripDayLocation(date);
+    const saved = state.trip?.dayMeta?.[date]?.tripLocationColor;
+    return validTripLocationColor(saved)
+      ? saved
+      : defaultTripLocationColor(location || date);
   }
 
   function areaDayProgress(date) {
