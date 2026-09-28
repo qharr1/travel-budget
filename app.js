@@ -1733,17 +1733,71 @@
     };
   }
 
-  function fullDayMarkup(date, index) {
+  function fullTripCollapsedStorageKey() {
+    return `travelPlanner.fullTripCollapsed.v1.${state.trip?.id || "trip"}`;
+  }
+
+  function readCollapsedFullTripGroups() {
+    try {
+      const raw = localStorage.getItem(fullTripCollapsedStorageKey());
+      const parsed = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  function writeCollapsedFullTripGroups(groups) {
+    try {
+      localStorage.setItem(fullTripCollapsedStorageKey(), JSON.stringify([...groups]));
+    } catch {}
+  }
+
+  function fullTripLocationGroups() {
+    const dates = tripDates();
+    const groups = [];
+    let current = null;
+
+    dates.forEach((date, index) => {
+      const location = tripDayLocation(date);
+      const displayLocation = location || "Location not set";
+      const key = location ? location.toLocaleLowerCase() : "__unset__";
+
+      if (!current || current.key !== key) {
+        current = {
+          id: `location-${date}`,
+          key,
+          location: displayLocation,
+          color: location ? tripDayLocationColor(date) : "#64748b",
+          startIndex: index,
+          endIndex: index,
+          dates: []
+        };
+        groups.push(current);
+      }
+
+      current.dates.push(date);
+      current.endIndex = index;
+    });
+
+    return groups;
+  }
+
+  function fullDayMarkup(date, index, groupColor = "") {
     const meta = state.trip.dayMeta?.[date] || {};
     const entries = timelineEntriesForDate(date);
     const todayClass = date === todayISO() ? "today-full-day" : "";
     const location = tripDayLocation(date);
     const headline = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
     const areaProgress = areaDayProgress(date);
+    const headerColor = validTripLocationColor(groupColor)
+      ? groupColor
+      : tripDayLocationColor(date);
+    const headerText = tripLocationTextColor(headerColor);
 
     return `
       <article class="full-day-card ${todayClass}" data-day-number="${index + 1}">
-        <div class="full-day-header">
+        <div class="full-day-header" style="background:${escapeHtml(headerColor)};color:${escapeHtml(headerText)}">
           <div class="full-day-day-block">
             <span class="full-day-day-number">DAY ${index + 1}</span>
             <div class="full-day-title">
@@ -1752,7 +1806,7 @@
               <p class="full-day-headline">${escapeHtml(headline)}</p>
             </div>
           </div>
-          <button class="full-day-open" type="button" data-date="${date}">Open</button>
+          <button class="full-day-open" style="color:${escapeHtml(headerText)}" type="button" data-date="${date}">Open</button>
         </div>
         <div class="full-day-body">
           ${meta.overnight ? `<p class="full-day-overnight">🏨 Overnight: ${escapeHtml(meta.overnight)}</p>` : ""}
@@ -1761,11 +1815,71 @@
       </article>`;
   }
 
+  function fullTripLocationGroupMarkup(group, collapsed) {
+    const startDay = group.startIndex + 1;
+    const endDay = group.endIndex + 1;
+    const dayLabel = startDay === endDay
+      ? `Day ${startDay}`
+      : `Days ${startDay}–${endDay}`;
+    const firstDate = group.dates[0];
+    const lastDate = group.dates[group.dates.length - 1];
+    const dateLabel = firstDate === lastDate
+      ? formatDate(firstDate, { weekday: false })
+      : `${formatDate(firstDate, { weekday: false, year: false })} – ${formatDate(lastDate, { weekday: false })}`;
+    const textColor = tripLocationTextColor(group.color);
+
+    return `
+      <section class="full-location-group" data-location-group="${escapeHtml(group.id)}">
+        <button
+          aria-expanded="${collapsed ? "false" : "true"}"
+          class="full-location-group-toggle"
+          data-location-group-toggle="${escapeHtml(group.id)}"
+          style="background:${escapeHtml(group.color)};color:${escapeHtml(textColor)}"
+          type="button"
+        >
+          <span class="full-location-group-copy">
+            <strong>${escapeHtml(group.location)}</strong>
+            <small>${escapeHtml(dayLabel)} • ${escapeHtml(dateLabel)}</small>
+          </span>
+          <span class="full-location-group-count">${group.dates.length} day${group.dates.length === 1 ? "" : "s"}</span>
+          <span aria-hidden="true" class="full-location-group-chevron">${collapsed ? "▾" : "▴"}</span>
+        </button>
+        <div class="full-location-group-days ${collapsed ? "hidden" : ""}" data-location-group-days="${escapeHtml(group.id)}">
+          ${group.dates.map((date, offset) => fullDayMarkup(date, group.startIndex + offset, group.color)).join("")}
+        </div>
+      </section>`;
+  }
+
   function renderFullItinerary() {
     if (!state.trip) return;
     const dates = tripDates();
-    el("fullItineraryCount").textContent = `${dates.length} days`;
-    el("fullItineraryList").innerHTML = dates.map(fullDayMarkup).join("");
+    const groups = fullTripLocationGroups();
+    const collapsedGroups = readCollapsedFullTripGroups();
+
+    el("fullItineraryCount").textContent = `${dates.length} days • ${groups.length} location${groups.length === 1 ? "" : "s"}`;
+    el("fullItineraryList").innerHTML = groups
+      .map((group) => fullTripLocationGroupMarkup(group, collapsedGroups.has(group.id)))
+      .join("");
+
+    el("fullItineraryList").querySelectorAll("[data-location-group-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const groupId = String(button.dataset.locationGroupToggle || "");
+        const body = el("fullItineraryList").querySelector(`[data-location-group-days="${CSS.escape(groupId)}"]`);
+        if (!groupId || !body) return;
+
+        const collapsed = !body.classList.contains("hidden");
+        body.classList.toggle("hidden", collapsed);
+        button.setAttribute("aria-expanded", String(!collapsed));
+
+        const chevron = button.querySelector(".full-location-group-chevron");
+        if (chevron) chevron.textContent = collapsed ? "▾" : "▴";
+
+        const next = readCollapsedFullTripGroups();
+        if (collapsed) next.add(groupId);
+        else next.delete(groupId);
+        writeCollapsedFullTripGroups(next);
+      });
+    });
 
     el("fullItineraryList").querySelectorAll(".full-day-open").forEach((button) => {
       button.addEventListener("click", () => {
