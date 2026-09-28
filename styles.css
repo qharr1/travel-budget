@@ -3490,3 +3490,176 @@ html[data-theme="dark"] .flight-route-hint { color: #93c5fd; }
     font-size: .74rem;
   }
 }
+
+
+/* v38 — stronger visual separation between days in Full Trip */
+.full-itinerary-list {
+  gap: 30px;
+  padding-top: 4px;
+}
+
+.full-day-card {
+  position: relative;
+  overflow: visible;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .09);
+}
+
+.full-day-card + .full-day-card {
+  margin-top: 6px;
+}
+
+.full-day-card + .full-day-card::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: -19px;
+  height: 1px;
+  background: var(--line);
+}
+
+.full-day-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 15px 14px;
+  border: 0;
+  border-radius: 17px 17px 0 0;
+  background: var(--accent);
+  color: #fff;
+}
+
+.full-day-day-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.full-day-day-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 62px;
+  min-height: 54px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255,255,255,.42);
+  border-radius: 13px;
+  background: rgba(255,255,255,.16);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.full-day-title {
+  min-width: 0;
+}
+
+.full-day-title strong {
+  display: block;
+  color: #fff;
+  font-size: 1.02rem;
+  line-height: 1.24;
+  letter-spacing: -.015em;
+}
+
+.full-day-title .full-day-location {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255,255,255,.9);
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.full-day-headline {
+  margin: 5px 0 0;
+  color: rgba(255,255,255,.88);
+  font-size: .78rem;
+  font-weight: 650;
+}
+
+.full-day-open {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255,255,255,.38);
+  border-radius: 10px;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 850;
+}
+
+.full-day-open:active {
+  background: rgba(255,255,255,.25);
+}
+
+.full-day-body {
+  padding: 14px;
+  border-radius: 0 0 18px 18px;
+  background: var(--surface);
+}
+
+.full-day-card.today-full-day .full-day-header {
+  box-shadow: inset 5px 0 0 #fde047;
+}
+
+.full-day-card.today-full-day .full-day-day-number::after {
+  content: "TODAY";
+  display: block;
+  margin-top: 4px;
+  font-size: .55rem;
+  letter-spacing: .1em;
+  opacity: .9;
+}
+
+.full-day-overnight {
+  margin: 0 0 11px;
+}
+
+@media (max-width: 520px) {
+  .full-itinerary-list {
+    gap: 28px;
+  }
+
+  .full-day-header {
+    padding: 13px 12px;
+  }
+
+  .full-day-day-block {
+    gap: 9px;
+  }
+
+  .full-day-day-number {
+    min-width: 55px;
+    min-height: 50px;
+    padding: 6px;
+    font-size: .72rem;
+  }
+
+  .full-day-title strong {
+    font-size: .93rem;
+  }
+
+  .full-day-open {
+    min-width: 52px;
+    padding: 6px 8px;
+  }
+
+  .full-day-card + .full-day-card::before {
+    left: 12%;
+    right: 12%;
+  }
+}
+
+html[data-theme="dark"] .full-day-card {
+  background: var(--surface);
+  box-shadow: 0 10px 26px rgba(0,0,0,.24);
+}
