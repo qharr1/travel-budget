@@ -3,7 +3,38 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 43;
+  const APP_VERSION = 44;
+
+  const LOCATION_HEADER_IMAGE_PRESETS = Object.freeze({
+    shanghai: {
+      label: "Shanghai",
+      url: "https://images.unsplash.com/photo-1548919973-5cef591cdbc9?auto=format&fit=crop&fm=jpg&q=72&w=1600"
+    },
+    tokyo: {
+      label: "Tokyo",
+      url: "https://images.unsplash.com/photo-1591194233688-dca69d406068?auto=format&fit=crop&fm=jpg&q=72&w=1600"
+    },
+    osaka: {
+      label: "Osaka",
+      url: "https://images.unsplash.com/photo-1786384454355-76a110b43271?auto=format&fit=crop&fm=jpg&q=72&w=1600"
+    },
+    kyoto: {
+      label: "Kyoto",
+      url: "https://images.unsplash.com/photo-1778526393713-c002b75827f0?auto=format&fit=crop&fm=jpg&q=72&w=1600"
+    },
+    nara: {
+      label: "Nara",
+      url: "https://images.unsplash.com/photo-1786111560399-349f513c96b9?auto=format&fit=crop&fm=jpg&q=72&w=1600"
+    }
+  });
+
+  const LOCATION_HEADER_IMAGE_ORDER = Object.freeze([
+    "shanghai",
+    "tokyo",
+    "osaka",
+    "kyoto",
+    "nara"
+  ]);
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -2791,43 +2822,143 @@
     }).join("");
   }
 
+  function locationHeaderImagePreset(id) {
+    const key = String(id || "").trim().toLocaleLowerCase();
+    return LOCATION_HEADER_IMAGE_PRESETS[key] || null;
+  }
+
+  function defaultTripLocationHeaderPreset(location) {
+    const key = String(location || "").trim().toLocaleLowerCase();
+    if (!key) return "";
+
+    if (key.includes("shanghai") || key.includes("pudong")) return "shanghai";
+    if (key.includes("tokyo") || key.includes("shibuya") || key.includes("shinjuku")) return "tokyo";
+    if (
+      key.includes("osaka") ||
+      key.includes("shinsaibashi") ||
+      key.includes("dotonbori") ||
+      key.includes("kansai")
+    ) return "osaka";
+    if (key.includes("kyoto")) return "kyoto";
+    if (key.includes("nara")) return "nara";
+    if (key.includes("china")) return "shanghai";
+    if (key.includes("japan")) return "tokyo";
+
+    return "";
+  }
+
   function tripLocationHeaderImage(location) {
     const key = String(location || "").trim().toLocaleLowerCase();
-    if (!key || !state.trip) return { url: "", path: "" };
+    if (!key || !state.trip) {
+      return {
+        url: "",
+        path: "",
+        preset: "",
+        resolvedPreset: "",
+        automatic: false,
+        label: ""
+      };
+    }
+
+    let legacyImage = null;
 
     for (const date of tripDates()) {
       if (tripDayLocation(date).toLocaleLowerCase() !== key) continue;
       const meta = state.trip.dayMeta?.[date] || {};
-      const url = String(meta.tripLocationHeaderImageUrl || "").trim();
-      const path = String(meta.tripLocationHeaderImagePath || "").trim();
-      if (url) return { url, path };
+      const selectedPreset = String(meta.tripLocationHeaderImagePreset || "")
+        .trim()
+        .toLocaleLowerCase();
+
+      if (selectedPreset === "none") {
+        return {
+          url: "",
+          path: "",
+          preset: "none",
+          resolvedPreset: "",
+          automatic: false,
+          label: "Colour only"
+        };
+      }
+
+      const explicit = locationHeaderImagePreset(selectedPreset);
+      if (explicit) {
+        return {
+          url: explicit.url,
+          path: "",
+          preset: selectedPreset,
+          resolvedPreset: selectedPreset,
+          automatic: false,
+          label: explicit.label
+        };
+      }
+
+      if (!legacyImage) {
+        const legacyUrl = String(meta.tripLocationHeaderImageUrl || "").trim();
+        if (legacyUrl) {
+          legacyImage = {
+            url: legacyUrl,
+            path: String(meta.tripLocationHeaderImagePath || "").trim(),
+            preset: "legacy",
+            resolvedPreset: "legacy",
+            automatic: false,
+            label: "Legacy uploaded image"
+          };
+        }
+      }
     }
 
-    return { url: "", path: "" };
+    if (legacyImage) return legacyImage;
+
+    const automaticPreset = defaultTripLocationHeaderPreset(location);
+    const automatic = locationHeaderImagePreset(automaticPreset);
+
+    if (automatic) {
+      return {
+        url: automatic.url,
+        path: "",
+        preset: "",
+        resolvedPreset: automaticPreset,
+        automatic: true,
+        label: automatic.label
+      };
+    }
+
+    return {
+      url: "",
+      path: "",
+      preset: "",
+      resolvedPreset: "",
+      automatic: true,
+      label: ""
+    };
   }
 
-  function applyTripLocationHeaderImage(location, image = {}) {
+  function applyTripLocationHeaderImagePreset(location, presetId = "") {
     if (!state.trip) return;
+
     const key = String(location || "").trim().toLocaleLowerCase();
     if (!key) return;
 
-    const url = String(image.url || "").trim();
-    const path = String(image.path || "").trim();
+    const rawPreset = String(presetId || "").trim().toLocaleLowerCase();
+    const selectedPreset =
+      rawPreset === "none" || locationHeaderImagePreset(rawPreset)
+        ? rawPreset
+        : "";
     const stamp = Date.now();
 
     for (const date of tripDates()) {
       if (tripDayLocation(date).toLocaleLowerCase() !== key) continue;
+
       const meta = state.trip.dayMeta?.[date] && typeof state.trip.dayMeta[date] === "object"
         ? { ...state.trip.dayMeta[date] }
         : {};
 
-      if (url) {
-        meta.tripLocationHeaderImageUrl = url;
-        meta.tripLocationHeaderImagePath = path;
-      } else {
-        delete meta.tripLocationHeaderImageUrl;
-        delete meta.tripLocationHeaderImagePath;
-      }
+      if (selectedPreset) meta.tripLocationHeaderImagePreset = selectedPreset;
+      else delete meta.tripLocationHeaderImagePreset;
+
+      // v44: uploaded Firebase Storage images are no longer used.
+      delete meta.tripLocationHeaderImageUrl;
+      delete meta.tripLocationHeaderImagePath;
 
       meta.updatedAt = stamp;
       state.trip.dayMeta[date] = meta;
@@ -2835,110 +2966,6 @@
 
     state.trip.updatedAt = stamp;
     saveState();
-  }
-
-
-  async function prepareTripLocationHeaderImage(file) {
-    if (!(file instanceof File) || !String(file.type || "").startsWith("image/")) {
-      throw new Error("Choose an image file.");
-    }
-    if (file.size > 25 * 1024 * 1024) {
-      throw new Error("That photo is too large. Choose an image under 25 MB.");
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    try {
-      const image = new Image();
-      image.decoding = "async";
-      await new Promise((resolve, reject) => {
-        image.onload = resolve;
-        image.onerror = () => reject(new Error("The selected image could not be opened."));
-        image.src = objectUrl;
-      });
-
-      const width = 1600;
-      const height = 500;
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext("2d", { alpha: false });
-      if (!ctx) throw new Error("This browser could not prepare the image.");
-
-      const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
-      const drawWidth = image.naturalWidth * scale;
-      const drawHeight = image.naturalHeight * scale;
-      const x = (width - drawWidth) / 2;
-      const y = (height - drawHeight) / 2;
-
-      ctx.drawImage(image, x, y, drawWidth, drawHeight);
-
-      const toBlob = (type, quality) => new Promise((resolve) => {
-        canvas.toBlob(resolve, type, quality);
-      });
-
-      let blob = await toBlob("image/webp", 0.8);
-      if (!blob) blob = await toBlob("image/jpeg", 0.82);
-      if (!blob) throw new Error("The image could not be compressed.");
-
-      return blob;
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
-  }
-
-  async function uploadTripLocationHeaderImage(location, file) {
-    const status = el("settingsLocationImagesMessage");
-    const family = window.FamilySync;
-
-    if (!family?.isConnected?.()) {
-      if (status) status.textContent = "Turn on Family Sync first so the header image can be shared across devices.";
-      return;
-    }
-
-    try {
-      if (status) status.textContent = `Preparing ${location} header image…`;
-      const blob = await prepareTripLocationHeaderImage(file);
-
-      if (status) {
-        const kb = Math.max(1, Math.round(blob.size / 1024));
-        status.textContent = `Uploading compressed banner (${kb} KB)…`;
-      }
-
-      const existing = tripLocationHeaderImage(location);
-      const uploaded = await family.uploadLocationHeaderImage(blob, location);
-
-      applyTripLocationHeaderImage(location, uploaded);
-      renderTripLocationColourSettings();
-      renderItinerary();
-
-      if (status) status.textContent = `${location} header image saved and queued for Family Sync.`;
-
-      if (existing.path && existing.path !== uploaded.path) {
-        family.deleteLocationHeaderImage?.(existing.path);
-      }
-    } catch (error) {
-      if (status) status.textContent = `Could not save header image: ${error.message}`;
-    }
-  }
-
-  async function removeTripLocationHeaderImage(location) {
-    const existing = tripLocationHeaderImage(location);
-    if (!existing.url) return;
-
-    const ok = window.confirm(`Remove the synced header image for ${location}?`);
-    if (!ok) return;
-
-    applyTripLocationHeaderImage(location, {});
-    renderTripLocationColourSettings();
-    renderItinerary();
-
-    const status = el("settingsLocationImagesMessage");
-    if (status) status.textContent = `${location} header image removed and queued for Family Sync.`;
-
-    if (existing.path) {
-      window.FamilySync?.deleteLocationHeaderImage?.(existing.path);
-    }
   }
 
   function tripLocationColourEntries() {
@@ -2959,7 +2986,11 @@
         location,
         color: tripDayLocationColor(date),
         imageUrl: image.url,
-        imagePath: image.path
+        imagePath: image.path,
+        imagePreset: image.preset,
+        imageResolvedPreset: image.resolvedPreset,
+        imageAutomatic: image.automatic,
+        imageLabel: image.label
       });
     }
 
@@ -2972,12 +3003,27 @@
 
     const entries = tripLocationColourEntries();
     root.innerHTML = entries.length
-      ? entries.map((entry) => `
+      ? entries.map((entry) => {
+          const automaticLabel = entry.imageResolvedPreset && entry.imagePreset !== "legacy"
+            ? `Automatic — ${locationHeaderImagePreset(entry.imageResolvedPreset)?.label || entry.location}`
+            : "Automatic — no matching preset";
+          const selectedValue = entry.imagePreset === "legacy" ? "legacy" : entry.imagePreset;
+          const sourceText = entry.imagePreset === "none"
+            ? "Colour only"
+            : entry.imagePreset === "legacy"
+              ? "Legacy uploaded image"
+              : entry.imageAutomatic && entry.imageLabel
+                ? `Automatic preset: ${entry.imageLabel}`
+                : entry.imageLabel
+                  ? `Preset: ${entry.imageLabel}`
+                  : "No automatic image for this location";
+
+          return `
           <div class="location-style-row" data-location-style-row>
             <div class="location-header-image-preview" style="background:${escapeHtml(entry.color)}">
               ${entry.imageUrl
-                ? `<img alt="" loading="lazy" src="${escapeHtml(entry.imageUrl)}"/>`
-                : '<span>Image optional</span>'}
+                ? `<img alt="${escapeHtml(entry.location)} banner preview" loading="lazy" src="${escapeHtml(entry.imageUrl)}"/>`
+                : '<span>Colour only</span>'}
             </div>
             <div class="location-style-main">
               <div class="location-colour-row">
@@ -2993,23 +3039,28 @@
                 />
               </div>
               <div class="location-image-actions">
-                <button
-                  class="secondary-btn location-image-choose"
-                  data-location-image-location="${escapeHtml(entry.location)}"
-                  type="button"
-                >${entry.imageUrl ? "Change image" : "Choose image"}</button>
-                ${entry.imageUrl
-                  ? `<button class="text-btn location-image-remove" data-location-image-location="${escapeHtml(entry.location)}" type="button">Remove image</button>`
-                  : ""}
-                <input
-                  accept="image/*"
-                  class="hidden"
-                  data-location-image-input="${escapeHtml(entry.location)}"
-                  type="file"
-                />
+                <label class="location-image-select-label">
+                  <span>Banner image</span>
+                  <select
+                    class="location-image-select"
+                    data-location-image-preset="${escapeHtml(entry.location)}"
+                  >
+                    ${selectedValue === "legacy"
+                      ? '<option value="legacy" selected disabled>Legacy uploaded image</option>'
+                      : ""}
+                    <option value="" ${selectedValue === "" ? "selected" : ""}>${escapeHtml(automaticLabel)}</option>
+                    <option value="none" ${selectedValue === "none" ? "selected" : ""}>Colour only</option>
+                    ${LOCATION_HEADER_IMAGE_ORDER.map((presetId) => {
+                      const preset = locationHeaderImagePreset(presetId);
+                      return `<option value="${escapeHtml(presetId)}" ${selectedValue === presetId ? "selected" : ""}>${escapeHtml(preset.label)}</option>`;
+                    }).join("")}
+                  </select>
+                </label>
+                <small class="location-image-source">${escapeHtml(sourceText)}</small>
               </div>
             </div>
-          </div>`).join("")
+          </div>`;
+        }).join("")
       : '<p class="expense-empty">Save your day locations first, then their header colours and images will appear here.</p>';
 
     root.querySelectorAll("[data-location-colour-name]").forEach((input) => {
@@ -3038,28 +3089,31 @@
       });
     });
 
-    root.querySelectorAll(".location-image-choose").forEach((button) => {
-      button.addEventListener("click", () => {
-        const row = button.closest("[data-location-style-row]");
-        row?.querySelector("[data-location-image-input]")?.click();
-      });
-    });
+    root.querySelectorAll("[data-location-image-preset]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const location = String(select.dataset.locationImagePreset || "").trim();
+        const presetId = String(select.value || "").trim().toLocaleLowerCase();
+        if (!location || presetId === "legacy") return;
 
-    root.querySelectorAll("[data-location-image-input]").forEach((input) => {
-      input.addEventListener("change", async () => {
-        const location = String(input.dataset.locationImageInput || "").trim();
-        const file = input.files?.[0];
-        if (!location || !file) return;
-        input.value = "";
-        await uploadTripLocationHeaderImage(location, file);
-      });
-    });
+        applyTripLocationHeaderImagePreset(location, presetId);
+        renderTripLocationColourSettings();
+        renderItinerary();
 
-    root.querySelectorAll(".location-image-remove").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const location = String(button.dataset.locationImageLocation || "").trim();
-        if (!location) return;
-        await removeTripLocationHeaderImage(location);
+        const status = el("settingsLocationImagesMessage");
+        if (!status) return;
+
+        if (presetId === "none") {
+          status.textContent = `${location} will use the header colour only.`;
+        } else if (!presetId) {
+          const automaticId = defaultTripLocationHeaderPreset(location);
+          const automatic = locationHeaderImagePreset(automaticId);
+          status.textContent = automatic
+            ? `${location} now uses the automatic ${automatic.label} banner.`
+            : `${location} has no automatic banner match, so its header colour will be used.`;
+        } else {
+          const preset = locationHeaderImagePreset(presetId);
+          status.textContent = `${location} now uses the ${preset?.label || "selected"} banner.`;
+        }
       });
     });
   }
@@ -3120,10 +3174,7 @@
       existingEntries.map((entry) => [entry.key, entry.color])
     );
     const existingImages = new Map(
-      existingEntries.map((entry) => [entry.key, {
-        url: entry.imageUrl || "",
-        path: entry.imagePath || ""
-      }])
+      existingEntries.map((entry) => [entry.key, String(entry.imagePreset || "")])
     );
     const stamp = Date.now();
     let configured = 0;
@@ -3144,25 +3195,27 @@
           ? currentMeta.tripLocationColor
           : (existingColours.get(key) || defaultTripLocationColor(location));
 
-        const inheritedImage = existingImages.get(key) || { url: "", path: "" };
+        const inheritedPreset = existingImages.get(key) || "";
 
         currentMeta.tripLocation = location;
         currentMeta.tripLocationColor = color;
 
         if (!currentSameLocation) {
-          if (inheritedImage.url) {
-            currentMeta.tripLocationHeaderImageUrl = inheritedImage.url;
-            currentMeta.tripLocationHeaderImagePath = inheritedImage.path;
+          if (inheritedPreset && inheritedPreset !== "legacy") {
+            currentMeta.tripLocationHeaderImagePreset = inheritedPreset;
           } else {
-            delete currentMeta.tripLocationHeaderImageUrl;
-            delete currentMeta.tripLocationHeaderImagePath;
+            delete currentMeta.tripLocationHeaderImagePreset;
           }
+
+          delete currentMeta.tripLocationHeaderImageUrl;
+          delete currentMeta.tripLocationHeaderImagePath;
         }
 
         configured += 1;
       } else {
         delete currentMeta.tripLocation;
         delete currentMeta.tripLocationColor;
+        delete currentMeta.tripLocationHeaderImagePreset;
         delete currentMeta.tripLocationHeaderImageUrl;
         delete currentMeta.tripLocationHeaderImagePath;
       }

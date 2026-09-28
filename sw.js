@@ -1,14 +1,22 @@
-const CACHE_NAME = "travel-planner-v43";
-const HEADER_IMAGE_CACHE = "tp-location-header-images-v1";
+const CACHE_NAME = "travel-planner-v44";
+const HEADER_IMAGE_CACHE = "tp-location-header-images-v2";
+
+const PRESET_HEADER_IMAGES = [
+  "https://images.unsplash.com/photo-1548919973-5cef591cdbc9?auto=format&fit=crop&fm=jpg&q=72&w=1600",
+  "https://images.unsplash.com/photo-1591194233688-dca69d406068?auto=format&fit=crop&fm=jpg&q=72&w=1600",
+  "https://images.unsplash.com/photo-1786384454355-76a110b43271?auto=format&fit=crop&fm=jpg&q=72&w=1600",
+  "https://images.unsplash.com/photo-1778526393713-c002b75827f0?auto=format&fit=crop&fm=jpg&q=72&w=1600",
+  "https://images.unsplash.com/photo-1786111560399-349f513c96b9?auto=format&fit=crop&fm=jpg&q=72&w=1600"
+];
 
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=43",
-  "./app.js?v=43",
-  "./family-sync.js?v=43",
-  "./trip-map.js?v=43",
-  "./manifest.webmanifest?v=43",
+  "./styles.css?v=44",
+  "./app.js?v=44",
+  "./family-sync.js?v=44",
+  "./trip-map.js?v=44",
+  "./manifest.webmanifest?v=44",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
@@ -20,6 +28,18 @@ self.addEventListener("install", (event) => {
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       await cache.addAll(APP_SHELL);
+
+      const imageCache = await caches.open(HEADER_IMAGE_CACHE);
+      await Promise.all(
+        PRESET_HEADER_IMAGES.map(async (url) => {
+          try {
+            const request = new Request(url, { mode: "no-cors" });
+            const response = await fetch(request);
+            if (response) await imageCache.put(request, response.clone());
+          } catch {}
+        })
+      );
+
       await self.skipWaiting();
     })()
   );
@@ -31,7 +51,10 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((key) => key.startsWith("travel-planner-") && key !== CACHE_NAME)
+          .filter((key) =>
+            (key.startsWith("travel-planner-") && key !== CACHE_NAME) ||
+            (key.startsWith("tp-location-header-images-") && key !== HEADER_IMAGE_CACHE)
+          )
           .map((key) => caches.delete(key))
       );
       await self.clients.claim();
@@ -76,15 +99,11 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(event.request.url);
 
-  const isSyncedHeaderImage =
+  const isPresetHeaderImage =
     event.request.destination === "image" &&
-    (
-      url.hostname === "firebasestorage.googleapis.com" ||
-      url.hostname === "storage.googleapis.com" ||
-      url.hostname.endsWith(".firebasestorage.app")
-    );
+    url.hostname === "images.unsplash.com";
 
-  if (isSyncedHeaderImage) {
+  if (isPresetHeaderImage) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(HEADER_IMAGE_CACHE);
@@ -98,7 +117,7 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         } catch {
-          return new Response("", { status: 504, statusText: "Header image unavailable offline" });
+          return new Response("", { status: 504, statusText: "Preset header image unavailable offline" });
         }
       })()
     );

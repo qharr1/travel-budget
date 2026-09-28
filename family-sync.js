@@ -8,7 +8,6 @@ const FIREBASE_CONFIG = {
   authDomain: "travel-planner-sync.firebaseapp.com",
   databaseURL: "https://travel-planner-sync-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "travel-planner-sync",
-  storageBucket: "travel-planner-sync.firebasestorage.app",
   messagingSenderId: "725050184353",
   appId: "1:725050184353:web:cef8dd2b121324889596e0"
 };
@@ -271,21 +270,18 @@ async function loadFirebase() {
   const appUrl = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`;
   const authUrl = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-auth.js`;
   const dbUrl = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-database.js`;
-  const storageUrl = `https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-storage.js`;
 
-  const [appMod, authMod, dbMod, storageMod] = await Promise.all([
+  const [appMod, authMod, dbMod] = await Promise.all([
     import(appUrl),
     import(authUrl),
-    import(dbUrl),
-    import(storageUrl)
+    import(dbUrl)
   ]);
 
   const app = appMod.initializeApp(FIREBASE_CONFIG);
   const auth = authMod.getAuth(app);
   const db = dbMod.getDatabase(app, FIREBASE_CONFIG.databaseURL);
-  const storage = storageMod.getStorage(app, `gs://${FIREBASE_CONFIG.storageBucket}`);
 
-  firebase = { appMod, authMod, dbMod, storageMod, app, auth, db, storage };
+  firebase = { appMod, authMod, dbMod, app, auth, db };
   return firebase;
 }
 
@@ -799,79 +795,12 @@ async function init() {
   }
 }
 
-function safeStorageSegment(value) {
-  return String(value || "location")
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 70) || "location";
-}
-
-async function uploadLocationHeaderImage(blob, locationName = "location") {
-  const cfg = readConfig();
-  if (!cfg.enabled || !cfg.syncId) {
-    throw new Error("Turn on Family Sync before adding a synced header image.");
-  }
-  if (!navigator.onLine) {
-    throw new Error("You need an internet connection to upload a synced header image.");
-  }
-  if (!(blob instanceof Blob) || blob.size <= 0) {
-    throw new Error("The selected image could not be prepared.");
-  }
-
-  await ensureAuth();
-
-  const ext = blob.type === "image/png"
-    ? "png"
-    : blob.type === "image/jpeg"
-      ? "jpg"
-      : "webp";
-  const path =
-    `familyTrips/${cfg.syncId}/locationHeaders/${safeStorageSegment(locationName)}-${Date.now()}.${ext}`;
-  const storageRef = firebase.storageMod.ref(firebase.storage, path);
-
-  setStatus("syncing", "Uploading location header image…");
-
-  await firebase.storageMod.uploadBytes(storageRef, blob, {
-    contentType: blob.type || "image/webp",
-    cacheControl: "public,max-age=31536000,immutable"
-  });
-
-  const url = await firebase.storageMod.getDownloadURL(storageRef);
-  setStatus("online");
-  return { path, url };
-}
-
-async function deleteLocationHeaderImage(path) {
-  const cfg = readConfig();
-  const cleanPath = String(path || "").trim();
-  if (!cleanPath || !cfg.enabled || !cfg.syncId) return false;
-
-  const requiredPrefix = `familyTrips/${cfg.syncId}/locationHeaders/`;
-  if (!cleanPath.startsWith(requiredPrefix)) return false;
-  if (!navigator.onLine) return false;
-
-  try {
-    await ensureAuth();
-    const storageRef = firebase.storageMod.ref(firebase.storage, cleanPath);
-    await firebase.storageMod.deleteObject(storageRef);
-    return true;
-  } catch (error) {
-    // A missing/old file should not prevent the synced metadata being removed.
-    console.warn("Could not delete old location header image:", error);
-    return false;
-  }
-}
-
 window.FamilySync = {
   localChanged,
   syncNow,
   disconnect,
   renderStatus: () => setStatus(status),
   showOnboarding: showInstalledOnboardingIfNeeded,
-  uploadLocationHeaderImage,
-  deleteLocationHeaderImage,
   isConnected: () => {
     const cfg = readConfig();
     return Boolean(cfg.enabled && cfg.syncId);

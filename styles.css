@@ -4096,7 +4096,7 @@ html[data-theme="dark"] .full-location-group-toggle {
 }
 
 
-/* v43 — synced Full Trip location header images */
+/* v44 — preset Full Trip location header images */
 .location-style-row {
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr);
@@ -4153,15 +4153,39 @@ html[data-theme="dark"] .full-location-group-toggle {
 }
 
 .location-image-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 
-.location-image-actions .secondary-btn {
-  min-height: 34px;
-  padding: 7px 10px;
+.location-image-select-label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: .67rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.location-image-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 34px 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.location-image-source {
+  color: var(--muted);
+  font-size: .65rem;
+  font-weight: 650;
 }
 
 .full-location-group-toggle {
@@ -4222,13 +4246,11 @@ html[data-theme="dark"] .full-location-group-toggle {
   }
 
   .location-image-actions {
-    align-items: flex-start;
-    flex-direction: column;
+    width: 100%;
   }
 
-  .location-image-actions .secondary-btn,
-  .location-image-actions .text-btn {
-    width: fit-content;
+  .location-image-select {
+    font-size: .74rem;
   }
 
   .full-location-group-toggle.has-image {
