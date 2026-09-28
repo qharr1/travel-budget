@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 40;
+  const APP_VERSION = 41;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -48,6 +48,7 @@
       startScreen: "home",
       appearance: "light",
       itineraryDefaultView: "day",
+      itineraryShowLinks: false,
       homeNextCount: 3,
       homeWidgets: {
         budget: true,
@@ -79,6 +80,7 @@
       startScreen: startScreens.includes(raw?.startScreen) ? raw.startScreen : defaults.startScreen,
       appearance: ["system", "light", "dark"].includes(raw?.appearance) ? raw.appearance : defaults.appearance,
       itineraryDefaultView: raw?.itineraryDefaultView === "full" ? "full" : "day",
+      itineraryShowLinks: raw?.itineraryShowLinks === true,
       homeNextCount: [1, 2, 3, 5].includes(Number(raw?.homeNextCount)) ? Number(raw.homeNextCount) : defaults.homeNextCount,
       homeWidgets: { ...defaults.homeWidgets, ...(raw?.homeWidgets || {}) },
       summaryWidgets: { ...defaults.summaryWidgets, ...(raw?.summaryWidgets || {}) }
@@ -152,6 +154,7 @@
     el("settingsStartScreen").value = uiSettings.startScreen;
     el("settingsAppearance").value = uiSettings.appearance;
     el("settingsItineraryView").value = uiSettings.itineraryDefaultView;
+    el("settingsShowItineraryLinks").checked = Boolean(uiSettings.itineraryShowLinks);
     el("settingsHomeNextCount").value = String(uiSettings.homeNextCount);
     document.querySelectorAll("[data-home-widget]").forEach((input) => {
       input.checked = Boolean(uiSettings.homeWidgets[input.dataset.homeWidget]);
@@ -285,6 +288,15 @@
         : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.travelDestinationGeocodeLabel || "")) ? "manual" : ""),
       status: String(item?.status || "Planned"),
       bookingRef: String(item?.bookingRef || ""),
+      links: Array.isArray(item?.links)
+        ? item.links
+            .map((link) => ({
+              id: String(link?.id || uid("link")),
+              label: String(link?.label || "").trim(),
+              url: String(link?.url || "").trim()
+            }))
+            .filter((link) => link.url)
+        : [],
       costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined ? null : Number(item.costTotal),
       costCurrency: String(item?.costCurrency || "AUD").toUpperCase(),
       costAud: item?.costAud === null || item?.costAud === "" || item?.costAud === undefined ? null : Number(item.costAud),
