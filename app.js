@@ -477,6 +477,7 @@
     trip.dayMeta = Object.fromEntries(
       Object.entries(rawDayMeta).map(([date, value]) => {
         const meta = value && typeof value === "object" ? { ...value } : {};
+        const hadSyncedTripLocation = Boolean(String(meta.tripLocation || "").trim());
         const migratedLocation = String(
           meta.tripLocation ||
           legacyDayLocations[date] ||
@@ -491,7 +492,11 @@
             : defaultTripLocationColor(migratedLocation);
         }
 
-        meta.updatedAt = Number(meta.updatedAt || raw?.updatedAt || Date.now());
+        // Give a legacy v40 location a fresh timestamp once so Family Sync
+        // treats this migration as newer than the older day record in cloud.
+        meta.updatedAt = !hadSyncedTripLocation && migratedLocation
+          ? Date.now()
+          : Number(meta.updatedAt || raw?.updatedAt || Date.now());
         return [date, meta];
       })
     );
