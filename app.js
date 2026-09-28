@@ -1554,7 +1554,7 @@
     const meta = state.trip.dayMeta?.[date] || {};
     const entries = timelineEntriesForDate(date);
     const todayClass = date === todayISO() ? "today-full-day" : "";
-    const location = String(meta.location || "").trim();
+    const location = tripDayLocation(date);
     const headline = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
     const areaProgress = areaDayProgress(date);
 
@@ -1643,7 +1643,7 @@
       : `DAY ${dayIndex + 1} OF ${dates.length}`;
     el("itineraryDateTitle").textContent = formatDate(selectedItineraryDate, { weekday: true });
     el("itineraryHeadline").textContent = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
-    el("itineraryLocation").textContent = meta.location || "";
+    el("itineraryLocation").textContent = tripDayLocation(selectedItineraryDate);
     el("overnightBanner").classList.toggle("hidden", !meta.overnight);
     el("overnightBanner").textContent = meta.overnight ? `Overnight: ${meta.overnight}` : "";
     el("dayNotesBanner").classList.toggle("hidden", !meta.notes);
@@ -4113,7 +4113,6 @@
     const meta = state.trip?.dayMeta?.[selectedItineraryDate] || {};
     el("dayDate").value = selectedItineraryDate;
     el("dayHeadline").value = meta.headline || "";
-    el("dayLocation").value = meta.location || "";
     el("dayOvernight").value = meta.overnight || "";
     el("dayNotes").value = meta.notes || "";
     showModalSafe(el("dayDialog"));
@@ -5216,7 +5215,6 @@
     event.preventDefault();
     state.trip.dayMeta[selectedItineraryDate] = {
       headline: el("dayHeadline").value.trim(),
-      location: el("dayLocation").value.trim(),
       overnight: el("dayOvernight").value.trim(),
       notes: el("dayNotes").value.trim(),
       updatedAt: Date.now()
@@ -5489,7 +5487,7 @@
 
   function mapRecordQuery(location, date = "") {
     let target = directionsDestination({ location });
-    const dayLocation = date ? String(state.trip?.dayMeta?.[date]?.location || "").trim() : "";
+    const dayLocation = date ? tripDayLocation(date) : "";
 
     if (dayLocation && target && !target.toLowerCase().includes(dayLocation.toLowerCase())) {
       target = `${target}, ${dayLocation}`;
