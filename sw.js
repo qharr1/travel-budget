@@ -1,13 +1,14 @@
-const CACHE_NAME = "travel-planner-v42";
+const CACHE_NAME = "travel-planner-v43";
+const HEADER_IMAGE_CACHE = "tp-location-header-images-v1";
 
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=42",
-  "./app.js?v=42",
-  "./family-sync.js?v=42",
-  "./trip-map.js?v=42",
-  "./manifest.webmanifest?v=42",
+  "./styles.css?v=43",
+  "./app.js?v=43",
+  "./family-sync.js?v=43",
+  "./trip-map.js?v=43",
+  "./manifest.webmanifest?v=43",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
@@ -74,6 +75,36 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
+
+  const isSyncedHeaderImage =
+    event.request.destination === "image" &&
+    (
+      url.hostname === "firebasestorage.googleapis.com" ||
+      url.hostname === "storage.googleapis.com" ||
+      url.hostname.endsWith(".firebasestorage.app")
+    );
+
+  if (isSyncedHeaderImage) {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(HEADER_IMAGE_CACHE);
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+
+        try {
+          const response = await fetch(event.request);
+          if (response) {
+            try { await cache.put(event.request, response.clone()); } catch {}
+          }
+          return response;
+        } catch {
+          return new Response("", { status: 504, statusText: "Header image unavailable offline" });
+        }
+      })()
+    );
+    return;
+  }
+
   if (url.origin !== self.location.origin) return;
 
   if (event.request.mode === "navigate") {
