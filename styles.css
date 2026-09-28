@@ -3904,3 +3904,193 @@ html[data-theme="dark"] .itinerary-links-editor,
 html[data-theme="dark"] .itinerary-link-chip {
   border-color: var(--line);
 }
+
+
+/* v42 — synced itinerary locations + collapsible Full Trip location groups */
+.full-itinerary-list {
+  gap: 24px;
+}
+
+.full-location-group {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.full-location-group-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 68px;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: 17px;
+  box-shadow: 0 8px 22px rgba(15,23,42,.14);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.full-location-group-copy {
+  min-width: 0;
+}
+
+.full-location-group-copy strong,
+.full-location-group-copy small {
+  display: block;
+  color: inherit;
+}
+
+.full-location-group-copy strong {
+  font-size: 1.08rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.full-location-group-copy small {
+  margin-top: 4px;
+  font-size: .72rem;
+  font-weight: 760;
+  opacity: .88;
+}
+
+.full-location-group-count {
+  white-space: nowrap;
+  padding: 5px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: .68rem;
+  font-weight: 850;
+  opacity: .9;
+}
+
+.full-location-group-chevron {
+  width: 22px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.full-location-group-days {
+  display: grid;
+  gap: 28px;
+}
+
+.full-location-group-days .full-day-header,
+.full-location-group-days .full-day-header .full-day-title strong,
+.full-location-group-days .full-day-header .full-day-location,
+.full-location-group-days .full-day-header .full-day-headline {
+  color: inherit;
+}
+
+.full-location-group-days .full-day-header .full-day-title strong {
+  color: inherit;
+}
+
+.full-location-group-days .full-day-headline {
+  color: inherit;
+  opacity: .9;
+}
+
+.full-location-group-days .full-day-location {
+  color: inherit;
+  opacity: .88;
+}
+
+.full-location-group-days .full-day-day-number {
+  color: inherit;
+}
+
+.location-colour-settings {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.location-colour-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.location-colour-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.location-colour-row:last-child {
+  border-bottom: 0;
+}
+
+.location-colour-name {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+
+.location-colour-name strong {
+  overflow: hidden;
+  font-size: .82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-colour-preview {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255,255,255,.9);
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.location-colour-row input[type="color"] {
+  flex: 0 0 auto;
+  width: 52px;
+  min-width: 52px;
+  height: 38px;
+  min-height: 38px;
+  padding: 3px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.itinerary-area-progress {
+  border-width: 0;
+  box-shadow: 0 2px 8px rgba(15,23,42,.12);
+}
+
+@media (max-width: 520px) {
+  .full-location-group-toggle {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 64px;
+  }
+
+  .full-location-group-count {
+    display: none;
+  }
+
+  .full-location-group-chevron {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .full-location-group-copy strong {
+    font-size: 1rem;
+  }
+
+  .full-location-group-days {
+    gap: 26px;
+  }
+}
+
+html[data-theme="dark"] .full-location-group-toggle {
+  box-shadow: 0 8px 22px rgba(0,0,0,.28);
+}
