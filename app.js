@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 37;
+  const APP_VERSION = 38;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -1513,19 +1513,24 @@
     const meta = state.trip.dayMeta?.[date] || {};
     const entries = timelineEntriesForDate(date);
     const todayClass = date === todayISO() ? "today-full-day" : "";
+    const location = String(meta.location || "").trim();
+    const headline = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
 
     return `
-      <article class="full-day-card">
-        <div class="full-day-header ${todayClass}">
-          <div class="full-day-title">
-            <strong>Day ${index + 1} • ${escapeHtml(formatDate(date, { weekday: true }))}</strong>
-            <span>${escapeHtml(meta.location || "")}</span>
-            <p class="full-day-headline">${escapeHtml(meta.headline || (entries.length ? "Planned day" : "Nothing planned"))}</p>
+      <article class="full-day-card ${todayClass}" data-day-number="${index + 1}">
+        <div class="full-day-header">
+          <div class="full-day-day-block">
+            <span class="full-day-day-number">DAY ${index + 1}</span>
+            <div class="full-day-title">
+              <strong>${escapeHtml(formatDate(date, { weekday: true }))}</strong>
+              ${location ? `<span class="full-day-location">📍 ${escapeHtml(location)}</span>` : ""}
+              <p class="full-day-headline">${escapeHtml(headline)}</p>
+            </div>
           </div>
-          <button class="full-day-open" type="button" data-date="${date}">Open day</button>
+          <button class="full-day-open" type="button" data-date="${date}">Open</button>
         </div>
         <div class="full-day-body">
-          ${meta.overnight ? `<p class="full-day-overnight">Overnight: ${escapeHtml(meta.overnight)}</p>` : ""}
+          ${meta.overnight ? `<p class="full-day-overnight">🏨 Overnight: ${escapeHtml(meta.overnight)}</p>` : ""}
           ${entries.length ? entries.map(timelineEntryMarkup).join("") : `<div class="full-day-empty">Nothing planned</div>`}
         </div>
       </article>`;
