@@ -1450,6 +1450,7 @@
               ${itemPaymentText(item) ? `<div class="item-payment-line"><strong>${item.paymentMode === "split" ? "Split:" : "Responsible:"}</strong> ${escapeHtml(itemPaymentText(item))}</div>` : ""}
             </div>` : ""}
           ${item.notes ? `<p class="item-notes">${escapeHtml(item.notes)}</p>` : ""}
+          ${itineraryLinksMarkup(item)}
         </div>
         <div class="item-actions">
           ${directionsDestination(item)
@@ -4255,6 +4256,7 @@
     el("itemTravelDestination").value = item?.travelDestination || "";
     el("itemStatus").value = item?.status || "Planned";
     el("itemBookingRef").value = item?.bookingRef || "";
+    renderItemLinksEditor(item?.links || []);
     el("itemCostTotal").value = Number.isFinite(Number(item?.costTotal)) ? item.costTotal : "";
     el("itemAdultCost").value = Number.isFinite(Number(item?.adultCost)) ? item.adultCost : "";
     el("itemChildCost").value = Number.isFinite(Number(item?.childCost)) ? item.childCost : "";
@@ -4743,6 +4745,12 @@
     saveUiSettings();
   });
 
+  el("settingsShowItineraryLinks").addEventListener("change", () => {
+    uiSettings.itineraryShowLinks = el("settingsShowItineraryLinks").checked;
+    saveUiSettings();
+    renderItinerary();
+  });
+
   el("settingsHomeNextCount").addEventListener("change", () => {
     const value = Number(el("settingsHomeNextCount").value);
     uiSettings.homeNextCount = [1, 2, 3, 5].includes(value) ? value : 3;
@@ -5072,6 +5080,7 @@
   });
 
   el("addItineraryItemBtn").addEventListener("click", () => openItineraryItemDialog());
+  el("addItemLinkBtn").addEventListener("click", () => addItemLinkEditorRow());
   el("itemType").addEventListener("change", setFlightEditorVisibility);
   el("closeItemDialogBtn").addEventListener("click", closeItineraryItemDialog);
   el("editDayBtn").addEventListener("click", openDayDialog);
@@ -5145,6 +5154,12 @@
     }
 
     const existing = id ? state.trip.itinerary.find((x) => x.id === id) : null;
+    const collectedLinks = collectItemLinks();
+    if (collectedLinks.error) {
+      el("itemError").textContent = collectedLinks.error;
+      return;
+    }
+
     const itemType = el("itemType").value;
     const isFlight = itemType === "Flight";
     const isTravel = itemType === "Travel";
@@ -5321,6 +5336,7 @@
       travelDestinationCoordinateSource: sameTravelDestination ? (existing.travelDestinationCoordinateSource || "") : "",
       status: el("itemStatus").value,
       bookingRef: el("itemBookingRef").value.trim(),
+      links: collectedLinks.links,
       costTotal: el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value),
       adultCost: el("itemAdultCost").value === "" ? null : Number(el("itemAdultCost").value),
       childCost: el("itemChildCost").value === "" ? null : Number(el("itemChildCost").value),
