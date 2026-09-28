@@ -1320,6 +1320,98 @@
     el("itemTravelDestination").required = isTravel;
   }
 
+  function itineraryLinksMarkup(item) {
+    if (!uiSettings.itineraryShowLinks || !Array.isArray(item?.links) || !item.links.length) return "";
+
+    const links = item.links
+      .filter((link) => String(link?.url || "").trim())
+      .map((link) => {
+        const href = safeExternalUrl(link.url);
+        const label = String(link.label || "").trim() || "Open link";
+        return `<a class="itinerary-link-chip" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">↗ ${escapeHtml(label)}</a>`;
+      })
+      .join("");
+
+    return links ? `<div class="itinerary-links">${links}</div>` : "";
+  }
+
+  function renderItemLinksEditor(links = []) {
+    const root = el("itemLinksList");
+    if (!root) return;
+
+    const rows = Array.isArray(links) ? links : [];
+    root.innerHTML = rows.length
+      ? rows.map((link) => `
+          <div class="item-link-row" data-item-link-row data-link-id="${escapeHtml(link?.id || "")}">
+            <input data-item-link-label maxlength="60" placeholder="Link name e.g. Klook booking" type="text" value="${escapeHtml(link?.label || "")}"/>
+            <input data-item-link-url inputmode="url" maxlength="800" placeholder="https://…" type="text" value="${escapeHtml(link?.url || "")}"/>
+            <button aria-label="Remove link" class="text-btn item-link-remove" type="button">Remove</button>
+          </div>`).join("")
+      : `<p class="muted small item-links-empty">No links added. Links are optional.</p>`;
+
+    root.querySelectorAll(".item-link-remove").forEach((button) => {
+      button.addEventListener("click", () => {
+        button.closest("[data-item-link-row]")?.remove();
+        if (!root.querySelector("[data-item-link-row]")) {
+          root.innerHTML = `<p class="muted small item-links-empty">No links added. Links are optional.</p>`;
+        }
+      });
+    });
+  }
+
+  function addItemLinkEditorRow(link = {}) {
+    const root = el("itemLinksList");
+    if (!root) return;
+    root.querySelector(".item-links-empty")?.remove();
+
+    const row = document.createElement("div");
+    row.className = "item-link-row";
+    row.dataset.itemLinkRow = "";
+    row.dataset.linkId = String(link?.id || "");
+    row.innerHTML = `
+      <input data-item-link-label maxlength="60" placeholder="Link name e.g. Klook booking" type="text" value="${escapeHtml(link?.label || "")}"/>
+      <input data-item-link-url inputmode="url" maxlength="800" placeholder="https://…" type="text" value="${escapeHtml(link?.url || "")}"/>
+      <button aria-label="Remove link" class="text-btn item-link-remove" type="button">Remove</button>`;
+
+    row.querySelector(".item-link-remove")?.addEventListener("click", () => {
+      row.remove();
+      if (!root.querySelector("[data-item-link-row]")) {
+        root.innerHTML = `<p class="muted small item-links-empty">No links added. Links are optional.</p>`;
+      }
+    });
+
+    root.appendChild(row);
+    row.querySelector("[data-item-link-label]")?.focus();
+  }
+
+  function collectItemLinks() {
+    const links = [];
+
+    for (const row of document.querySelectorAll("[data-item-link-row]")) {
+      const label = row.querySelector("[data-item-link-label]")?.value.trim() || "";
+      const rawUrl = row.querySelector("[data-item-link-url]")?.value.trim() || "";
+      if (!rawUrl) continue;
+
+      const url = safeExternalUrl(rawUrl);
+      try {
+        const parsed = new URL(url);
+        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("Unsupported protocol");
+      } catch {
+        return {
+          error: `Check the itinerary link "${label || rawUrl}". Use a normal website address.`,
+          links: []
+        };
+      }
+
+      links.push({
+        id: String(row.dataset.linkId || uid("link")),
+        label,
+        url
+      });
+    }
+
+    return { error: "", links };
+  }
   function itineraryItemMarkup(item) {
     const duration = item.durationText || itemCalculatedDuration(item);
     const chips = [];
