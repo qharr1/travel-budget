@@ -1945,6 +1945,16 @@
     el("itineraryAreaProgress").textContent = selectedAreaProgress
       ? `${selectedAreaProgress.area} • Day ${selectedAreaProgress.day} of ${selectedAreaProgress.total}`
       : "";
+    if (selectedAreaProgress) {
+      const areaColor = tripDayLocationColor(selectedItineraryDate);
+      el("itineraryAreaProgress").style.background = areaColor;
+      el("itineraryAreaProgress").style.borderColor = areaColor;
+      el("itineraryAreaProgress").style.color = tripLocationTextColor(areaColor);
+    } else {
+      el("itineraryAreaProgress").style.removeProperty("background");
+      el("itineraryAreaProgress").style.removeProperty("border-color");
+      el("itineraryAreaProgress").style.removeProperty("color");
+    }
     el("itineraryDateTitle").textContent = formatDate(selectedItineraryDate, { weekday: true });
     el("itineraryHeadline").textContent = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
     el("itineraryLocation").textContent = selectedAreaProgress ? "" : tripDayLocation(selectedItineraryDate);
