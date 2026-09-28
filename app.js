@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 39;
+  const APP_VERSION = 40;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -194,6 +194,7 @@
       travellerProfiles: [],
       budget: { configured: false, totalBudget: null, day1HardLimit: null, destinations: [] },
       dayMeta: {},
+      dayLocations: {},
       itinerary: [],
       preTripTasks: [],
       documents: [],
@@ -457,6 +458,9 @@
       destinations: Array.isArray(raw?.budget?.destinations) ? raw.budget.destinations.map(normalizeDestination) : []
     };
     trip.dayMeta = raw?.dayMeta && typeof raw.dayMeta === "object" ? raw.dayMeta : {};
+    trip.dayLocations = raw?.dayLocations && typeof raw.dayLocations === "object"
+      ? Object.fromEntries(Object.entries(raw.dayLocations).map(([date, location]) => [date, String(location || "").trim()]))
+      : {};
     trip.itinerary = Array.isArray(raw?.itinerary) ? raw.itinerary.map(normalizeItineraryItem) : [];
     trip.travellerProfiles = Array.isArray(raw?.travellerProfiles) ? raw.travellerProfiles.map(normalizeTravellerProfile) : [];
     trip.preTripTasks = Array.isArray(raw?.preTripTasks) ? raw.preTripTasks.map(normalizePreTripTask) : [];
@@ -1509,6 +1513,10 @@
     });
   }
 
+  function tripDayLocation(date) {
+    return String(state.trip?.dayLocations?.[date] || "").trim();
+  }
+
   function areaDayProgress(date) {
     if (!state.trip) return null;
 
@@ -1516,7 +1524,7 @@
     const index = dates.indexOf(date);
     if (index < 0) return null;
 
-    const area = String(state.trip.dayMeta?.[date]?.location || "").trim();
+    const area = tripDayLocation(date);
     if (!area) return null;
 
     const key = area.toLocaleLowerCase();
@@ -1524,13 +1532,13 @@
     let end = index;
 
     while (start > 0) {
-      const previousArea = String(state.trip.dayMeta?.[dates[start - 1]]?.location || "").trim().toLocaleLowerCase();
+      const previousArea = tripDayLocation(dates[start - 1]).toLocaleLowerCase();
       if (previousArea !== key) break;
       start -= 1;
     }
 
     while (end < dates.length - 1) {
-      const nextArea = String(state.trip.dayMeta?.[dates[end + 1]]?.location || "").trim().toLocaleLowerCase();
+      const nextArea = tripDayLocation(dates[end + 1]).toLocaleLowerCase();
       if (nextArea !== key) break;
       end += 1;
     }
