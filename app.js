@@ -1638,9 +1638,11 @@
     const entries = timelineEntriesForDate(selectedItineraryDate);
 
     const selectedAreaProgress = areaDayProgress(selectedItineraryDate);
-    el("itineraryDayLabel").textContent = selectedAreaProgress
-      ? `DAY ${dayIndex + 1} OF ${dates.length} • ${selectedAreaProgress.area.toUpperCase()} DAY ${selectedAreaProgress.day} OF ${selectedAreaProgress.total}`
-      : `DAY ${dayIndex + 1} OF ${dates.length}`;
+    el("itineraryDayLabel").textContent = `DAY ${dayIndex + 1} OF ${dates.length}`;
+    el("itineraryAreaProgress").classList.toggle("hidden", !selectedAreaProgress);
+    el("itineraryAreaProgress").textContent = selectedAreaProgress
+      ? `${selectedAreaProgress.area} • Day ${selectedAreaProgress.day} of ${selectedAreaProgress.total}`
+      : "";
     el("itineraryDateTitle").textContent = formatDate(selectedItineraryDate, { weekday: true });
     el("itineraryHeadline").textContent = meta.headline || (entries.length ? "Planned day" : "Nothing planned");
     el("itineraryLocation").textContent = tripDayLocation(selectedItineraryDate);
@@ -2467,8 +2469,78 @@
     }).join("");
   }
 
+  function renderTripDayLocationsSettings() {
+    const root = el("settingsDayLocationsList");
+    if (!root) return;
+
+    if (!state.trip) {
+      root.innerHTML = '<p class="expense-empty">Create a trip first.</p>';
+      return;
+    }
+
+    const dates = tripDates();
+    root.innerHTML = dates.map((date, index) => {
+      const value = tripDayLocation(date);
+      return `
+        <div class="settings-day-location-row">
+          <div class="settings-day-location-date">
+            <strong>Day ${index + 1}</strong>
+            <span>${escapeHtml(formatDate(date, { weekday: true }))}</span>
+          </div>
+          <div class="settings-day-location-input-wrap">
+            <input
+              data-day-location-date="${escapeHtml(date)}"
+              maxlength="100"
+              placeholder="${index === 0 ? "e.g. Shanghai" : "Main city / area"}"
+              type="text"
+              value="${escapeHtml(value)}"
+            />
+            ${index > 0 ? `<button class="text-btn settings-day-location-copy" data-copy-index="${index}" type="button">Use above</button>` : ""}
+          </div>
+        </div>`;
+    }).join("");
+
+    root.querySelectorAll(".settings-day-location-copy").forEach((button) => {
+      button.addEventListener("click", () => {
+        const index = Number(button.dataset.copyIndex);
+        if (!Number.isFinite(index) || index <= 0) return;
+        const inputs = [...root.querySelectorAll("[data-day-location-date]")];
+        const current = inputs[index];
+        const previous = inputs[index - 1];
+        if (!current || !previous) return;
+        current.value = previous.value;
+        current.focus();
+      });
+    });
+  }
+
+  function saveTripDayLocationsSettings() {
+    if (!state.trip) return;
+
+    const next = {};
+    document.querySelectorAll("[data-day-location-date]").forEach((input) => {
+      const date = String(input.dataset.dayLocationDate || "");
+      const location = String(input.value || "").trim();
+      if (date && location) next[date] = location;
+    });
+
+    state.trip.dayLocations = next;
+    state.trip.updatedAt = Date.now();
+    saveState();
+    renderTripDayLocationsSettings();
+    renderItinerary();
+    window.TripMap?.dataChanged?.();
+
+    const configured = Object.keys(next).length;
+    el("settingsDayLocationsMessage").textContent =
+      configured
+        ? `Saved main locations for ${configured} trip day${configured === 1 ? "" : "s"}.`
+        : "Day locations cleared. Local city/day counters are hidden until locations are added.";
+  }
+
   function renderSettings() {
     renderUiSettings();
+    renderTripDayLocationsSettings();
     if (!state.trip?.budget?.configured) return;
     el("settingsTripName").value = state.trip.name;
     el("settingsStartDate").value = state.trip.startDate;
@@ -4543,6 +4615,8 @@
     el("travellerSettingsMessage").textContent = "Traveller removed.";
   });
 
+  el("settingsSaveDayLocationsBtn").addEventListener("click", saveTripDayLocationsSettings);
+
   el("settingsBtn").addEventListener("click", () => activateMode("settings"));
   el("settingsCloseBtn").addEventListener("click", () => activateMode(lastNonSettingsMode || uiSettings.startScreen));
 
@@ -5418,6 +5492,10 @@
     state.trip.name = nextName;
     state.trip.startDate = nextStart;
     state.trip.endDate = nextEnd;
+    const validDayDates = new Set(tripDates());
+    state.trip.dayLocations = Object.fromEntries(
+      Object.entries(state.trip.dayLocations || {}).filter(([date]) => validDayDates.has(date))
+    );
     state.trip.updatedAt = Date.now();
     state.trip.budget.totalBudget = nextBudget;
     state.trip.budget.day1HardLimit = nextDay1HardLimit;
@@ -6012,7 +6090,8 @@
       places: JSON.parse(JSON.stringify(state.trip.places || [])),
       reminders: JSON.parse(JSON.stringify(state.trip.reminders || [])),
       timelineNotes: JSON.parse(JSON.stringify(state.trip.timelineNotes || [])),
-      dayMeta: JSON.parse(JSON.stringify(state.trip.dayMeta || {}))
+      dayMeta: JSON.parse(JSON.stringify(state.trip.dayMeta || {})),
+      dayLocations: JSON.parse(JSON.stringify(state.trip.dayLocations || {}))
     };
   }
 
@@ -6086,6 +6165,9 @@
       : [];
     state.trip.dayMeta = shared.dayMeta && typeof shared.dayMeta === "object"
       ? JSON.parse(JSON.stringify(shared.dayMeta))
+      : {};
+    state.trip.dayLocations = shared.dayLocations && typeof shared.dayLocations === "object"
+      ? Object.fromEntries(Object.entries(shared.dayLocations).map(([date, location]) => [date, String(location || "").trim()]))
       : {};
 
     // Journal notes remain device-local in v23.
