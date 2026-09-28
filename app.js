@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 42;
+  const APP_VERSION = 43;
 
   const COMMON_CURRENCIES = [
     ["AUD", "AUD — Australian dollar"],
@@ -2781,6 +2781,171 @@
     }).join("");
   }
 
+  function tripLocationHeaderImage(location) {
+    const key = String(location || "").trim().toLocaleLowerCase();
+    if (!key || !state.trip) return { url: "", path: "" };
+
+    for (const date of tripDates()) {
+      if (tripDayLocation(date).toLocaleLowerCase() !== key) continue;
+      const meta = state.trip.dayMeta?.[date] || {};
+      const url = String(meta.tripLocationHeaderImageUrl || "").trim();
+      const path = String(meta.tripLocationHeaderImagePath || "").trim();
+      if (url) return { url, path };
+    }
+
+    return { url: "", path: "" };
+  }
+
+  function applyTripLocationHeaderImage(location, image = {}) {
+    if (!state.trip) return;
+    const key = String(location || "").trim().toLocaleLowerCase();
+    if (!key) return;
+
+    const url = String(image.url || "").trim();
+    const path = String(image.path || "").trim();
+    const stamp = Date.now();
+
+    for (const date of tripDates()) {
+      if (tripDayLocation(date).toLocaleLowerCase() !== key) continue;
+      const meta = state.trip.dayMeta?.[date] && typeof state.trip.dayMeta[date] === "object"
+        ? { ...state.trip.dayMeta[date] }
+        : {};
+
+      if (url) {
+        meta.tripLocationHeaderImageUrl = url;
+        meta.tripLocationHeaderImagePath = path;
+      } else {
+        delete meta.tripLocationHeaderImageUrl;
+        delete meta.tripLocationHeaderImagePath;
+      }
+
+      meta.updatedAt = stamp;
+      state.trip.dayMeta[date] = meta;
+    }
+
+    state.trip.updatedAt = stamp;
+    saveState();
+  }
+
+  async function loadImageElement(file) {
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.decoding = "async";
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error("The selected image could not be opened."));
+        image.src = objectUrl;
+      });
+      return image;
+    } finally {
+      // Revoked by the caller after drawing; Safari can otherwise release it too early.
+    }
+  }
+
+  async function prepareTripLocationHeaderImage(file) {
+    if (!(file instanceof File) || !String(file.type || "").startsWith("image/")) {
+      throw new Error("Choose an image file.");
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      throw new Error("That photo is too large. Choose an image under 25 MB.");
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.decoding = "async";
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error("The selected image could not be opened."));
+        image.src = objectUrl;
+      });
+
+      const width = 1600;
+      const height = 500;
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (!ctx) throw new Error("This browser could not prepare the image.");
+
+      const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+      const drawWidth = image.naturalWidth * scale;
+      const drawHeight = image.naturalHeight * scale;
+      const x = (width - drawWidth) / 2;
+      const y = (height - drawHeight) / 2;
+
+      ctx.drawImage(image, x, y, drawWidth, drawHeight);
+
+      const toBlob = (type, quality) => new Promise((resolve) => {
+        canvas.toBlob(resolve, type, quality);
+      });
+
+      let blob = await toBlob("image/webp", 0.8);
+      if (!blob) blob = await toBlob("image/jpeg", 0.82);
+      if (!blob) throw new Error("The image could not be compressed.");
+
+      return blob;
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  async function uploadTripLocationHeaderImage(location, file) {
+    const status = el("settingsLocationImagesMessage");
+    const family = window.FamilySync;
+
+    if (!family?.isConnected?.()) {
+      if (status) status.textContent = "Turn on Family Sync first so the header image can be shared across devices.";
+      return;
+    }
+
+    try {
+      if (status) status.textContent = `Preparing ${location} header image…`;
+      const blob = await prepareTripLocationHeaderImage(file);
+
+      if (status) {
+        const kb = Math.max(1, Math.round(blob.size / 1024));
+        status.textContent = `Uploading compressed banner (${kb} KB)…`;
+      }
+
+      const existing = tripLocationHeaderImage(location);
+      const uploaded = await family.uploadLocationHeaderImage(blob, location);
+
+      applyTripLocationHeaderImage(location, uploaded);
+      renderTripLocationColourSettings();
+      renderItinerary();
+
+      if (status) status.textContent = `${location} header image saved and queued for Family Sync.`;
+
+      if (existing.path && existing.path !== uploaded.path) {
+        family.deleteLocationHeaderImage?.(existing.path);
+      }
+    } catch (error) {
+      if (status) status.textContent = `Could not save header image: ${error.message}`;
+    }
+  }
+
+  async function removeTripLocationHeaderImage(location) {
+    const existing = tripLocationHeaderImage(location);
+    if (!existing.url) return;
+
+    const ok = window.confirm(`Remove the synced header image for ${location}?`);
+    if (!ok) return;
+
+    applyTripLocationHeaderImage(location, {});
+    renderTripLocationColourSettings();
+    renderItinerary();
+
+    const status = el("settingsLocationImagesMessage");
+    if (status) status.textContent = `${location} header image removed and queued for Family Sync.`;
+
+    if (existing.path) {
+      window.FamilySync?.deleteLocationHeaderImage?.(existing.path);
+    }
+  }
+
   function tripLocationColourEntries() {
     if (!state.trip) return [];
 
@@ -2793,10 +2958,13 @@
       const key = location.toLocaleLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
+      const image = tripLocationHeaderImage(location);
       result.push({
         key,
         location,
-        color: tripDayLocationColor(date)
+        color: tripDayLocationColor(date),
+        imageUrl: image.url,
+        imagePath: image.path
       });
     }
 
