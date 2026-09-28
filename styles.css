@@ -3663,3 +3663,36 @@ html[data-theme="dark"] .full-day-card {
   background: var(--surface);
   box-shadow: 0 10px 26px rgba(0,0,0,.24);
 }
+
+
+/* v39 — local area/day counters */
+.full-day-area-progress {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 5px;
+  padding: 4px 7px;
+  border: 1px solid rgba(255,255,255,.32);
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  font-size: .66rem;
+  font-weight: 900;
+  letter-spacing: .045em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.field-help {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: .68rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 520px) {
+  .full-day-area-progress {
+    max-width: 100%;
+    white-space: normal;
+  }
+}
