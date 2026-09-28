@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=40" rel="manifest"/>
+<link href="./manifest.webmanifest?v=41" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=40" rel="stylesheet"/>
+</script><link href="./styles.css?v=41" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -690,7 +690,7 @@
 <option value="system">Use iPhone setting</option>
 </select>
 </div><div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="map">Map</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
-<div class="settings-row"><div><strong>Default itinerary view</strong><span>Day view automatically selects the correct trip day.</span></div><select class="compact-select" id="settingsItineraryView"><option value="day">Day view</option><option value="full">Full trip</option></select></div>
+<div class="settings-row"><div><strong>Default itinerary view</strong><span>Day view automatically selects the correct trip day.</span></div><select class="compact-select" id="settingsItineraryView"><option value="day">Day view</option><option value="full">Full trip</option></select></div><label class="settings-toggle"><span><strong>Show itinerary links</strong><small>Display saved booking / website links on Day and Full Trip cards. Off by default.</small></span><input id="settingsShowItineraryLinks" type="checkbox"/></label>
 <button class="secondary-btn" id="resetLayoutBtn" type="button">Reset layout preferences</button><p class="status-message" id="layoutSettingsMessage"></p></div></details>
 <details class="settings-group"><summary><div><span class="settings-group-title">Home screen</span><span class="settings-group-sub">Choose the cards you want on Home</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body"><div class="settings-toggle-list">
 <label class="settings-toggle"><span><strong>Budget &amp; spend</strong><small>Today / Day 1 budget and spending</small></span><input data-home-widget="budget" id="setHomeBudget" type="checkbox"/></label>
@@ -1156,7 +1156,18 @@
 </div>
 <div class="person-check-grid" id="itemAttendeeOptions"></div>
 <p class="muted small" id="itemAttendeeHelp">Add named travellers in Settings to select attendees.</p>
-</section><section class="itinerary-people-section" id="itemPaymentSection">
+</section><section class="itinerary-links-editor">
+<div class="section-heading compact-heading">
+<div>
+<p class="eyebrow">LINKS</p>
+<h3>Useful links <span class="optional">(optional)</span></h3>
+</div>
+<button class="text-btn" id="addItemLinkBtn" type="button">+ Add link</button>
+</div>
+<p class="muted small">Add booking pages, tickets, restaurant websites, Klook links or anything useful for this itinerary item.</p>
+<div class="item-links-editor-list" id="itemLinksList"></div>
+</section>
+<section class="itinerary-people-section" id="itemPaymentSection">
 <div class="section-heading compact-heading">
 <div>
 <p class="eyebrow">COST RESPONSIBILITY</p>
@@ -1606,6 +1617,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=40"></script><script src="./family-sync.js?v=40" type="module"></script><script src="./trip-map.js?v=40" type="module"></script>
+<script defer="" src="./app.js?v=41"></script><script src="./family-sync.js?v=41" type="module"></script><script src="./trip-map.js?v=41" type="module"></script>
 </body>
 </html>
