@@ -2652,12 +2652,83 @@
     }).join("");
   }
 
+  function tripLocationColourEntries() {
+    if (!state.trip) return [];
+
+    const seen = new Set();
+    const result = [];
+
+    for (const date of tripDates()) {
+      const location = tripDayLocation(date);
+      if (!location) continue;
+      const key = location.toLocaleLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push({
+        key,
+        location,
+        color: tripDayLocationColor(date)
+      });
+    }
+
+    return result;
+  }
+
+  function renderTripLocationColourSettings() {
+    const root = el("settingsLocationColoursList");
+    if (!root) return;
+
+    const entries = tripLocationColourEntries();
+    root.innerHTML = entries.length
+      ? entries.map((entry) => `
+          <div class="location-colour-row">
+            <div class="location-colour-name">
+              <span class="location-colour-preview" style="background:${escapeHtml(entry.color)}"></span>
+              <strong>${escapeHtml(entry.location)}</strong>
+            </div>
+            <input
+              aria-label="Header colour for ${escapeHtml(entry.location)}"
+              data-location-colour-name="${escapeHtml(entry.location)}"
+              type="color"
+              value="${escapeHtml(entry.color)}"
+            />
+          </div>`).join("")
+      : '<p class="expense-empty">Save your day locations first, then their header colours will appear here.</p>';
+
+    root.querySelectorAll("[data-location-colour-name]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const location = String(input.dataset.locationColourName || "").trim();
+        const color = String(input.value || "").trim();
+        if (!location || !validTripLocationColor(color)) return;
+
+        const key = location.toLocaleLowerCase();
+        const stamp = Date.now();
+
+        for (const date of tripDates()) {
+          if (tripDayLocation(date).toLocaleLowerCase() !== key) continue;
+          const meta = state.trip.dayMeta?.[date] && typeof state.trip.dayMeta[date] === "object"
+            ? { ...state.trip.dayMeta[date] }
+            : {};
+          meta.tripLocationColor = color;
+          meta.updatedAt = stamp;
+          state.trip.dayMeta[date] = meta;
+        }
+
+        state.trip.updatedAt = stamp;
+        saveState();
+        renderTripLocationColourSettings();
+        renderItinerary();
+      });
+    });
+  }
+
   function renderTripDayLocationsSettings() {
     const root = el("settingsDayLocationsList");
     if (!root) return;
 
     if (!state.trip) {
       root.innerHTML = '<p class="expense-empty">Create a trip first.</p>';
+      renderTripLocationColourSettings();
       return;
     }
 
@@ -2695,29 +2766,58 @@
         current.focus();
       });
     });
+
+    renderTripLocationColourSettings();
   }
 
   function saveTripDayLocationsSettings() {
     if (!state.trip) return;
 
-    const next = {};
+    const existingColours = new Map(
+      tripLocationColourEntries().map((entry) => [entry.key, entry.color])
+    );
+    const stamp = Date.now();
+    let configured = 0;
+
     document.querySelectorAll("[data-day-location-date]").forEach((input) => {
       const date = String(input.dataset.dayLocationDate || "");
+      if (!date) return;
+
       const location = String(input.value || "").trim();
-      if (date && location) next[date] = location;
+      const currentMeta = state.trip.dayMeta?.[date] && typeof state.trip.dayMeta[date] === "object"
+        ? { ...state.trip.dayMeta[date] }
+        : {};
+
+      if (location) {
+        const key = location.toLocaleLowerCase();
+        const currentSameLocation = String(currentMeta.tripLocation || "").trim().toLocaleLowerCase() === key;
+        const color = currentSameLocation && validTripLocationColor(currentMeta.tripLocationColor)
+          ? currentMeta.tripLocationColor
+          : (existingColours.get(key) || defaultTripLocationColor(location));
+
+        currentMeta.tripLocation = location;
+        currentMeta.tripLocationColor = color;
+        configured += 1;
+      } else {
+        delete currentMeta.tripLocation;
+        delete currentMeta.tripLocationColor;
+      }
+
+      currentMeta.updatedAt = stamp;
+      state.trip.dayMeta[date] = currentMeta;
     });
 
-    state.trip.dayLocations = next;
-    state.trip.updatedAt = Date.now();
+    // v40 compatibility only. Locations now live inside synced dayMeta records.
+    state.trip.dayLocations = {};
+    state.trip.updatedAt = stamp;
     saveState();
     renderTripDayLocationsSettings();
     renderItinerary();
     window.TripMap?.dataChanged?.();
 
-    const configured = Object.keys(next).length;
     el("settingsDayLocationsMessage").textContent =
       configured
-        ? `Saved main locations for ${configured} trip day${configured === 1 ? "" : "s"}.`
+        ? `Saved main locations for ${configured} trip day${configured === 1 ? "" : "s"} and queued them for Family Sync.`
         : "Day locations cleared. Local city/day counters are hidden until locations are added.";
   }
 
@@ -5691,9 +5791,10 @@
     state.trip.startDate = nextStart;
     state.trip.endDate = nextEnd;
     const validDayDates = new Set(tripDates());
-    state.trip.dayLocations = Object.fromEntries(
-      Object.entries(state.trip.dayLocations || {}).filter(([date]) => validDayDates.has(date))
+    state.trip.dayMeta = Object.fromEntries(
+      Object.entries(state.trip.dayMeta || {}).filter(([date]) => validDayDates.has(date))
     );
+    state.trip.dayLocations = {};
     state.trip.updatedAt = Date.now();
     state.trip.budget.totalBudget = nextBudget;
     state.trip.budget.day1HardLimit = nextDay1HardLimit;
@@ -6288,8 +6389,7 @@
       places: JSON.parse(JSON.stringify(state.trip.places || [])),
       reminders: JSON.parse(JSON.stringify(state.trip.reminders || [])),
       timelineNotes: JSON.parse(JSON.stringify(state.trip.timelineNotes || [])),
-      dayMeta: JSON.parse(JSON.stringify(state.trip.dayMeta || {})),
-      dayLocations: JSON.parse(JSON.stringify(state.trip.dayLocations || {}))
+      dayMeta: JSON.parse(JSON.stringify(state.trip.dayMeta || {}))
     };
   }
 
@@ -6309,9 +6409,6 @@
     );
     const preservedDayNotes = sameTrip
       ? JSON.parse(JSON.stringify(currentTrip.dayNotes || {}))
-      : {};
-    const preservedDayLocations = sameTrip
-      ? JSON.parse(JSON.stringify(currentTrip.dayLocations || {}))
       : {};
 
     if (!sameTrip) {
@@ -6367,9 +6464,6 @@
     state.trip.dayMeta = shared.dayMeta && typeof shared.dayMeta === "object"
       ? JSON.parse(JSON.stringify(shared.dayMeta))
       : {};
-    state.trip.dayLocations = shared.dayLocations && typeof shared.dayLocations === "object"
-      ? Object.fromEntries(Object.entries(shared.dayLocations).map(([date, location]) => [date, String(location || "").trim()]))
-      : preservedDayLocations;
 
     // Journal notes remain device-local in v23.
     state.trip.dayNotes = preservedDayNotes;
