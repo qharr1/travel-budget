@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=39" rel="manifest"/>
+<link href="./manifest.webmanifest?v=40" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=39" rel="stylesheet"/>
+</script><link href="./styles.css?v=40" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -250,6 +250,7 @@
 <p class="eyebrow" id="itineraryDayLabel">DAY 1</p>
 <h2 id="itineraryDateTitle">Date</h2>
 <p class="itinerary-headline" id="itineraryHeadline">Nothing planned</p>
+<div class="itinerary-area-progress hidden" id="itineraryAreaProgress"></div>
 <p class="muted" id="itineraryLocation"></p>
 </div>
 <button class="text-btn" id="editDayBtn" type="button">Edit day</button>
@@ -735,7 +736,31 @@
 <div class="tool-list" id="travellerList"></div>
 <p class="status-message" id="travellerSettingsMessage" role="status"></p>
 </div>
-</details><details class="settings-group" id="settingsTripBudgetGroup"><summary><div><span class="settings-group-title">Trip &amp; budget</span><span class="settings-group-sub">Dates, total budget, Day 1 limit and currencies</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsTripBudgetBody"><section class="settings-embedded-section">
+</details>
+<details class="settings-group" id="settingsDayLocationsGroup">
+<summary>
+<div>
+<span class="settings-group-title">Trip locations by day</span>
+<span class="settings-group-sub">Set the main city / area for every trip date</span>
+</div>
+<span class="pretrip-chevron">⌄</span>
+</summary>
+<div class="settings-group-body">
+<div class="section-heading">
+<div>
+<p class="eyebrow">DAY LOCATIONS</p>
+<h2>Where are you based each day?</h2>
+</div>
+</div>
+<p class="muted small">This is the only source used for local counters such as “Tokyo • Day 3 of 7”. It is not guessed from hotels, activities, map pins or event addresses.</p>
+<div class="settings-day-location-list" id="settingsDayLocationsList"></div>
+<div class="settings-day-location-actions">
+<button class="primary-btn" id="settingsSaveDayLocationsBtn" type="button">Save day locations</button>
+</div>
+<p class="status-message" id="settingsDayLocationsMessage" role="status"></p>
+</div>
+</details>
+<details class="settings-group" id="settingsTripBudgetGroup"><summary><div><span class="settings-group-title">Trip &amp; budget</span><span class="settings-group-sub">Dates, total budget, Day 1 limit and currencies</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body" id="settingsTripBudgetBody"><section class="settings-embedded-section">
 <div class="section-heading">
 <div><p class="eyebrow">TRIP SETTINGS</p><h2>Budget &amp; dates</h2></div>
 </div>
@@ -1189,11 +1214,10 @@
         Headline
         <input id="dayHeadline" maxlength="100" placeholder="Tokyo Disneyland" type="text"/>
 </label>
-<label>
-        Area / city
-        <input id="dayLocation" maxlength="100" placeholder="Tokyo" type="text"/>
-        <span class="field-help">Use the same area name on consecutive days to show counters such as “Tokyo • Day 2 of 7”.</span>
-</label>
+<div class="day-location-settings-note">
+  <strong>Main city / area</strong>
+  <span>Managed centrally under Settings → Trip locations by day.</span>
+</div>
 <label>
         Overnight
         <input id="dayOvernight" maxlength="120" placeholder="Hotel name" type="text"/>
@@ -1582,6 +1606,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=39"></script><script src="./family-sync.js?v=39" type="module"></script><script src="./trip-map.js?v=39" type="module"></script>
+<script defer="" src="./app.js?v=40"></script><script src="./family-sync.js?v=40" type="module"></script><script src="./trip-map.js?v=40" type="module"></script>
 </body>
 </html>
