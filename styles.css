@@ -4094,3 +4094,144 @@ html[data-theme="dark"] .itinerary-link-chip {
 html[data-theme="dark"] .full-location-group-toggle {
   box-shadow: 0 8px 22px rgba(0,0,0,.28);
 }
+
+
+/* v43 — synced Full Trip location header images */
+.location-style-row {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.location-style-row:last-child {
+  border-bottom: 0;
+}
+
+.location-header-image-preview {
+  position: relative;
+  min-height: 86px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.location-header-image-preview img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.location-header-image-preview span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  color: rgba(255,255,255,.9);
+  font-size: .68rem;
+  font-weight: 800;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,.45);
+}
+
+.location-style-main {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.location-style-main .location-colour-row {
+  padding: 0;
+  border-bottom: 0;
+}
+
+.location-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.location-image-actions .secondary-btn {
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
+.full-location-group-toggle {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.full-location-group-image,
+.full-location-group-image-shade {
+  position: absolute;
+  inset: 0;
+}
+
+.full-location-group-image {
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.full-location-group-image-shade {
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(2,6,23,.72) 0%, rgba(2,6,23,.5) 56%, rgba(2,6,23,.34) 100%),
+    linear-gradient(0deg, rgba(2,6,23,.2), rgba(2,6,23,.2));
+}
+
+.full-location-group-toggle > .full-location-group-copy,
+.full-location-group-toggle > .full-location-group-count,
+.full-location-group-toggle > .full-location-group-chevron {
+  position: relative;
+  z-index: 2;
+}
+
+.full-location-group-toggle.has-image {
+  min-height: 104px;
+  text-shadow: 0 1px 3px rgba(0,0,0,.55);
+}
+
+.full-location-group-toggle.has-image .full-location-group-copy strong {
+  font-size: 1.22rem;
+}
+
+.full-location-group-toggle.has-image .full-location-group-count {
+  background: rgba(2,6,23,.22);
+  backdrop-filter: blur(4px);
+}
+
+@media (max-width: 620px) {
+  .location-style-row {
+    grid-template-columns: 116px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .location-header-image-preview {
+    min-height: 82px;
+  }
+
+  .location-image-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .location-image-actions .secondary-btn,
+  .location-image-actions .text-btn {
+    width: fit-content;
+  }
+
+  .full-location-group-toggle.has-image {
+    min-height: 96px;
+  }
+}
