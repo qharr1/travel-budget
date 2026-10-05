@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 44;
+  const APP_VERSION = 45;
 
   const LOCATION_HEADER_IMAGE_PRESETS = Object.freeze({
     shanghai: {
@@ -106,7 +106,7 @@
 
   function normalizeUiSettings(raw) {
     const defaults = defaultUiSettings();
-    const startScreens = ["home", "itinerary", "map", "summary", "budget", "more"];
+    const startScreens = ["home", "itinerary", "poi", "map", "summary", "budget", "more"];
     return {
       startScreen: startScreens.includes(raw?.startScreen) ? raw.startScreen : defaults.startScreen,
       appearance: ["system", "light", "dark"].includes(raw?.appearance) ? raw.appearance : defaults.appearance,
@@ -406,7 +406,7 @@
   function normalizePlace(item) {
     return {
       id: String(item?.id || uid("place")),
-      title: String(item?.title || "Place"),
+      title: String(item?.title || "POI"),
       category: String(item?.category || "Other"),
       status: String(item?.status || "Wishlist"),
       location: String(item?.location || ""),
@@ -418,6 +418,17 @@
         ? item.coordinateSource
         : (/^(manual pin|placed manually|manual coordinates)/i.test(String(item?.geocodeLabel || "")) ? "manual" : ""),
       website: String(item?.website || ""),
+      bookingRef: String(item?.bookingRef || ""),
+      costTotal: item?.costTotal === null || item?.costTotal === "" || item?.costTotal === undefined ? null : Number(item.costTotal),
+      costCurrency: String(item?.costCurrency || "AUD").toUpperCase(),
+      costAud: item?.costAud === null || item?.costAud === "" || item?.costAud === undefined ? null : Number(item.costAud),
+      fxRate: item?.fxRate === null || item?.fxRate === "" || item?.fxRate === undefined ? null : Number(item.fxRate),
+      fxRateCapturedAt: String(item?.fxRateCapturedAt || ""),
+      adultCost: item?.adultCost === null || item?.adultCost === "" || item?.adultCost === undefined ? null : Number(item.adultCost),
+      childCost: item?.childCost === null || item?.childCost === "" || item?.childCost === undefined ? null : Number(item.childCost),
+      attendeeIds: Array.isArray(item?.attendeeIds) ? item.attendeeIds.map(String) : [],
+      paymentMode: ["none", "individual", "split"].includes(item?.paymentMode) ? item.paymentMode : "none",
+      payerIds: Array.isArray(item?.payerIds) ? item.payerIds.map(String) : [],
       notes: String(item?.notes || ""),
       createdAt: Number(item?.createdAt || Date.now()),
       updatedAt: Number(item?.updatedAt || Date.now())
@@ -3641,37 +3652,90 @@
 
   function placeTypeForItinerary(category) {
     const key = String(category || "").toLowerCase();
-    if (key === "restaurant") return "Food";
-    if (key === "shop") return "Shopping";
+    if (key === "restaurant" || key === "food") return "Food";
+    if (key === "shop" || key === "shopping") return "Shopping";
+    if (key === "theme park") return "Theme park";
     return "Activity";
   }
 
+  function poiItineraryStatus(place) {
+    const status = String(place?.status || "").toLowerCase();
+    if (status === "booked - paid") return "Booked - paid";
+    if (status === "booked - unpaid") return "Booked - unpaid";
+    if (status === "confirmed") return "Confirmed";
+    if (status === "paid") return "Paid";
+    return "Planned";
+  }
+
+  function poiCostText(place) {
+    const local = itemLocalCost(place);
+    if (local === null || !Number.isFinite(local)) return "";
+    const currency = place.costCurrency || "AUD";
+    const audValue = itemEffectiveCost(place);
+    if (currency === "AUD" || audValue === null || !Number.isFinite(audValue)) {
+      return money(local, currency);
+    }
+    return `${money(local, currency)} • ${aud(audValue)}`;
+  }
+
   function renderPlaces() {
-    if (!state.trip) return;
+    if (!state.trip || !el("placeList")) return;
+
     const places = [...(state.trip.places || [])].sort((a, b) => {
-      if (a.status !== b.status) return a.status.localeCompare(b.status);
+      const aScheduled = String(a.status || "").toLowerCase() === "scheduled" ? 1 : 0;
+      const bScheduled = String(b.status || "").toLowerCase() === "scheduled" ? 1 : 0;
+      if (aScheduled !== bScheduled) return aScheduled - bScheduled;
       return a.title.localeCompare(b.title);
     });
-    el("placesSummary").textContent = `${places.length} place${places.length === 1 ? "" : "s"}`;
+
+    if (el("placesSummary")) {
+      const scheduled = places.filter((place) => String(place.status || "").toLowerCase() === "scheduled").length;
+      el("placesSummary").textContent = places.length
+        ? `${places.length} POI${places.length === 1 ? "" : "s"}${scheduled ? ` • ${scheduled} scheduled` : ""}`
+        : "0 POIs";
+    }
+
     el("placeList").innerHTML = places.length
-      ? places.map((place) => `
-          <article class="tool-card">
+      ? places.map((place) => {
+          const attendees = travellerNames(place.attendeeIds || []);
+          const payer = itemPaymentText(place);
+          const cost = poiCostText(place);
+          const scheduled = String(place.status || "").toLowerCase() === "scheduled";
+
+          return `
+          <article class="tool-card poi-card ${typeClass(placeTypeForItinerary(place.category))}">
             <div class="tool-card-top">
               <div>
+                <div class="poi-card-kicker">
+                  <span>${escapeHtml(place.category)}</span>
+                  <span>•</span>
+                  <span>${escapeHtml(place.status)}</span>
+                </div>
                 <h3>${escapeHtml(place.title)}</h3>
-                <div class="tool-card-meta">${escapeHtml(place.category)} • ${escapeHtml(place.status)}${place.location ? ` • ${escapeHtml(place.location)}` : ""}</div>
+                ${place.location ? `<div class="tool-card-meta">📍 ${escapeHtml(place.location)}</div>` : ""}
               </div>
+              ${cost ? `<strong class="poi-card-cost">${escapeHtml(cost)}</strong>` : ""}
+            </div>
+            <div class="poi-detail-grid">
+              ${place.bookingRef ? `<div><span>Booking</span><strong>${escapeHtml(place.bookingRef)}</strong></div>` : ""}
+              ${attendees.length ? `<div><span>Going</span><strong>${escapeHtml(attendees.join(", "))}</strong></div>` : ""}
+              ${payer ? `<div><span>Paying</span><strong>${escapeHtml(payer)}</strong></div>` : ""}
             </div>
             ${place.notes ? `<p class="tool-card-notes">${escapeHtml(place.notes)}</p>` : ""}
             <div class="tool-card-actions">
               ${place.location ? `<button class="tool-link-btn place-directions" type="button" data-id="${escapeHtml(place.id)}">Directions</button>` : ""}
               ${place.website ? `<a class="tool-link-btn" href="${escapeHtml(safeExternalUrl(place.website))}" target="_blank" rel="noopener">Website</a>` : ""}
-              <button class="tool-link-btn schedule-place" type="button" data-id="${escapeHtml(place.id)}">Add to itinerary</button>
+              <button class="tool-link-btn schedule-place" type="button" data-id="${escapeHtml(place.id)}">${scheduled ? "Add again" : "Add to itinerary"}</button>
               <button class="tool-link-btn edit-place" type="button" data-id="${escapeHtml(place.id)}">Edit</button>
             </div>
           </article>
-        `).join("")
-      : `<p class="expense-empty">No wishlist places yet.</p>`;
+        `;
+        }).join("")
+      : `<div class="poi-empty-state">
+          <strong>No POIs saved yet</strong>
+          <span>Save restaurants, attractions, shops or activities here before deciding which day to do them.</span>
+          <button class="primary-btn" id="emptyAddPoiBtn" type="button">+ Add your first POI</button>
+        </div>`;
 
     el("placeList").querySelectorAll(".edit-place").forEach((b) =>
       b.addEventListener("click", () => openPlaceDialog(b.dataset.id))
@@ -3685,6 +3749,7 @@
     el("placeList").querySelectorAll(".schedule-place").forEach((b) =>
       b.addEventListener("click", () => schedulePlaceIntoItinerary(b.dataset.id))
     );
+    el("emptyAddPoiBtn")?.addEventListener("click", () => openPlaceDialog());
   }
 
   function reminderStatus(reminder) {
@@ -3774,7 +3839,6 @@
     if (!state.trip) return;
     renderDocuments();
     renderTravelInfo();
-    renderPlaces();
     renderReminders();
   }
 
@@ -3875,6 +3939,7 @@
     renderSummary();
     renderBudgetVisibility();
     renderHome();
+    renderPlaces();
     renderMore();
     renderDayJournal();
     renderUiSettings();
@@ -3908,6 +3973,7 @@
     if (mode === "map") window.TripMap?.activate?.();
     if (mode === "budget") renderBudgetVisibility();
     if (mode === "summary") renderSummary();
+    if (mode === "poi") renderPlaces();
     if (mode === "more") renderMore();
     if (mode === "settings") {
       renderUiSettings();
@@ -4325,36 +4391,188 @@
     showModalSafe(el("travelInfoDialog"));
   }
 
+  function poiFormLocalCost() {
+    const explicit = el("placeCostTotal").value === "" ? null : Number(el("placeCostTotal").value);
+    if (explicit !== null && Number.isFinite(explicit)) return explicit;
+
+    const adults = Number(state.trip?.travellers?.adults || 0);
+    const children = Number(state.trip?.travellers?.children || 0);
+    const adultCost = el("placeAdultCost").value === "" ? null : Number(el("placeAdultCost").value);
+    const childCost = el("placeChildCost").value === "" ? null : Number(el("placeChildCost").value);
+
+    const hasAdult = adultCost !== null && Number.isFinite(adultCost);
+    const hasChild = childCost !== null && Number.isFinite(childCost);
+    if (!hasAdult && !hasChild) return null;
+
+    return (hasAdult ? adults * adultCost : 0) + (hasChild ? children * childCost : 0);
+  }
+
+  function updatePoiPaymentControls() {
+    const mode = document.querySelector('input[name="placePaymentMode"]:checked')?.value || "none";
+    const total = poiFormLocalCost();
+    const currency = el("placeCostCurrency").value || "AUD";
+
+    el("placeIndividualPayerWrap").classList.toggle("hidden", mode !== "individual");
+    el("placeSplitPayersWrap").classList.toggle("hidden", mode !== "split");
+
+    if (total === null || !Number.isFinite(total) || total <= 0) {
+      el("placePaymentHelp").textContent = "Enter a POI cost above before assigning who pays.";
+      el("placeSplitPreview").innerHTML = "";
+      return;
+    }
+
+    if (mode === "none") {
+      el("placePaymentHelp").textContent = "The POI cost is saved, but not assigned to a traveller.";
+      el("placeSplitPreview").innerHTML = "";
+      return;
+    }
+
+    if (mode === "individual") {
+      const payer = travellerById(el("placeIndividualPayer").value);
+      el("placePaymentHelp").textContent = payer
+        ? `${payer.name} is responsible for ${money(total, currency)}.`
+        : "Choose the adult responsible for the full cost.";
+      el("placeSplitPreview").innerHTML = "";
+      return;
+    }
+
+    const payerIds = [...document.querySelectorAll("[data-place-split-payer]:checked")].map((input) => input.value);
+    if (payerIds.length >= 2) {
+      const share = total / payerIds.length;
+      el("placeSplitPreview").innerHTML =
+        `<strong>${escapeHtml(money(share, currency))} each</strong><span>${payerIds.length} adults splitting ${escapeHtml(money(total, currency))}</span>`;
+      el("placePaymentHelp").textContent = "";
+    } else {
+      el("placeSplitPreview").innerHTML = "";
+      el("placePaymentHelp").textContent = "Choose at least two adults to split this cost.";
+    }
+  }
+
+  function updatePoiFxPreview(resetRate = false) {
+    const currency = el("placeCostCurrency").value || "AUD";
+    const local = poiFormLocalCost();
+
+    el("placeFxRateLabel").textContent = rateLabelFor(currency);
+    el("placeFxRateWrap").classList.toggle("hidden", currency === "AUD");
+
+    if (currency === "AUD") {
+      el("placeFxRate").value = "1";
+    } else if (resetRate || !Number.isFinite(Number(el("placeFxRate").value)) || Number(el("placeFxRate").value) <= 0) {
+      const planned = planningRateFor(currency);
+      el("placeFxRate").value = planned ? String(planned) : "";
+    }
+
+    const rate = currency === "AUD" ? 1 : Number(el("placeFxRate").value);
+    const converted = audFromLocalCost(local, currency, "", rate);
+
+    if (local === null || !Number.isFinite(local)) {
+      el("placeAudPreview").textContent = "—";
+      el("placeFxPreviewNote").textContent = "Enter a cost to preview.";
+    } else if (currency !== "AUD" && (!Number.isFinite(rate) || rate <= 0)) {
+      el("placeAudPreview").textContent = "Rate needed";
+      el("placeFxPreviewNote").textContent = `Add a ${currency} planning rate here or in Settings.`;
+    } else {
+      el("placeAudPreview").textContent = aud(converted);
+      el("placeFxPreviewNote").textContent = currency === "AUD"
+        ? "Already in AUD."
+        : `${money(local, currency)} at 1 AUD = ${rate} ${currency}`;
+    }
+
+    updatePoiPaymentControls();
+  }
+
+  function renderPoiPeopleControls(place = null) {
+    const people = state.trip?.travellerProfiles || [];
+    const attendeeSet = new Set(
+      place?.attendeeIds?.length
+        ? place.attendeeIds
+        : people.map((person) => person.id)
+    );
+    const payerSet = new Set(place?.payerIds || []);
+
+    el("placeAttendeeOptions").innerHTML = people.length
+      ? people.map((person) => `
+          <label class="person-check">
+            <input type="checkbox" value="${escapeHtml(person.id)}" data-place-attendee ${attendeeSet.has(person.id) ? "checked" : ""}>
+            <span><strong>${escapeHtml(person.name)}</strong><small>${person.type === "child" ? "Child" : "Adult"}</small></span>
+          </label>
+        `).join("")
+      : "";
+
+    el("placeAttendeeHelp").classList.toggle("hidden", people.length > 0);
+
+    const adults = adultTravellers();
+    el("placeIndividualPayer").innerHTML = adults.length
+      ? `<option value="">Choose adult</option>` + adults.map((person) =>
+          `<option value="${escapeHtml(person.id)}" ${payerSet.has(person.id) ? "selected" : ""}>${escapeHtml(person.name)}</option>`
+        ).join("")
+      : `<option value="">No adults added</option>`;
+
+    el("placeSplitPayerOptions").innerHTML = adults.length
+      ? adults.map((person) => `
+          <label class="person-check">
+            <input type="checkbox" value="${escapeHtml(person.id)}" data-place-split-payer ${payerSet.has(person.id) ? "checked" : ""}>
+            <span><strong>${escapeHtml(person.name)}</strong><small>Adult</small></span>
+          </label>
+        `).join("")
+      : `<p class="muted small">Add adult travellers in Settings first.</p>`;
+
+    const mode = place?.paymentMode || "none";
+    document.querySelectorAll('input[name="placePaymentMode"]').forEach((radio) => {
+      radio.checked = radio.value === mode;
+    });
+
+    document.querySelectorAll("[data-place-split-payer]").forEach((input) => {
+      input.addEventListener("change", updatePoiPaymentControls);
+    });
+
+    updatePoiPaymentControls();
+  }
+
   function openPlaceDialog(id = "") {
     const place = id ? state.trip?.places.find((x) => x.id === id) : null;
     el("placeId").value = place?.id || "";
-    el("placeDialogTitle").textContent = place ? "Edit place" : "Add place";
+    el("placeDialogTitle").textContent = place ? "Edit POI" : "Add POI";
     el("placeTitle").value = place?.title || "";
-    el("placeCategory").value = place?.category || "Other";
+    el("placeCategory").value = place?.category || "Attraction";
     el("placeStatus").value = place?.status || "Wishlist";
     el("placeLocation").value = place?.location || "";
+    el("placeLatitude").value = place?.latitude !== null && place?.latitude !== undefined && Number.isFinite(Number(place.latitude)) ? String(place.latitude) : "";
+    el("placeLongitude").value = place?.longitude !== null && place?.longitude !== undefined && Number.isFinite(Number(place.longitude)) ? String(place.longitude) : "";
     el("placeWebsite").value = place?.website || "";
+    el("placeBookingRef").value = place?.bookingRef || "";
+    el("placeCostTotal").value = Number.isFinite(Number(place?.costTotal)) ? place.costTotal : "";
+    el("placeAdultCost").value = Number.isFinite(Number(place?.adultCost)) ? place.adultCost : "";
+    el("placeChildCost").value = Number.isFinite(Number(place?.childCost)) ? place.childCost : "";
     el("placeNotes").value = place?.notes || "";
     el("placeError").textContent = "";
     el("deletePlaceBtn").classList.toggle("hidden", !place);
+
+    const currencies = new Set(["AUD"]);
+    (state.trip.budget?.destinations || []).forEach((d) => currencies.add(d.currency));
+    el("placeCostCurrency").innerHTML = [...currencies].map((code) => `<option value="${code}">${code}</option>`).join("");
+    const startingCurrency = place?.costCurrency || "AUD";
+    el("placeCostCurrency").value = currencies.has(startingCurrency) ? startingCurrency : "AUD";
+    const startingRate = place?.fxRate ?? planningRateFor(el("placeCostCurrency").value);
+    el("placeFxRate").value = startingRate ? String(startingRate) : "";
+
+    renderPoiPeopleControls(place);
+    updatePoiFxPreview(false);
     showModalSafe(el("placeDialog"));
   }
 
   function schedulePlaceIntoItinerary(id) {
     const place = state.trip?.places.find((x) => x.id === id);
     if (!place) return;
+
     pendingPlaceToScheduleId = place.id;
-    itineraryViewMode = "day";
-    selectedItineraryDate = defaultSelectedDate();
-    activateMode("itinerary");
-    renderItinerary();
-    openItineraryItemDialog("", {
-      date: selectedItineraryDate,
-      type: placeTypeForItinerary(place.category),
-      title: place.title,
-      location: place.location,
-      notes: place.notes
-    });
+    el("poiSchedulePlaceId").value = place.id;
+    el("poiScheduleName").textContent = place.title;
+    el("poiScheduleDate").min = state.trip.startDate;
+    el("poiScheduleDate").max = state.trip.endDate;
+    el("poiScheduleDate").value = selectedItineraryDate || defaultSelectedDate();
+    el("poiScheduleError").textContent = "";
+    showModalSafe(el("poiScheduleDialog"));
   }
 
   function openTimelineNoteDialog(id = "") {
@@ -4878,7 +5096,6 @@
   }
 
   function closeItineraryItemDialog() {
-    pendingPlaceToScheduleId = "";
     closeModalSafe(el("itineraryItemDialog"));
   }
 
@@ -5019,22 +5236,93 @@
   el("addPlaceBtn").addEventListener("click", () => openPlaceDialog());
   el("closePlaceDialogBtn").addEventListener("click", () => closeModalSafe(el("placeDialog")));
 
+  el("placeIndividualPayer").addEventListener("change", updatePoiPaymentControls);
+  el("placeCostTotal").addEventListener("input", () => updatePoiFxPreview(false));
+  el("placeAdultCost").addEventListener("input", () => updatePoiFxPreview(false));
+  el("placeChildCost").addEventListener("input", () => updatePoiFxPreview(false));
+  el("placeCostCurrency").addEventListener("change", () => updatePoiFxPreview(true));
+  el("placeFxRate").addEventListener("input", () => updatePoiFxPreview(false));
+  document.querySelectorAll('input[name="placePaymentMode"]').forEach((radio) => {
+    radio.addEventListener("change", updatePoiPaymentControls);
+  });
+
   el("placeForm").addEventListener("submit", (event) => {
     event.preventDefault();
+
     const id = el("placeId").value;
     const title = el("placeTitle").value.trim();
     if (!title) {
-      el("placeError").textContent = "Enter a place name.";
+      el("placeError").textContent = "Enter a POI name.";
       return;
     }
+
     const existing = id ? state.trip.places.find((x) => x.id === id) : null;
     const nextLocation = el("placeLocation").value.trim();
+    const latitudeText = el("placeLatitude").value.trim();
+    const longitudeText = el("placeLongitude").value.trim();
+
+    if (Boolean(latitudeText) !== Boolean(longitudeText)) {
+      el("placeError").textContent = "Enter both latitude and longitude, or leave both blank.";
+      return;
+    }
+
+    let enteredLatitude = null;
+    let enteredLongitude = null;
+    const coordinatePairProvided = Boolean(latitudeText) && Boolean(longitudeText);
+
+    if (coordinatePairProvided) {
+      enteredLatitude = Number(latitudeText);
+      enteredLongitude = Number(longitudeText);
+      if (
+        !Number.isFinite(enteredLatitude) ||
+        !Number.isFinite(enteredLongitude) ||
+        Math.abs(enteredLatitude) > 90 ||
+        Math.abs(enteredLongitude) > 180
+      ) {
+        el("placeError").textContent = "Latitude must be between -90 and 90, and longitude between -180 and 180.";
+        return;
+      }
+    }
+
+    const sameCoordinatePair = Boolean(
+      existing &&
+      coordinatePairProvided &&
+      Number.isFinite(Number(existing.latitude)) &&
+      Number.isFinite(Number(existing.longitude)) &&
+      Math.abs(Number(existing.latitude) - enteredLatitude) < 0.0000001 &&
+      Math.abs(Number(existing.longitude) - enteredLongitude) < 0.0000001
+    );
     const sameMappedLocation = Boolean(
       existing &&
       String(existing.location || "").trim() === nextLocation &&
-      Number.isFinite(Number(existing.latitude)) &&
-      Number.isFinite(Number(existing.longitude))
+      sameCoordinatePair
     );
+
+    const costCurrency = el("placeCostCurrency").value || "AUD";
+    const localCost = poiFormLocalCost();
+    const fxRate = costCurrency === "AUD" ? 1 : Number(el("placeFxRate").value);
+
+    if (localCost !== null && costCurrency !== "AUD" && (!Number.isFinite(fxRate) || fxRate <= 0)) {
+      el("placeError").textContent = `Enter a valid ${costCurrency} planning exchange rate.`;
+      return;
+    }
+
+    const paymentMode = document.querySelector('input[name="placePaymentMode"]:checked')?.value || "none";
+    if (localCost !== null && Number.isFinite(localCost) && localCost > 0 && paymentMode === "individual" && !el("placeIndividualPayer").value) {
+      el("placeError").textContent = "Choose the adult responsible for this cost.";
+      return;
+    }
+    if (localCost !== null && Number.isFinite(localCost) && localCost > 0 && paymentMode === "split") {
+      const selectedSplitPayers = document.querySelectorAll("[data-place-split-payer]:checked").length;
+      if (selectedSplitPayers < 2) {
+        el("placeError").textContent = "Choose at least two adults to split this cost.";
+        return;
+      }
+    }
+
+    const capturedAudCost = localCost === null
+      ? null
+      : audFromLocalCost(localCost, costCurrency, "", fxRate);
 
     const place = normalizePlace({
       id: existing?.id || uid("place"),
@@ -5042,22 +5330,49 @@
       category: el("placeCategory").value,
       status: el("placeStatus").value,
       location: nextLocation,
-      latitude: sameMappedLocation ? existing.latitude : null,
-      longitude: sameMappedLocation ? existing.longitude : null,
-      geocodeLabel: sameMappedLocation ? existing.geocodeLabel : "",
-      geocodedAt: sameMappedLocation ? existing.geocodedAt : null,
+      latitude: coordinatePairProvided ? enteredLatitude : null,
+      longitude: coordinatePairProvided ? enteredLongitude : null,
+      coordinateSource: coordinatePairProvided
+        ? (sameCoordinatePair ? (existing?.coordinateSource || "manual") : "manual")
+        : "",
+      geocodeLabel: coordinatePairProvided
+        ? (sameCoordinatePair ? String(existing?.geocodeLabel || "") : "Manual coordinates")
+        : "",
+      geocodedAt: coordinatePairProvided
+        ? (sameCoordinatePair ? (existing?.geocodedAt || Date.now()) : Date.now())
+        : null,
       website: el("placeWebsite").value.trim(),
+      bookingRef: el("placeBookingRef").value.trim(),
+      costTotal: el("placeCostTotal").value === "" ? null : Number(el("placeCostTotal").value),
+      adultCost: el("placeAdultCost").value === "" ? null : Number(el("placeAdultCost").value),
+      childCost: el("placeChildCost").value === "" ? null : Number(el("placeChildCost").value),
+      costCurrency,
+      costAud: capturedAudCost,
+      fxRate: localCost === null ? null : fxRate,
+      fxRateCapturedAt: localCost === null ? "" : new Date().toISOString(),
+      attendeeIds: [...document.querySelectorAll("[data-place-attendee]:checked")].map((input) => input.value),
+      paymentMode,
+      payerIds: paymentMode === "individual"
+        ? (el("placeIndividualPayer").value ? [el("placeIndividualPayer").value] : [])
+        : paymentMode === "split"
+          ? [...document.querySelectorAll("[data-place-split-payer]:checked")].map((input) => input.value)
+          : [],
       notes: el("placeNotes").value.trim(),
       createdAt: existing?.createdAt || Date.now(),
       updatedAt: Date.now()
     });
+
     if (existing) state.trip.places = state.trip.places.map((x) => x.id === id ? place : x);
     else state.trip.places.push(place);
+
     saveState();
     closeModalSafe(el("placeDialog"));
     renderPlaces();
-    if (place.location && !sameMappedLocation) {
+
+    if (place.location && !sameMappedLocation && !coordinatePairProvided) {
       window.TripMap?.queueGeocode?.("place", place.id);
+    } else {
+      window.TripMap?.dataChanged?.();
     }
   });
 
@@ -5069,6 +5384,85 @@
     saveState();
     closeModalSafe(el("placeDialog"));
     renderPlaces();
+    window.TripMap?.dataChanged?.();
+  });
+
+  el("closePoiScheduleDialogBtn").addEventListener("click", () => {
+    pendingPlaceToScheduleId = "";
+    closeModalSafe(el("poiScheduleDialog"));
+  });
+
+  el("poiScheduleForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const placeId = el("poiSchedulePlaceId").value || pendingPlaceToScheduleId;
+    const date = el("poiScheduleDate").value;
+    const place = state.trip?.places.find((x) => x.id === placeId);
+
+    if (!place) {
+      el("poiScheduleError").textContent = "This POI could not be found.";
+      return;
+    }
+
+    if (!date || dayNumber(date) < dayNumber(state.trip.startDate) || dayNumber(date) > dayNumber(state.trip.endDate)) {
+      el("poiScheduleError").textContent = "Choose a date within the trip.";
+      return;
+    }
+
+    const links = place.website
+      ? [{ id: uid("link"), label: "POI / booking website", url: place.website }]
+      : [];
+
+    const item = normalizeItineraryItem({
+      id: uid("itin"),
+      date,
+      type: placeTypeForItinerary(place.category),
+      title: place.title,
+      location: place.location,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      geocodeLabel: place.geocodeLabel,
+      geocodedAt: place.geocodedAt,
+      coordinateSource: place.coordinateSource,
+      status: poiItineraryStatus(place),
+      bookingRef: place.bookingRef,
+      links,
+      costTotal: place.costTotal,
+      adultCost: place.adultCost,
+      childCost: place.childCost,
+      costCurrency: place.costCurrency,
+      costAud: place.costAud,
+      fxRate: place.fxRate,
+      fxRateCapturedAt: place.fxRateCapturedAt,
+      attendeeIds: place.attendeeIds,
+      paymentMode: place.paymentMode,
+      payerIds: place.payerIds,
+      notes: place.notes,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+
+    state.trip.itinerary.push(item);
+    place.status = "Scheduled";
+    place.updatedAt = Date.now();
+    pendingPlaceToScheduleId = "";
+
+    selectedItineraryDate = date;
+    itineraryViewMode = "day";
+    saveState();
+    closeModalSafe(el("poiScheduleDialog"));
+    renderPlaces();
+    renderItinerary();
+    renderSummary();
+    window.TripMap?.dataChanged?.();
+    activateMode("itinerary");
+
+    setTimeout(() => {
+      document.querySelector(`[data-itinerary-id="${CSS.escape(item.id)}"]`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+    }, 120);
   });
 
   el("addTimelineNoteBtn").addEventListener("click", () => openTimelineNoteDialog());
@@ -5955,15 +6349,6 @@
     if (existing) state.trip.itinerary = state.trip.itinerary.map((x) => x.id === id ? item : x);
     else state.trip.itinerary.push(item);
 
-    if (!existing && pendingPlaceToScheduleId) {
-      const place = state.trip.places.find((x) => x.id === pendingPlaceToScheduleId);
-      if (place) {
-        place.status = "Scheduled";
-        place.updatedAt = Date.now();
-      }
-      pendingPlaceToScheduleId = "";
-    }
-
     selectedItineraryDate = date;
     saveState();
     closeItineraryItemDialog();
@@ -6735,8 +7120,7 @@
     }
 
     if (kind === "place") {
-      activateMode("more");
-      if (el("placesPanel")) el("placesPanel").open = true;
+      activateMode("poi");
       setTimeout(() => openPlaceDialog(id), 80);
     }
   }

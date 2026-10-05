@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=44" rel="manifest"/>
+<link href="./manifest.webmanifest?v=45" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=44" rel="stylesheet"/>
+</script><link href="./styles.css?v=45" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -121,7 +121,9 @@
 <section class="hidden" id="appPanel">
 <nav aria-label="Travel planner mode" class="mode-switch">
 <button class="mode-btn active" data-mode="home" type="button">Home</button>
-<button class="mode-btn" data-mode="itinerary" type="button">Itinerary</button><button class="mode-btn" data-mode="map" type="button">Map</button>
+<button class="mode-btn" data-mode="itinerary" type="button">Itinerary</button>
+<button class="mode-btn" data-mode="poi" type="button">POI</button>
+<button class="mode-btn" data-mode="map" type="button">Map</button>
 <button class="mode-btn" data-mode="summary" type="button">Summary</button>
 <button class="mode-btn" data-mode="budget" type="button">Budget</button>
 <button class="mode-btn" data-mode="more" type="button">More</button>
@@ -311,7 +313,22 @@
 <p class="muted small share-help">Shared links contain a compressed copy of the trip after the # in the URL. GitHub does not receive that fragment, but anyone who receives the complete link can import that shared copy.</p>
 <p class="status-message" id="quickExportMessage" role="status"></p>
 </section>
-</section><section class="mode-panel" data-mode-panel="map" id="mapMode">
+</section><section class="mode-panel" data-mode-panel="poi" id="poiMode">
+<section class="more-hero poi-hero">
+<div>
+<p class="eyebrow">POINTS OF INTEREST</p>
+<h2>Save ideas before you schedule them</h2>
+<p class="muted">Keep attractions, restaurants, shops and activities here without choosing a date. Save pricing, booking details, location, who's going and who would pay. When you decide to do one, add it to the itinerary and choose the date.</p>
+</div>
+<button class="primary-btn poi-add-btn" id="addPlaceBtn" type="button">+ Add POI</button>
+</section>
+<div class="poi-summary-bar">
+<span class="summary-chip" id="placesSummary">0 POIs</span>
+<span class="muted small">POIs are shared with Family Sync and appear on the Trip Map.</span>
+</div>
+<div class="tool-list poi-list" id="placeList"></div>
+</section>
+<section class="mode-panel" data-mode-panel="map" id="mapMode">
 <section class="map-hero">
 <div>
 <p class="eyebrow">TRIP MAP</p>
@@ -325,7 +342,7 @@
 <button class="map-filter active" data-map-filter="all" type="button">All</button>
 <button class="map-filter" data-map-filter="hotel" type="button">Hotels</button>
 <button class="map-filter" data-map-filter="itinerary" type="button">Itinerary</button>
-<button class="map-filter" data-map-filter="places" type="button">Places</button><button aria-pressed="true" class="map-filter active" id="mapFlightPathsToggle" type="button">✈ Flight paths</button><button aria-pressed="true" class="map-filter active" id="mapTravelPathsToggle" type="button">🚄 Travel routes</button>
+<button class="map-filter" data-map-filter="places" type="button">POI</button><button aria-pressed="true" class="map-filter active" id="mapFlightPathsToggle" type="button">✈ Flight paths</button><button aria-pressed="true" class="map-filter active" id="mapTravelPathsToggle" type="button">🚄 Travel routes</button>
 </div>
 <div class="map-action-row">
 <button class="secondary-btn" id="mapFitTripBtn" type="button">Fit whole trip</button>
@@ -343,7 +360,7 @@
 </div>
 <div class="trip-map-legend">
 <span><span class="legend-hotel">🏨</span> Accommodation</span>
-<span><span class="legend-pin"></span> Itinerary / places</span><span><span class="legend-flight-line"></span> Flight path</span><span><span class="legend-travel-line"></span> Travel route</span>
+<span><span class="legend-pin"></span> Itinerary / POI</span><span><span class="legend-flight-line"></span> Flight path</span><span><span class="legend-travel-line"></span> Travel route</span>
 </div>
 </section>
 <details class="map-missing-panel" id="mapMissingPanel">
@@ -608,7 +625,7 @@
 <section class="more-hero">
 <p class="eyebrow">TRIP TOOLS</p>
 <h2>Everything else you need</h2>
-<p class="muted">Documents, travel contacts, wishlist places and reminders all stay available offline on this device.</p>
+<p class="muted">Documents, travel contacts and reminders all stay available offline on this device. Points of interest now have their own POI tab.</p>
 </section>
 <details class="tool-panel" id="documentsPanel" open="">
 <summary>
@@ -643,22 +660,6 @@
 <div class="tool-list" id="travelInfoList"></div>
 </div>
 </details>
-<details class="tool-panel" id="placesPanel">
-<summary>
-<div>
-<span class="tool-panel-title">Places / wishlist</span>
-<span class="tool-panel-sub" id="placesSummary">0 places</span>
-</div>
-<span aria-hidden="true" class="pretrip-chevron">⌄</span>
-</summary>
-<div class="tool-panel-body">
-<div class="section-heading">
-<div><p class="eyebrow">MAYBE LATER</p><h2>Places &amp; wishlist</h2></div>
-<button class="primary-compact-btn" id="addPlaceBtn" type="button">+ Add</button>
-</div>
-<div class="tool-list" id="placeList"></div>
-</div>
-</details>
 <details class="tool-panel" id="remindersPanel">
 <summary>
 <div>
@@ -689,7 +690,7 @@
 <option value="dark">Dark</option>
 <option value="system">Use iPhone setting</option>
 </select>
-</div><div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="map">Map</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
+</div><div class="settings-row"><div><strong>Open Travel Planner to</strong><span>Choose the first screen when the app launches.</span></div><select class="compact-select" id="settingsStartScreen"><option value="home">Home</option><option value="itinerary">Itinerary</option><option value="poi">POI</option><option value="map">Map</option><option value="summary">Summary</option><option value="budget">Budget</option><option value="more">More</option></select></div>
 <div class="settings-row"><div><strong>Default itinerary view</strong><span>Day view automatically selects the correct trip day.</span></div><select class="compact-select" id="settingsItineraryView"><option value="day">Day view</option><option value="full">Full trip</option></select></div><label class="settings-toggle"><span><strong>Show itinerary links</strong><small>Display saved booking / website links on Day and Full Trip cards. Off by default.</small></span><input id="settingsShowItineraryLinks" type="checkbox"/></label>
 <button class="secondary-btn" id="resetLayoutBtn" type="button">Reset layout preferences</button><p class="status-message" id="layoutSettingsMessage"></p></div></details>
 <details class="settings-group"><summary><div><span class="settings-group-title">Home screen</span><span class="settings-group-sub">Choose the cards you want on Home</span></div><span class="pretrip-chevron">⌄</span></summary><div class="settings-group-body"><div class="settings-toggle-list">
@@ -885,7 +886,7 @@
 </div>
 <p class="status-message" id="familySyncMessage" role="status"></p>
 <p class="muted small family-sync-note">
-      Synced: itinerary, travellers, pre-trip tasks, day details, places, reminders, travel info and document metadata.
+      Synced: itinerary, travellers, pre-trip tasks, day details, POIs, reminders, travel info and document metadata.
       Not synced: spending budget, expenses, UI preferences or attached PDF/image files.
     </p>
 </div>
@@ -1501,39 +1502,147 @@
 <dialog id="placeDialog">
 <form class="dialog-form" id="placeForm">
 <div class="section-heading">
-<div><p class="eyebrow">WISHLIST</p><h2 id="placeDialogTitle">Add place</h2></div>
+<div><p class="eyebrow">POINT OF INTEREST</p><h2 id="placeDialogTitle">Add POI</h2></div>
 <button class="text-btn" id="closePlaceDialogBtn" type="button">Close</button>
 </div>
 <input id="placeId" type="hidden"/>
-<label>Name<input id="placeTitle" maxlength="140" required="" type="text"/></label>
+<label>Name<input id="placeTitle" maxlength="140" required="" type="text" placeholder="e.g. teamLab Planets"/></label>
 <div class="two-col">
 <label>
-          Category
-          <select id="placeCategory">
-<option>Restaurant</option>
-<option>Shop</option>
+Category
+<select id="placeCategory">
 <option>Attraction</option>
-<option>Park</option>
+<option>Theme park</option>
 <option>Activity</option>
+<option>Restaurant</option>
+<option>Food</option>
+<option>Shop</option>
+<option>Shopping</option>
+<option>Park</option>
 <option>Other</option>
 </select>
 </label>
 <label>
-          Status
-          <select id="placeStatus">
+Status
+<select id="placeStatus">
 <option>Wishlist</option>
+<option>Considering</option>
+<option>Booked - unpaid</option>
+<option>Booked - paid</option>
+<option>Confirmed</option>
 <option>Scheduled</option>
 <option>Visited</option>
 </select>
 </label>
 </div>
-<label>Location / address<input id="placeLocation" maxlength="500" type="text"/></label>
-<label>Website<input id="placeWebsite" maxlength="500" placeholder="https://" type="url"/></label>
-<label>Notes<textarea id="placeNotes" maxlength="3000" rows="5"></textarea></label>
+
+<label>Location / address<input id="placeLocation" maxlength="500" type="text" placeholder="Address, station, area or venue"/></label>
+
+<div class="timezone-editor">
+<div class="section-heading compact-heading">
+<div><p class="eyebrow">MAP PIN</p><h3>Latitude &amp; longitude</h3></div>
+<span class="optional">optional</span>
+</div>
+<div class="two-col">
+<label>Latitude<input id="placeLatitude" inputmode="decimal" min="-90" max="90" step="any" type="number"/></label>
+<label>Longitude<input id="placeLongitude" inputmode="decimal" min="-180" max="180" step="any" type="number"/></label>
+</div>
+<p class="muted small">Leave these blank and Travel Planner will try to find the location automatically. Enter both to lock the POI to an exact map pin.</p>
+</div>
+
+<div class="two-col">
+<label>Booking / confirmation ref <span class="optional">(optional)</span><input id="placeBookingRef" maxlength="120" type="text"/></label>
+<label>Website / booking link <span class="optional">(optional)</span><input id="placeWebsite" maxlength="800" placeholder="https://" type="url"/></label>
+</div>
+
+<div class="three-col">
+<label>Total cost<input id="placeCostTotal" inputmode="decimal" min="0" step="0.01" type="number"/></label>
+<label>Adult / person<input id="placeAdultCost" inputmode="decimal" min="0" step="0.01" type="number"/></label>
+<label>Child / person<input id="placeChildCost" inputmode="decimal" min="0" step="0.01" type="number"/></label>
+</div>
+<label>
+Cost currency
+<select id="placeCostCurrency"><option value="AUD">AUD</option></select>
+</label>
+<div class="fx-snapshot-box">
+<div class="two-col">
+<label id="placeFxRateWrap">
+<span id="placeFxRateLabel">Planning rate</span>
+<input id="placeFxRate" inputmode="decimal" min="0.000001" step="0.000001" type="number"/>
+</label>
+<div class="fx-preview-card">
+<span class="fx-preview-label">AUD equivalent</span>
+<strong id="placeAudPreview">—</strong>
+<small id="placeFxPreviewNote">Enter a cost to preview.</small>
+</div>
+</div>
+</div>
+
+<section class="itinerary-people-section">
+<div class="section-heading compact-heading">
+<div><p class="eyebrow">ATTENDING</p><h3>Who would go?</h3></div>
+</div>
+<div class="person-check-grid" id="placeAttendeeOptions"></div>
+<p class="muted small" id="placeAttendeeHelp">Add named travellers in Settings to select attendees.</p>
+</section>
+
+<section class="itinerary-people-section" id="placePaymentSection">
+<div class="section-heading compact-heading">
+<div><p class="eyebrow">COST RESPONSIBILITY</p><h3>Who would pay?</h3></div>
+</div>
+<div class="payment-mode-grid">
+<label class="person-check payment-choice">
+<input checked="" name="placePaymentMode" type="radio" value="none"/>
+<span><strong>Not assigned</strong><small>Save the POI cost only</small></span>
+</label>
+<label class="person-check payment-choice">
+<input name="placePaymentMode" type="radio" value="individual"/>
+<span><strong>Individual</strong><small>One adult pays the full cost</small></span>
+</label>
+<label class="person-check payment-choice">
+<input name="placePaymentMode" type="radio" value="split"/>
+<span><strong>Split cost</strong><small>Choose which adults share it</small></span>
+</label>
+</div>
+<div class="hidden" id="placeIndividualPayerWrap">
+<label>Adult responsible<select id="placeIndividualPayer"></select></label>
+</div>
+<div class="hidden" id="placeSplitPayersWrap">
+<p class="muted small">Select at least two adults. Children can attend but cannot be assigned payment responsibility.</p>
+<div class="person-check-grid" id="placeSplitPayerOptions"></div>
+<div class="split-preview" id="placeSplitPreview"></div>
+</div>
+<p class="muted small" id="placePaymentHelp"></p>
+</section>
+
+<label>Notes<textarea id="placeNotes" maxlength="3000" rows="5" placeholder="Opening hours, ticket details, why you want to go, food notes, restrictions…"></textarea></label>
 <p class="error" id="placeError"></p>
 <div class="dialog-actions">
 <button class="danger-btn hidden" id="deletePlaceBtn" type="button">Delete</button>
-<button class="primary-btn" type="submit">Save place</button>
+<button class="primary-btn" type="submit">Save POI</button>
+</div>
+</form>
+</dialog>
+
+<dialog id="poiScheduleDialog">
+<form class="dialog-form" id="poiScheduleForm">
+<div class="section-heading">
+<div><p class="eyebrow">ADD TO ITINERARY</p><h2>Choose the day</h2></div>
+<button class="text-btn" id="closePoiScheduleDialogBtn" type="button">Close</button>
+</div>
+<input id="poiSchedulePlaceId" type="hidden"/>
+<div class="poi-schedule-copy">
+<strong id="poiScheduleName">POI</strong>
+<span>Pricing, booking details, location, attendees and payer responsibility will be copied into a new itinerary item.</span>
+</div>
+<label>
+Trip date
+<input id="poiScheduleDate" required="" type="date"/>
+</label>
+<p class="muted small">No time is required. Once added, you can open the itinerary item and add a start/end time if you want.</p>
+<p class="error" id="poiScheduleError"></p>
+<div class="dialog-actions">
+<button class="primary-btn" type="submit">Add to itinerary</button>
 </div>
 </form>
 </dialog>
@@ -1628,6 +1737,6 @@
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=44"></script><script src="./family-sync.js?v=44" type="module"></script><script src="./trip-map.js?v=44" type="module"></script>
+<script defer="" src="./app.js?v=45"></script><script src="./family-sync.js?v=45" type="module"></script><script src="./trip-map.js?v=45" type="module"></script>
 </body>
 </html>
