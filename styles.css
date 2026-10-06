@@ -4394,3 +4394,110 @@ html[data-theme="dark"] .poi-schedule-copy {
     white-space: normal;
   }
 }
+
+
+/* v47 — paid booking emphasis + external group costs */
+.booking-status-chip.paid {
+  border: 1px solid #86efac;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 850;
+}
+
+.external-cost-box {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.external-cost-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.external-cost-heading strong {
+  font-size: .78rem;
+}
+.external-cost-heading span {
+  color: var(--muted);
+  font-size: .63rem;
+  font-weight: 700;
+}
+.external-cost-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-size: .76rem;
+}
+.external-cost-row span {
+  color: var(--muted);
+}
+.external-cost-row strong {
+  flex: 0 0 auto;
+}
+
+.external-cost-editor-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+.external-cost-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(90px, .75fr) minmax(82px, .55fr);
+  gap: 8px;
+  align-items: center;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.external-cost-editor-name {
+  min-width: 0;
+}
+.external-cost-editor-name strong,
+.external-cost-editor-name span {
+  display: block;
+}
+.external-cost-editor-name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.external-cost-editor-name span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: .65rem;
+  font-weight: 700;
+}
+
+html[data-theme="dark"] .booking-status-chip.paid {
+  border-color: #166534;
+  background: #0d3024;
+  color: #86efac;
+}
+html[data-theme="dark"] .external-cost-box {
+  border-color: #334155;
+  background: #102033;
+}
+html[data-theme="dark"] .external-cost-editor-row {
+  background: #0b1728;
+}
+
+@media (max-width: 620px) {
+  .external-cost-heading {
+    display: grid;
+    gap: 2px;
+  }
+  .external-cost-editor-row {
+    grid-template-columns: minmax(0, 1fr) minmax(90px, .72fr);
+  }
+  .external-cost-editor-name {
+    grid-column: 1 / -1;
+  }
+}

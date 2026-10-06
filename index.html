@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=46" rel="manifest"/>
+<link href="./manifest.webmanifest?v=47" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=46" rel="stylesheet"/>
+</script><link href="./styles.css?v=47" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -1168,7 +1168,18 @@
 </div>
 <div class="person-check-grid" id="itemAttendeeOptions"></div>
 <p class="muted small" id="itemAttendeeHelp">Add named travellers in Settings to select attendees.</p>
-</section><section class="itinerary-links-editor">
+</section>
+<section class="itinerary-people-section hidden" id="itemExternalCostsSection">
+<div class="section-heading compact-heading">
+<div>
+<p class="eyebrow">EXTERNAL GROUP COSTS</p>
+<h3>Separate traveller / group costs</h3>
+</div>
+</div>
+<p class="muted small">These amounts belong to external travellers/groups only. They sync with this itinerary item but are excluded from your trip budget, expenses, paid/unpaid totals and payer responsibility.</p>
+<div class="external-cost-editor-list" id="itemExternalCostsList"></div>
+</section>
+<section class="itinerary-links-editor">
 <div class="section-heading compact-heading">
 <div>
 <p class="eyebrow">LINKS</p>
@@ -1718,9 +1729,10 @@ Trip date
       <select id="travellerType">
 <option value="adult">Adult</option>
 <option value="child">Child</option>
+<option value="external">External traveller / group</option>
 </select>
 </label>
-<p class="muted small">Children can be marked as attending events, but they never appear in the event payer list.</p>
+<p class="muted small">Adults and children are part of your main trip party. External travellers/groups are tracked separately and can have their own cost on each itinerary item without affecting your budget, expenses or paid/unpaid totals.</p>
 <p class="error" id="travellerError"></p>
 <div class="dialog-actions">
 <button class="danger-btn hidden" id="deleteTravellerBtn" type="button">Delete</button>
@@ -1737,6 +1749,6 @@ Trip date
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=46"></script><script src="./family-sync.js?v=46" type="module"></script><script src="./trip-map.js?v=46" type="module"></script>
+<script defer="" src="./app.js?v=47"></script><script src="./family-sync.js?v=47" type="module"></script><script src="./trip-map.js?v=47" type="module"></script>
 </body>
 </html>

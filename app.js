@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 46;
+  const APP_VERSION = 47;
 
   const LOCATION_HEADER_IMAGE_PRESETS = Object.freeze({
     shanghai: {
@@ -241,10 +241,12 @@
   }
 
   function normalizeTravellerProfile(item) {
-    const type = String(item?.type || "adult").toLowerCase() === "child" ? "child" : "adult";
+    const rawType = String(item?.type || "adult").toLowerCase();
+    const type = ["adult", "child", "external"].includes(rawType) ? rawType : "adult";
+    const fallbackName = type === "child" ? "Child" : type === "external" ? "External group" : "Adult";
     return {
       id: String(item?.id || uid("person")),
-      name: String(item?.name || (type === "child" ? "Child" : "Adult")).trim() || (type === "child" ? "Child" : "Adult"),
+      name: String(item?.name || fallbackName).trim() || fallbackName,
       type,
       createdAt: Number(item?.createdAt || Date.now()),
       updatedAt: Number(item?.updatedAt || Date.now())
@@ -339,6 +341,15 @@
       attendeeIds: Array.isArray(item?.attendeeIds) ? item.attendeeIds.map(String) : [],
       paymentMode: ["none", "individual", "split"].includes(item?.paymentMode) ? item.paymentMode : "none",
       payerIds: Array.isArray(item?.payerIds) ? item.payerIds.map(String) : [],
+      externalCosts: Array.isArray(item?.externalCosts)
+        ? item.externalCosts
+            .map((entry) => ({
+              travellerId: String(entry?.travellerId || ""),
+              amount: entry?.amount === null || entry?.amount === "" || entry?.amount === undefined ? null : Number(entry.amount),
+              currency: String(entry?.currency || item?.costCurrency || "AUD").toUpperCase()
+            }))
+            .filter((entry) => entry.travellerId && entry.amount !== null && Number.isFinite(entry.amount))
+        : [],
       notes: String(item?.notes || ""),
       createdAt: Number(item?.createdAt || Date.now()),
       updatedAt: Number(item?.updatedAt || Date.now())
@@ -781,6 +792,14 @@
 
   function adultTravellers() {
     return (state.trip?.travellerProfiles || []).filter((person) => person.type === "adult");
+  }
+
+  function tripPartyTravellers() {
+    return (state.trip?.travellerProfiles || []).filter((person) => person.type === "adult" || person.type === "child");
+  }
+
+  function externalTravellerGroups() {
+    return (state.trip?.travellerProfiles || []).filter((person) => person.type === "external");
   }
 
   function travellerNames(ids) {
@@ -1506,12 +1525,18 @@
     } else if (item.startTimeZone) {
       chips.push(`${timeZoneCityLabel(item.startTimeZone)} time`);
     }
-    if (item.status) chips.push(item.status);
     if (itemAttendeeText(item)) chips.push(`Attending: ${itemAttendeeText(item)}`);
     if (item.bookingRef) chips.push(`Ref: ${item.bookingRef}`);
 
     const hasCosts = Number.isFinite(Number(item.costTotal)) || Number.isFinite(Number(item.adultCost)) || Number.isFinite(Number(item.childCost));
     const costCurrency = item.costCurrency || "AUD";
+    const externalCostRows = (item.externalCosts || [])
+      .filter((entry) => entry?.amount !== null && Number.isFinite(Number(entry.amount)))
+      .map((entry) => ({
+        name: travellerById(entry.travellerId)?.name || "External group",
+        amount: Number(entry.amount),
+        currency: entry.currency || costCurrency
+      }));
 
     return `
       <article class="itinerary-item ${typeClass(item.type)}" data-itinerary-id="${escapeHtml(item.id)}">
@@ -1522,7 +1547,10 @@
           </div>
           <h3>${escapeHtml(item.title)}</h3>
           ${flightRouteText(item) ? `<p class="item-location flight-route-card">✈ ${escapeHtml(flightRouteText(item))}</p>` : (travelRouteText(item) ? `<p class="item-location flight-route-card">${travelModeIcon(item.travelMode)} ${escapeHtml(item.travelMode || "Travel")} • ${escapeHtml(travelRouteText(item))}</p>` : (item.location ? `<p class="item-location">${escapeHtml(item.location)}</p>` : ""))}
-          ${chips.length ? `<div class="item-details">${chips.map((c) => `<span class="detail-chip">${escapeHtml(c)}</span>`).join("")}</div>` : ""}
+          ${chips.length || item.status ? `<div class="item-details">
+            ${item.status ? `<span class="detail-chip booking-status-chip ${isPaidStatus(item.status) ? "paid" : ""}">${escapeHtml(item.status)}</span>` : ""}
+            ${chips.map((c) => `<span class="detail-chip">${escapeHtml(c)}</span>`).join("")}
+          </div>` : ""}
           ${hasCosts ? `
             <div class="item-cost-box">
               ${Number.isFinite(Number(item.costTotal)) ? `<strong>Total: ${escapeHtml(money(item.costTotal, costCurrency))}</strong>` : ""}
@@ -1533,6 +1561,19 @@
                 ${Number.isFinite(Number(item.childCost)) ? `Child ticket: ${escapeHtml(money(item.childCost, costCurrency))} each` : ""}
               </div>
               ${itemPaymentText(item) ? `<div class="item-payment-line"><strong>${item.paymentMode === "split" ? "Split:" : "Responsible:"}</strong> ${escapeHtml(itemPaymentText(item))}</div>` : ""}
+            </div>` : ""}
+          ${externalCostRows.length ? `
+            <div class="external-cost-box">
+              <div class="external-cost-heading">
+                <strong>External group costs</strong>
+                <span>Separate from your trip totals</span>
+              </div>
+              ${externalCostRows.map((entry) => `
+                <div class="external-cost-row">
+                  <span>${escapeHtml(entry.name)}</span>
+                  <strong>${escapeHtml(money(entry.amount, entry.currency))}</strong>
+                </div>
+              `).join("")}
             </div>` : ""}
           ${item.notes ? `<p class="item-notes">${escapeHtml(item.notes)}</p>` : ""}
           ${itineraryLinksMarkup(item)}
@@ -4482,7 +4523,7 @@
   }
 
   function renderPoiPeopleControls(place = null) {
-    const people = state.trip?.travellerProfiles || [];
+    const people = tripPartyTravellers();
     const attendeeSet = new Set(
       place?.attendeeIds?.length
         ? place.attendeeIds
@@ -4738,7 +4779,7 @@
     el("preTripDueDate").value = task?.dueDate || "";
     el("preTripCategory").value = task?.category || "Other";
     el("preTripStatus").value = task?.status || "Planned";
-    const checklistPeople = state.trip.travellerProfiles || [];
+    const checklistPeople = tripPartyTravellers();
     el("preTripAssignee").innerHTML =
       '<option value="">Unassigned</option>' +
       checklistPeople.map((person) =>
@@ -4909,7 +4950,7 @@
   }
 
   function renderItemPeopleControls(item = null) {
-    const people = state.trip?.travellerProfiles || [];
+    const people = tripPartyTravellers();
     const legacyAll = !item?.attendeeIds?.length && /\ball\b/i.test(item?.participants || "");
     const defaultAll = !item;
     const attendeeSet = new Set(
@@ -4958,6 +4999,84 @@
     updateItemPaymentControls();
   }
 
+  function externalCostCurrencies(selected = "") {
+    const currencies = new Set(["AUD"]);
+    (state.trip?.budget?.destinations || []).forEach((d) => {
+      if (d?.currency) currencies.add(String(d.currency).toUpperCase());
+    });
+    if (selected) currencies.add(String(selected).toUpperCase());
+    return [...currencies];
+  }
+
+  function renderItemExternalCosts(item = null) {
+    const section = el("itemExternalCostsSection");
+    const root = el("itemExternalCostsList");
+    if (!section || !root) return;
+
+    const groups = externalTravellerGroups();
+    section.classList.toggle("hidden", groups.length === 0);
+
+    if (!groups.length) {
+      root.innerHTML = "";
+      return;
+    }
+
+    const saved = new Map(
+      (item?.externalCosts || []).map((entry) => [String(entry.travellerId), entry])
+    );
+    const defaultCurrency = item?.costCurrency || el("itemCostCurrency")?.value || preferredCurrencyForDate(el("itemDate")?.value) || "AUD";
+
+    root.innerHTML = groups.map((group) => {
+      const entry = saved.get(group.id) || null;
+      const currency = String(entry?.currency || defaultCurrency || "AUD").toUpperCase();
+      const amount = entry?.amount !== null && entry?.amount !== undefined && Number.isFinite(Number(entry.amount))
+        ? String(entry.amount)
+        : "";
+      const options = externalCostCurrencies(currency)
+        .map((code) => `<option value="${escapeHtml(code)}" ${code === currency ? "selected" : ""}>${escapeHtml(code)}</option>`)
+        .join("");
+
+      return `
+        <div class="external-cost-editor-row" data-external-cost-row data-traveller-id="${escapeHtml(group.id)}">
+          <div class="external-cost-editor-name">
+            <strong>${escapeHtml(group.name)}</strong>
+            <span>External group</span>
+          </div>
+          <input
+            aria-label="Cost for ${escapeHtml(group.name)}"
+            data-external-cost-amount
+            inputmode="decimal"
+            min="0"
+            placeholder="0.00"
+            step="0.01"
+            type="number"
+            value="${escapeHtml(amount)}"
+          />
+          <select aria-label="Currency for ${escapeHtml(group.name)}" data-external-cost-currency>
+            ${options}
+          </select>
+        </div>`;
+    }).join("");
+  }
+
+  function collectItemExternalCosts() {
+    return [...document.querySelectorAll("[data-external-cost-row]")]
+      .map((row) => {
+        const amountInput = row.querySelector("[data-external-cost-amount]");
+        const currencyInput = row.querySelector("[data-external-cost-currency]");
+        const rawAmount = String(amountInput?.value || "").trim();
+        if (!rawAmount) return null;
+        const amount = Number(rawAmount);
+        if (!Number.isFinite(amount) || amount < 0) return { error: "External group costs must be zero or more." };
+        return {
+          travellerId: String(row.dataset.travellerId || ""),
+          amount,
+          currency: String(currencyInput?.value || "AUD").toUpperCase()
+        };
+      })
+      .filter(Boolean);
+  }
+
   function updateItemPaymentControls() {
     const mode = document.querySelector('input[name="itemPaymentMode"]:checked')?.value || "none";
     const total = el("itemCostTotal").value === "" ? null : Number(el("itemCostTotal").value);
@@ -5004,9 +5123,10 @@
     const people = state.trip.travellerProfiles || [];
     const adults = people.filter((person) => person.type === "adult").length;
     const children = people.filter((person) => person.type === "child").length;
+    const externals = people.filter((person) => person.type === "external").length;
 
     el("travellersSettingsSummary").textContent = people.length
-      ? `${people.length} traveller${people.length === 1 ? "" : "s"} • ${adults} adult${adults === 1 ? "" : "s"} • ${children} ${children === 1 ? "child" : "children"}`
+      ? `${adults + children} trip traveller${adults + children === 1 ? "" : "s"} • ${externals} external group${externals === 1 ? "" : "s"}`
       : "No named travellers yet";
 
     el("travellerList").innerHTML = people.length
@@ -5015,7 +5135,11 @@
             <div class="tool-card-top">
               <div>
                 <h3>${escapeHtml(person.name)}</h3>
-                <div class="tool-card-meta">${person.type === "child" ? "Child • can attend events • never a payer" : "Adult • can attend events and be assigned costs"}</div>
+                <div class="tool-card-meta">${person.type === "child"
+                  ? "Child • can attend events • never a payer"
+                  : person.type === "external"
+                    ? "External traveller / group • costs tracked separately per itinerary item"
+                    : "Adult • can attend events and be assigned costs"}</div>
               </div>
             </div>
             <div class="tool-card-actions">
@@ -5089,6 +5213,7 @@
     el("itemFxRate").value = startingRate ? String(startingRate) : "";
     updateItemFxPreview(false);
     renderItemPeopleControls(item);
+    renderItemExternalCosts(item);
     setFlightEditorVisibility();
 
     const dialog = el("itineraryItemDialog");
@@ -5629,7 +5754,8 @@
     event.preventDefault();
     const id = el("travellerId").value;
     const name = el("travellerName").value.trim();
-    const type = el("travellerType").value === "child" ? "child" : "adult";
+    const selectedTravellerType = el("travellerType").value;
+    const type = ["adult", "child", "external"].includes(selectedTravellerType) ? selectedTravellerType : "adult";
 
     if (!name) {
       el("travellerError").textContent = "Enter a traveller name.";
@@ -5648,14 +5774,20 @@
     if (existing) {
       state.trip.travellerProfiles = state.trip.travellerProfiles.map((x) => x.id === id ? person : x);
 
-      // If an adult is changed to a child, they must immediately stop being a payer.
-      if (type === "child") {
+      const wasExternal = existing.type === "external";
+      const isExternal = type === "external";
+
+      // Children and external groups are never payers for the main family cost ledger.
+      if (type !== "adult") {
         state.trip.itinerary = state.trip.itinerary.map((item) => {
           const payerIds = (item.payerIds || []).filter((payerId) => payerId !== id);
+          const attendeeIds = isExternal
+            ? (item.attendeeIds || []).filter((personId) => personId !== id)
+            : (item.attendeeIds || []);
           let paymentMode = item.paymentMode || "none";
           if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
           if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
-          return { ...item, payerIds, paymentMode };
+          return { ...item, attendeeIds, payerIds, paymentMode };
         });
 
         state.trip.preTripTasks = state.trip.preTripTasks.map((task) => {
@@ -5663,8 +5795,17 @@
           let paymentMode = task.paymentMode || "none";
           if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
           if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
-          return { ...task, payerIds, paymentMode };
+          const assigneeId = isExternal && task.assigneeId === id ? "" : (task.assigneeId || "");
+          return { ...task, payerIds, paymentMode, assigneeId };
         });
+      }
+
+      // If a group stops being external, remove its separate external-cost entries.
+      if (wasExternal && !isExternal) {
+        state.trip.itinerary = state.trip.itinerary.map((item) => ({
+          ...item,
+          externalCosts: (item.externalCosts || []).filter((entry) => entry.travellerId !== id)
+        }));
       }
     } else {
       state.trip.travellerProfiles.push(person);
@@ -5690,7 +5831,8 @@
       let paymentMode = item.paymentMode || "none";
       if (paymentMode === "individual" && payerIds.length === 0) paymentMode = "none";
       if (paymentMode === "split" && payerIds.length < 2) paymentMode = "none";
-      return { ...item, attendeeIds, payerIds, paymentMode };
+      const externalCosts = (item.externalCosts || []).filter((entry) => entry.travellerId !== id);
+      return { ...item, attendeeIds, payerIds, paymentMode, externalCosts };
     });
 
     state.trip.preTripTasks = state.trip.preTripTasks.map((task) => {
@@ -6273,6 +6415,13 @@
       Number.isFinite(Number(existing.travelDestinationLongitude))
     );
 
+    const collectedExternalCosts = collectItemExternalCosts();
+    const externalCostError = collectedExternalCosts.find((entry) => entry?.error);
+    if (externalCostError) {
+      el("itemError").textContent = externalCostError.error;
+      return;
+    }
+
     const item = normalizeItineraryItem({
       id: existing?.id || uid("itin"),
       date,
@@ -6340,6 +6489,7 @@
         : paymentMode === "split"
           ? [...document.querySelectorAll("[data-item-split-payer]:checked")].map((input) => input.value)
           : [],
+      externalCosts: collectedExternalCosts.filter((entry) => !entry.error),
       participants: "",
       notes: el("itemNotes").value.trim(),
       createdAt: existing?.createdAt || Date.now(),
