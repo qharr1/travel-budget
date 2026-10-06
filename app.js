@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 47;
+  const APP_VERSION = 48;
 
   const LOCATION_HEADER_IMAGE_PRESETS = Object.freeze({
     shanghai: {
@@ -2227,6 +2227,7 @@
     for (const item of itineraryItems) {
       const cost = itemEffectiveCost(item);
       const summaryItem = {
+        id: item.id,
         kind: "itinerary",
         type: item.type || "Other",
         title: item.title,
@@ -2248,6 +2249,7 @@
     for (const task of preTripTasks) {
       const cost = preTripEffectiveCost(task);
       const summaryItem = {
+        id: task.id,
         kind: "pretrip",
         type: "Pre-trip",
         title: task.title,
@@ -2315,16 +2317,55 @@
 
     el("summaryOutstandingList").innerHTML = unpaidItems.length
       ? unpaidItems.map(({ item, cost }) => `
-          <div class="summary-outstanding-item ${item.type === "Pre-trip" ? "type-pretrip" : typeClass(item.type)}">
+          <button
+            class="summary-outstanding-item summary-outstanding-open ${item.type === "Pre-trip" ? "type-pretrip" : typeClass(item.type)}"
+            data-summary-open-kind="${escapeHtml(item.kind)}"
+            data-summary-open-id="${escapeHtml(item.id || "")}"
+            type="button"
+          >
             <span class="summary-outstanding-stripe" aria-hidden="true"></span>
-            <div class="summary-outstanding-main">
+            <span class="summary-outstanding-main">
               <strong>${escapeHtml(item.title)}</strong>
               <span>${item.date ? escapeHtml(formatDate(item.date, { weekday: true })) : "No date"} • ${escapeHtml(item.status || "Planned")}</span>
-            </div>
-            <div class="summary-outstanding-amount">${escapeHtml(aud(cost))}</div>
-          </div>
+            </span>
+            <span class="summary-outstanding-side">
+              <strong class="summary-outstanding-amount">${escapeHtml(aud(cost))}</strong>
+              <span class="summary-outstanding-open-label">Open ›</span>
+            </span>
+          </button>
         `).join("")
       : `<p class="expense-empty">Nothing priced is currently marked as unpaid.</p>`;
+
+    el("summaryOutstandingList").querySelectorAll("[data-summary-open-id]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const id = String(button.dataset.summaryOpenId || "");
+        const kind = String(button.dataset.summaryOpenKind || "");
+        if (!id) return;
+
+        if (kind === "pretrip") {
+          activateMode("itinerary");
+          setTimeout(() => {
+            if (el("preTripPanel")) el("preTripPanel").open = true;
+            openPreTripTaskDialog(id);
+          }, 80);
+          return;
+        }
+
+        const item = state.trip?.itinerary.find((entry) => entry.id === id);
+        if (!item) return;
+
+        selectedItineraryDate = item.date || defaultSelectedDate();
+        itineraryViewMode = "day";
+        activateMode("itinerary");
+        renderItinerary();
+
+        setTimeout(() => {
+          const card = document.querySelector(`[data-itinerary-id="${CSS.escape(id)}"]`);
+          card?.scrollIntoView({ behavior: "smooth", block: "center" });
+          openItineraryItemDialog(id);
+        }, 120);
+      });
+    });
 
     renderCostResponsibilitySummary();
     applySummaryWidgetVisibility();

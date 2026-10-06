@@ -1,4 +1,4 @@
-const CACHE_NAME = "travel-planner-v47";
+const CACHE_NAME = "travel-planner-v48";
 const HEADER_IMAGE_CACHE = "tp-location-header-images-v2";
 
 const PRESET_HEADER_IMAGES = [
@@ -12,11 +12,11 @@ const PRESET_HEADER_IMAGES = [
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=47",
-  "./app.js?v=47",
-  "./family-sync.js?v=47",
-  "./trip-map.js?v=47",
-  "./manifest.webmanifest?v=47",
+  "./styles.css?v=48",
+  "./app.js?v=48",
+  "./family-sync.js?v=48",
+  "./trip-map.js?v=48",
+  "./manifest.webmanifest?v=48",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",

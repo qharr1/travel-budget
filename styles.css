@@ -4501,3 +4501,44 @@ html[data-theme="dark"] .external-cost-editor-row {
     grid-column: 1 / -1;
   }
 }
+
+
+/* v48 — clickable Summary outstanding items */
+.summary-outstanding-open {
+  width: 100%;
+  margin: 0;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.summary-outstanding-open:hover {
+  background: var(--surface-2);
+}
+.summary-outstanding-open:active {
+  transform: scale(.995);
+}
+.summary-outstanding-open:focus-visible {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+.summary-outstanding-main {
+  min-width: 0;
+}
+.summary-outstanding-side {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 2px;
+}
+.summary-outstanding-open-label {
+  color: var(--accent);
+  font-size: .66rem;
+  font-weight: 800;
+}
+html[data-theme="dark"] .summary-outstanding-open:hover {
+  background: #102033;
+}
