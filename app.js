@@ -2529,8 +2529,9 @@
 
     const futureDaysRaw = futureDaysAfterToday(trip, today);
     const futureDates = tripDates().filter((date) => dayNumber(date) > (todayN < startN ? startN : todayN));
-    const allowanceDayCount = futureDates.length;
-    const availablePerFutureDay = futureDates.length ? futureDates.reduce((sum, date) => sum + allocationForDate(date), 0) / futureDates.length : 0;
+    const ordinaryFuture = futureDates.filter((date) => dailyLimit(date) === null);
+    const allowanceDayCount = ordinaryFuture.length;
+    const availablePerFutureDay = ordinaryFuture.length ? allocationForDate(ordinaryFuture[0]) : 0;
 
     const todayBudget = currentTripDayBudget(today);
     const spentForDisplayedDay = status === "before"
@@ -2653,13 +2654,13 @@
     el("dailyAllowance").textContent = aud(stats.availablePerFutureDay);
 
     if (stats.allowanceDayCount <= 0) {
-      el("futureAllowanceNote").textContent = "No future trip days remaining";
+      el("futureAllowanceNote").textContent = stats.futureDays ? "No automatic days remaining" : "No future trip days remaining";
     } else if (stats.status === "before" && stats.hardLimit !== null) {
       el("futureAllowanceNote").textContent =
-        `${Math.max(0, stats.futureDays - 1)} days after Day 1 · includes custom budgets`;
+        `${stats.allowanceDayCount} automatic days · ${Math.max(0, stats.futureDays - 1)} after Day 1`;
     } else {
       el("futureAllowanceNote").textContent =
-        `${stats.futureDays} future days · includes custom budgets`;
+        `${stats.allowanceDayCount} automatic days · ${stats.futureDays} future total`;
     }
 
     el("daysRemaining").textContent =
