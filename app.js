@@ -2217,6 +2217,27 @@
   function renderSummary() {
     if (!state.trip) return;
 
+    // Actual travel spending is separate from planned itinerary / pre-trip costs.
+    const actualExpenses = Array.isArray(state.expenses) ? state.expenses : [];
+    const actualSpent = actualExpenses.reduce((sum, item) => sum + Number(item.audAmount || 0), 0);
+    const budgetTotal = Number(state.trip.budget?.totalBudget || 0);
+    el("summaryActualSpent").textContent = aud(actualSpent);
+    el("summaryActualRemaining").textContent = aud(budgetTotal - actualSpent);
+    el("summaryActualCount").textContent = `${actualExpenses.length} expense entr${actualExpenses.length === 1 ? "y" : "ies"}`;
+    const expenseGroups = new Map();
+    for (const item of actualExpenses) {
+      const category = String(item.category || "Other").trim() || "Other";
+      const group = expenseGroups.get(category) || { count: 0, total: 0 };
+      group.count++;
+      group.total += Number(item.audAmount || 0);
+      expenseGroups.set(category, group);
+    }
+    el("summaryExpenseCategories").innerHTML = expenseGroups.size
+      ? [...expenseGroups.entries()].sort((a, b) => b[1].total - a[1].total).map(([category, group]) =>
+          `<div class="summary-breakdown-row"><div class="summary-breakdown-label"><strong>${escapeHtml(category)}</strong><span>${group.count} entr${group.count === 1 ? "y" : "ies"}</span></div><div class="summary-breakdown-value">${escapeHtml(aud(group.total))}</div></div>`
+        ).join("")
+      : '<p class="expense-empty">No spending recorded yet. Expenses entered in Budget will appear here.</p>';
+
     const itineraryItems = Array.isArray(state.trip.itinerary) ? state.trip.itinerary : [];
     const preTripTasks = Array.isArray(state.trip.preTripTasks) ? state.trip.preTripTasks : [];
     const priced = [];
