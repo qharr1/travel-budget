@@ -121,11 +121,11 @@
 <section class="hidden" id="appPanel">
 <nav aria-label="Travel planner mode" class="mode-switch">
 <button class="mode-btn active" data-mode="home" type="button">Home</button>
+<button class="mode-btn" data-mode="budget" type="button">Budget</button>
 <button class="mode-btn" data-mode="itinerary" type="button">Itinerary</button>
 <button class="mode-btn" data-mode="poi" type="button">POI</button>
 <button class="mode-btn" data-mode="map" type="button">Map</button>
 <button class="mode-btn" data-mode="summary" type="button">Summary</button>
-<button class="mode-btn" data-mode="budget" type="button">Budget</button>
 <button class="mode-btn" data-mode="more" type="button">More</button>
 </nav>
 <section class="mode-panel active" data-mode-panel="home" id="homeMode">
@@ -381,6 +381,17 @@
   </p>
 </section>
 <section class="mode-panel" data-mode-panel="summary" id="summaryMode">
+<section class="panel" aria-label="Actual trip spending" id="summaryActualSpending">
+<div class="section-heading"><div><p class="eyebrow">ACTUAL SPENDING</p><h2>Expenses logged during your trip</h2></div></div>
+<div class="summary-metrics">
+<article class="summary-metric-card"><p class="metric-label">Spent from travel budget</p><p class="summary-metric-value" id="summaryActualSpent">$0.00</p><p class="metric-note" id="summaryActualCount">0 expense entries</p></article>
+<article class="summary-metric-card"><p class="metric-label">Travel budget remaining</p><p class="summary-metric-value" id="summaryActualRemaining">$0.00</p><p class="metric-note">Budget less recorded expenses</p></article>
+</div>
+<h3>Spending by category</h3>
+<div class="summary-breakdown" id="summaryExpenseCategories"></div>
+<p class="muted small">Actual expenses are shown separately from itinerary and pre-trip booking costs below, to avoid counting the same purchase twice.</p>
+</section>
+
 <div class="summary-hero" id="summaryHeroWidget">
 <p class="metric-label">Priced trip total</p>
 <p class="summary-hero-value" id="summaryTotalCost">$0.00</p>
