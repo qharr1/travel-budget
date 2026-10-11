@@ -2458,39 +2458,32 @@
     if (!trip?.budget?.configured) return 0;
     const startN = dayNumber(trip.startDate);
     const endN = dayNumber(trip.endDate);
-    const dateN = dayNumber(dateStr);
     const todayN = dayNumber(todayISO());
-    const targetN = Math.min(endN, Math.max(startN, dateN));
+    const targetN = Math.min(endN, Math.max(startN, dayNumber(dateStr)));
     const targetDate = addDays(trip.startDate, targetN - startN);
     const fixed = dailyLimit(targetDate);
     if (fixed !== null) return fixed;
 
-    // Past allocations are calculated from spending prior to that day;
-    // future allocations use actual spending to date and reserve custom days.
-    const referenceN = Math.min(targetN, Math.max(startN, todayN + (todayN >= startN ? 1 : 0)));
+    // Historic dates use the funds available at the start of that date.
+    // Future dates use actual spending to date and protect all future fixed limits.
+    const referenceN = targetN <= todayN ? targetN : Math.max(startN, todayN + 1);
     const referenceDate = addDays(trip.startDate, referenceN - startN);
     const priorSpend = spentBeforeDate(referenceDate);
-    const futureSpend = state.expenses.reduce((sum, item) => dayNumber(item.date) >= referenceN ? sum + Number(item.audAmount || 0) : sum, 0);
     let reserved = 0;
     let ordinaryDays = 0;
+    let futureRecorded = 0;
     for (let n = referenceN; n <= endN; n++) {
       const d = addDays(trip.startDate, n - startN);
+      const spent = totalSpent(expensesOn(d));
       const limit = dailyLimit(d);
-      if (limit === null) ordinaryDays++;
-      else reserved += Math.max(limit, totalSpent(expensesOn(d)));
-    }
-    if (targetN < referenceN) {
-      const available = Number(trip.budget.totalBudget) - spentBeforeDate(targetDate);
-      let count = 0, fixedFuture = 0;
-      for (let n = targetN; n <= endN; n++) {
-        const d = addDays(trip.startDate, n - startN);
-        const limit = dailyLimit(d);
-        if (limit === null) count++;
-        else fixedFuture += Math.max(limit, totalSpent(expensesOn(d)));
+      if (limit === null) {
+        ordinaryDays++;
+        futureRecorded += spent;
+      } else {
+        reserved += Math.max(limit, spent);
       }
-      return count ? Math.max(0, available - fixedFuture) / count : 0;
     }
-    return ordinaryDays ? Math.max(0, Number(trip.budget.totalBudget) - priorSpend - futureSpend - reserved + state.expenses.reduce((sum, item) => dayNumber(item.date) >= referenceN && dailyLimit(item.date) !== null ? sum + Number(item.audAmount || 0) : sum, 0)) / ordinaryDays : 0;
+    return ordinaryDays ? Math.max(0, Number(trip.budget.totalBudget) - priorSpend - reserved - futureRecorded) / ordinaryDays : 0;
   }
 
   function currentTripDayBudget(today) {
