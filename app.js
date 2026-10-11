@@ -2656,16 +2656,16 @@
       el("futureAllowanceNote").textContent = "No future trip days remaining";
     } else if (stats.status === "before" && stats.hardLimit !== null) {
       el("futureAllowanceNote").textContent =
-        `${stats.allowanceDayCount} days after Day 1`;
+        `${stats.futureDays - 1} days after Day 1 · ${stats.allowanceDayCount} automatic`;
     } else {
       el("futureAllowanceNote").textContent =
-        `${stats.allowanceDayCount} future day${stats.allowanceDayCount === 1 ? "" : "s"}`;
+        `${stats.allowanceDayCount} automatic day${stats.allowanceDayCount === 1 ? "" : "s"} · ${stats.futureDays} future total`;
     }
 
     el("daysRemaining").textContent =
-      stats.allowanceDayCount === 1
+      stats.futureDays === 1
         ? "1 future day"
-        : `${stats.allowanceDayCount} future days`;
+        : `${stats.futureDays} future days`;
 
     // Overall budget progress.
     const clampedPct = Math.max(0, Math.min(100, spentPct));
