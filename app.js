@@ -2456,34 +2456,27 @@
   function allocationForDate(dateStr) {
     const trip = state.trip;
     if (!trip?.budget?.configured) return 0;
-    const startN = dayNumber(trip.startDate);
-    const endN = dayNumber(trip.endDate);
+    const dates = tripDates();
+    const budget = Number(trip.budget.totalBudget);
+    const explicit = dates.map((date) => dailyLimit(date));
+    const customTotal = explicit.reduce((sum, value) => sum + (value === null ? 0 : value), 0);
+    const autoCount = explicit.filter((value) => value === null).length;
+    const autoBase = autoCount ? Math.max(0, budget - customTotal) / autoCount : 0;
+    const bases = explicit.map((value) => value === null ? autoBase : value);
     const todayN = dayNumber(todayISO());
-    const targetN = Math.min(endN, Math.max(startN, dayNumber(dateStr)));
-    const targetDate = addDays(trip.startDate, targetN - startN);
-    const fixed = dailyLimit(targetDate);
-    if (fixed !== null) return fixed;
+    const targetN = Math.min(dayNumber(trip.endDate), Math.max(dayNumber(trip.startDate), dayNumber(dateStr)));
+    const targetIndex = dates.findIndex((date) => dayNumber(date) === targetN);
+    if (targetIndex < 0) return 0;
 
-    // Historic dates use the funds available at the start of that date.
-    // Future dates use actual spending to date and protect all future fixed limits.
-    const referenceN = targetN <= todayN ? targetN : Math.max(startN, todayN + 1);
-    const referenceDate = addDays(trip.startDate, referenceN - startN);
-    const priorSpend = spentBeforeDate(referenceDate);
-    let reserved = 0;
-    let ordinaryDays = 0;
-    let futureRecorded = 0;
-    for (let n = referenceN; n <= endN; n++) {
-      const d = addDays(trip.startDate, n - startN);
-      const spent = totalSpent(expensesOn(d));
-      const limit = dailyLimit(d);
-      if (limit === null) {
-        ordinaryDays++;
-        futureRecorded += spent;
-      } else {
-        reserved += Math.max(limit, spent);
-      }
-    }
-    return ordinaryDays ? Math.max(0, Number(trip.budget.totalBudget) - priorSpend - reserved - futureRecorded) / ordinaryDays : 0;
+    // Today's budget is fixed at the start of the day. Savings and overspending
+    // from completed days are spread equally across ALL remaining days, including
+    // days that started with a custom allocation.
+    // For future dates, project using actual recorded expenses on preceding dates.
+    const startingBalance = budget - spentBeforeDate(dates[targetIndex]);
+    const baseRemaining = bases.slice(targetIndex).reduce((sum, value) => sum + value, 0);
+    const daysRemaining = dates.length - targetIndex;
+    const rollover = daysRemaining ? (startingBalance - baseRemaining) / daysRemaining : 0;
+    return Math.max(0, bases[targetIndex] + rollover);
   }
 
   function currentTripDayBudget(today) {
@@ -2528,9 +2521,8 @@
 
     const futureDaysRaw = futureDaysAfterToday(trip, today);
     const futureDates = tripDates().filter((date) => dayNumber(date) > todayN);
-    const ordinaryFuture = futureDates.filter((date) => dailyLimit(date) === null);
-    const allowanceDayCount = ordinaryFuture.length;
-    const availablePerFutureDay = ordinaryFuture.length ? allocationForDate(ordinaryFuture[0]) : 0;
+    const allowanceDayCount = futureDates.length;
+    const availablePerFutureDay = futureDates.length ? futureDates.reduce((sum, date) => sum + allocationForDate(date), 0) / futureDates.length : 0;
 
     const todayBudget = currentTripDayBudget(today);
     const spentForDisplayedDay = status === "before"
@@ -2656,10 +2648,10 @@
       el("futureAllowanceNote").textContent = "No future trip days remaining";
     } else if (stats.status === "before" && stats.hardLimit !== null) {
       el("futureAllowanceNote").textContent =
-        `${stats.futureDays - 1} days after Day 1 · ${stats.allowanceDayCount} automatic`;
+        `${Math.max(0, stats.futureDays - 1)} days after Day 1 · includes custom budgets`;
     } else {
       el("futureAllowanceNote").textContent =
-        `${stats.allowanceDayCount} automatic day${stats.allowanceDayCount === 1 ? "" : "s"} · ${stats.futureDays} future total`;
+        `${stats.futureDays} future days · includes custom budgets`;
     }
 
     el("daysRemaining").textContent =
@@ -2855,7 +2847,7 @@
       return `
         <article class="day-row ${isToday ? "today-row" : ""} ${isFuture ? "future-row" : ""}">
           <div class="day-name">
-            <strong>Day ${row.day}${isToday ? " • Today" : ""}${row.custom ? " • Custom limit" : ""}</strong>
+            <strong>Day ${row.day}${isToday ? " • Today" : ""}${row.custom ? " • Custom starting budget" : ""}</strong>
             <span>${escapeHtml(formatDate(row.date, { weekday: true }))} • ${escapeHtml(row.destinations.join(" / ") || "—")}</span>
           </div>
           <div class="day-cell"><span>Allocation</span><strong>${escapeHtml(aud(row.allocation))}</strong></div>
