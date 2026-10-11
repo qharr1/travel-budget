@@ -2468,14 +2468,22 @@
     const targetIndex = dates.findIndex((date) => dayNumber(date) === targetN);
     if (targetIndex < 0) return 0;
 
-    // Today's budget is fixed at the start of the day. Savings and overspending
-    // from completed days are spread equally across ALL remaining days, including
-    // days that started with a custom allocation.
-    // For future dates, project using actual recorded expenses on preceding dates.
-    const startingBalance = budget - spentBeforeDate(dates[targetIndex]);
-    const baseRemaining = bases.slice(targetIndex).reduce((sum, value) => sum + value, 0);
-    const daysRemaining = dates.length - targetIndex;
-    const rollover = daysRemaining ? (startingBalance - baseRemaining) / daysRemaining : 0;
+    // For completed/current days, calculate the allowance at the start of that
+    // day. For future days, use ONE common forecast starting point so savings
+    // are not counted again for each subsequent day.
+    const referenceIndex = targetN <= todayN
+      ? targetIndex
+      : Math.max(0, dates.findIndex((date) => dayNumber(date) > todayN));
+    const baseRemaining = bases.slice(referenceIndex).reduce((sum, value) => sum + value, 0);
+    const remainingDays = dates.length - referenceIndex;
+    const spentPrior = spentBeforeDate(dates[referenceIndex]);
+    // Expenses entered ahead of time are real spending, not extra available cash.
+    const futureRecorded = targetN > todayN
+      ? state.expenses.reduce((sum, item) => dayNumber(item.date) >= dayNumber(dates[referenceIndex]) ? sum + Number(item.audAmount || 0) : sum, 0)
+      : 0;
+    const rollover = remainingDays
+      ? (budget - spentPrior - futureRecorded - baseRemaining) / remainingDays
+      : 0;
     return Math.max(0, bases[targetIndex] + rollover);
   }
 
@@ -2520,7 +2528,7 @@
     }
 
     const futureDaysRaw = futureDaysAfterToday(trip, today);
-    const futureDates = tripDates().filter((date) => dayNumber(date) > todayN);
+    const futureDates = tripDates().filter((date) => dayNumber(date) > (todayN < startN ? startN : todayN));
     const allowanceDayCount = futureDates.length;
     const availablePerFutureDay = futureDates.length ? futureDates.reduce((sum, date) => sum + allocationForDate(date), 0) / futureDates.length : 0;
 
