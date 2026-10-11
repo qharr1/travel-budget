@@ -226,7 +226,7 @@
       endDate: "",
       travellers: { adults: 0, children: 0 },
       travellerProfiles: [],
-      budget: { configured: false, totalBudget: null, day1HardLimit: null, destinations: [] },
+      budget: { configured: false, totalBudget: null, day1HardLimit: null, dailyLimits: {}, destinations: [] },
       dayMeta: {},
       dayLocations: {},
       itinerary: [],
@@ -520,6 +520,7 @@
       day1HardLimit: raw?.budget?.day1HardLimit === null || raw?.budget?.day1HardLimit === "" || raw?.budget?.day1HardLimit === undefined
         ? null
         : Number(raw.budget.day1HardLimit),
+      dailyLimits: raw?.budget?.dailyLimits && typeof raw.budget.dailyLimits === "object" ? Object.fromEntries(Object.entries(raw.budget.dailyLimits).filter(([date, value]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && value !== null && value !== "" && Number.isFinite(Number(value)) && Number(value) >= 0).map(([date, value]) => [date, Number(value)])) : {},
       destinations: Array.isArray(raw?.budget?.destinations) ? raw.budget.destinations.map(normalizeDestination) : []
     };
     const rawDayMeta = raw?.dayMeta && typeof raw.dayMeta === "object" ? raw.dayMeta : {};
@@ -2430,74 +2431,73 @@
     return endN - todayN;
   }
 
-  function configuredDay1HardLimit() {
-    const value = Number(state.trip?.budget?.day1HardLimit);
-    const total = Number(state.trip?.budget?.totalBudget);
-    if (!Number.isFinite(value) || value <= 0) return null;
-    if (!Number.isFinite(total) || total <= 0) return null;
-    return Math.min(value, total);
+  function dailyLimit(date) {
+    const limits = state.trip?.budget?.dailyLimits || {};
+    if (Object.prototype.hasOwnProperty.call(limits, date)) {
+      const value = Number(limits[date]);
+      return Number.isFinite(value) && value >= 0 ? value : null;
+    }
+    if (date === state.trip?.startDate) {
+      const legacy = state.trip?.budget?.day1HardLimit;
+      return legacy === null || legacy === "" || legacy === undefined ? null : Number(legacy);
+    }
+    return null;
   }
 
-  function plannedFutureAllowanceWithDay1Limit(today, spentTotal, spentDay1) {
-    const hardLimit = configuredDay1HardLimit();
-    if (hardLimit === null || !state.trip) return null;
-
-    const startN = dayNumber(state.trip.startDate);
-    const endN = dayNumber(state.trip.endDate);
-    const todayN = dayNumber(today);
-    const totalDays = daysInclusive(state.trip.startDate, state.trip.endDate);
-    if (totalDays <= 1) return 0;
-
-    if (todayN < startN || todayN === startN) {
-      const otherRecorded = Math.max(0, spentTotal - spentDay1);
-      const reserve = Math.max(hardLimit, spentDay1);
-      return Math.max(0, Number(state.trip.budget.totalBudget) - otherRecorded - reserve) / (totalDays - 1);
-    }
-
-    if (todayN <= endN) return null;
-    return 0;
+  function configuredDay1HardLimit() {
+    return dailyLimit(state.trip?.startDate);
   }
 
   function spentBeforeDate(dateStr) {
     const target = dayNumber(dateStr);
-    return state.expenses.reduce((sum, item) => {
-      return dayNumber(item.date) < target ? sum + Number(item.audAmount || 0) : sum;
-    }, 0);
+    return state.expenses.reduce((sum, item) => dayNumber(item.date) < target ? sum + Number(item.audAmount || 0) : sum, 0);
+  }
+
+  function allocationForDate(dateStr) {
+    const trip = state.trip;
+    if (!trip?.budget?.configured) return 0;
+    const startN = dayNumber(trip.startDate);
+    const endN = dayNumber(trip.endDate);
+    const dateN = dayNumber(dateStr);
+    const todayN = dayNumber(todayISO());
+    const targetN = Math.min(endN, Math.max(startN, dateN));
+    const targetDate = addDays(trip.startDate, targetN - startN);
+    const fixed = dailyLimit(targetDate);
+    if (fixed !== null) return fixed;
+
+    // Past allocations are calculated from spending prior to that day;
+    // future allocations use actual spending to date and reserve custom days.
+    const referenceN = Math.min(targetN, Math.max(startN, todayN + (todayN >= startN ? 1 : 0)));
+    const referenceDate = addDays(trip.startDate, referenceN - startN);
+    const priorSpend = spentBeforeDate(referenceDate);
+    const futureSpend = state.expenses.reduce((sum, item) => dayNumber(item.date) >= referenceN ? sum + Number(item.audAmount || 0) : sum, 0);
+    let reserved = 0;
+    let ordinaryDays = 0;
+    for (let n = referenceN; n <= endN; n++) {
+      const d = addDays(trip.startDate, n - startN);
+      const limit = dailyLimit(d);
+      if (limit === null) ordinaryDays++;
+      else reserved += Math.max(limit, totalSpent(expensesOn(d)));
+    }
+    if (targetN < referenceN) {
+      const available = Number(trip.budget.totalBudget) - spentBeforeDate(targetDate);
+      let count = 0, fixedFuture = 0;
+      for (let n = targetN; n <= endN; n++) {
+        const d = addDays(trip.startDate, n - startN);
+        const limit = dailyLimit(d);
+        if (limit === null) count++;
+        else fixedFuture += Math.max(limit, totalSpent(expensesOn(d)));
+      }
+      return count ? Math.max(0, available - fixedFuture) / count : 0;
+    }
+    return ordinaryDays ? Math.max(0, Number(trip.budget.totalBudget) - priorSpend - futureSpend - reserved + state.expenses.reduce((sum, item) => dayNumber(item.date) >= referenceN && dailyLimit(item.date) !== null ? sum + Number(item.audAmount || 0) : sum, 0)) / ordinaryDays : 0;
   }
 
   function currentTripDayBudget(today) {
     if (!state.trip?.budget?.configured) return 0;
-
     const trip = state.trip;
-    const startN = dayNumber(trip.startDate);
-    const endN = dayNumber(trip.endDate);
-    const todayN = dayNumber(today);
-    const totalDays = daysInclusive(trip.startDate, trip.endDate);
-    const totalBudget = Number(trip.budget.totalBudget);
-    const hardLimit = configuredDay1HardLimit();
-
-    // Before the trip, show the planned Day 1 budget.
-    if (todayN < startN) {
-      return hardLimit !== null
-        ? hardLimit
-        : (totalDays > 0 ? totalBudget / totalDays : 0);
-    }
-
-    // Day 1 uses the hard limit when one is configured.
-    if (todayN === startN && hardLimit !== null) {
-      return hardLimit;
-    }
-
-    // After the trip, preserve the final day's calculated starting allowance.
-    const effectiveDateN = todayN > endN ? endN : todayN;
-    const effectiveDate = addDays(trip.startDate, effectiveDateN - startN);
-    const priorSpend = spentBeforeDate(effectiveDate);
-    const remainingAtStartOfDay = totalBudget - priorSpend;
-    const daysIncludingThisDay = endN - effectiveDateN + 1;
-
-    return daysIncludingThisDay > 0
-      ? remainingAtStartOfDay / daysIncludingThisDay
-      : 0;
+    const date = dayNumber(today) < dayNumber(trip.startDate) ? trip.startDate : dayNumber(today) > dayNumber(trip.endDate) ? trip.endDate : today;
+    return allocationForDate(date);
   }
 
   function tripStats() {
@@ -2534,16 +2534,10 @@
     }
 
     const futureDaysRaw = futureDaysAfterToday(trip, today);
-    const day1PlannedFutureAllowance = plannedFutureAllowanceWithDay1Limit(today, spent, spentDay1);
-
-    let allowanceDayCount = futureDaysRaw;
-    if (status === "before" && hardLimit !== null) {
-      allowanceDayCount = Math.max(0, totalDays - 1);
-    }
-
-    const availablePerFutureDay = day1PlannedFutureAllowance !== null
-      ? day1PlannedFutureAllowance
-      : (futureDaysRaw > 0 ? remaining / futureDaysRaw : 0);
+    const futureDates = tripDates().filter((date) => dayNumber(date) > todayN);
+    const ordinaryFuture = futureDates.filter((date) => dailyLimit(date) === null);
+    const allowanceDayCount = ordinaryFuture.length;
+    const availablePerFutureDay = ordinaryFuture.length ? allocationForDate(ordinaryFuture[0]) : 0;
 
     const todayBudget = currentTripDayBudget(today);
     const spentForDisplayedDay = status === "before"
@@ -2611,8 +2605,7 @@
     }
 
     const isHardLimitDay =
-      stats.hardLimit !== null &&
-      dayNumber(stats.displayDayDate) === dayNumber(state.trip.startDate);
+      dailyLimit(stats.displayDayDate) !== null;
 
     badge.classList.toggle("hidden", !isHardLimitDay);
     badge.textContent = isHardLimitDay ? "Hard limit" : "";
@@ -2835,62 +2828,26 @@
 
   function dayBudgetRows() {
     if (!state.trip?.budget?.configured) return [];
-
-    const totalDays = daysInclusive(state.trip.startDate, state.trip.endDate);
-    const today = todayISO();
-    const todayN = dayNumber(today);
-    const startN = dayNumber(state.trip.startDate);
-    const endN = dayNumber(state.trip.endDate);
-    const hardLimit = configuredDay1HardLimit();
-    let remainingBudget = Number(state.trip.budget.totalBudget);
-    let currentFutureAllocation = null;
-    const rows = [];
-
-    for (let i = 0; i < totalDays; i++) {
-      const date = addDays(state.trip.startDate, i);
-      const dateN = dayNumber(date);
-      const remainingDaysAtStart = totalDays - i;
+    return tripDates().map((date, i) => {
+      const allocation = allocationForDate(date);
       const spent = totalSpent(expensesOn(date));
-      let allocation;
+      return { day: i + 1, date, allocation, spent, variance: allocation - spent,
+        custom: dailyLimit(date) !== null,
+        destinations: matchingDestinationsForDate(date).map((d) => d.name) };
+    });
+  }
 
-      if (hardLimit !== null && i === 0) {
-        allocation = hardLimit;
-      } else if (hardLimit !== null && todayN <= startN && i > 0) {
-        const firstDaySpent = totalSpent(expensesOn(state.trip.startDate));
-        const reserve = Math.max(hardLimit, firstDaySpent);
-        allocation = totalDays > 1
-          ? Math.max(0, Number(state.trip.budget.totalBudget) - reserve) / (totalDays - 1)
-          : 0;
-      } else if (todayN < startN) {
-        allocation = totalDays > 0 ? Number(state.trip.budget.totalBudget) / totalDays : 0;
-      } else if (todayN > endN || dateN <= todayN) {
-        allocation = remainingDaysAtStart > 0 ? remainingBudget / remainingDaysAtStart : 0;
-      } else {
-        if (currentFutureAllocation === null) {
-          const futureDays = endN - todayN;
-          currentFutureAllocation = futureDays > 0 ? remainingBudget / futureDays : 0;
-        }
-        allocation = currentFutureAllocation;
-      }
-
-      const matches = matchingDestinationsForDate(date);
-      rows.push({
-        day: i + 1,
-        date,
-        allocation,
-        spent,
-        variance: allocation - spent,
-        destinations: matches.map((d) => d.name)
-      });
-
-      if (todayN > endN || dateN <= todayN) {
-        remainingBudget -= spent;
-      } else if (hardLimit !== null && i === 0 && todayN <= startN) {
-        remainingBudget -= Math.max(spent, hardLimit);
-      }
-    }
-
-    return rows;
+  function renderCustomDailyLimits() {
+    const host = el("customDailyLimits");
+    if (!host || !state.trip?.budget?.configured) return;
+    host.innerHTML = tripDates().map((date, i) => {
+      const limit = dailyLimit(date);
+      return `<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:8px 0">
+        <span>Day ${i + 1} · ${escapeHtml(formatDate(date, { weekday: true }))}</span>
+        <input type="number" min="0" step="0.01" inputmode="decimal" data-limit-date="${date}"
+          aria-label="Custom budget for ${date}" placeholder="Automatic" value="${limit === null ? "" : limit}" style="max-width:125px"/>
+      </label>`;
+    }).join("");
   }
 
   function renderDailyHistory() {
@@ -2905,7 +2862,7 @@
       return `
         <article class="day-row ${isToday ? "today-row" : ""} ${isFuture ? "future-row" : ""}">
           <div class="day-name">
-            <strong>Day ${row.day}${isToday ? " • Today" : ""}</strong>
+            <strong>Day ${row.day}${isToday ? " • Today" : ""}${row.custom ? " • Custom limit" : ""}</strong>
             <span>${escapeHtml(formatDate(row.date, { weekday: true }))} • ${escapeHtml(row.destinations.join(" / ") || "—")}</span>
           </div>
           <div class="day-cell"><span>Allocation</span><strong>${escapeHtml(aud(row.allocation))}</strong></div>
@@ -4035,6 +3992,7 @@
       renderHistoryFilter();
       renderExpenses();
       renderDailyHistory();
+      renderCustomDailyLimits();
       renderSettings();
       const currentDest = el("expenseDestination").value;
       setExpenseDestinationOptions(currentDest);
@@ -6639,6 +6597,31 @@
     settingsDraftDestinations = [];
     render();
     activateMode("budget");
+  });
+
+  el("customDailyLimits")?.addEventListener("change", (event) => {
+    const input = event.target.closest("[data-limit-date]");
+    if (!input) return;
+    const date = input.dataset.limitDate;
+    const raw = input.value.trim();
+    const value = Number(raw);
+    if (raw !== "" && (!Number.isFinite(value) || value < 0)) {
+      alert("Enter a valid non-negative amount.");
+      renderCustomDailyLimits();
+      return;
+    }
+    const limits = { ...(state.trip.budget.dailyLimits || {}) };
+    if (raw === "") delete limits[date];
+    else limits[date] = value;
+    const sum = tripDates().reduce((total, day) => total + (Object.prototype.hasOwnProperty.call(limits, day) ? limits[day] : day === state.trip.startDate ? Number(state.trip.budget.day1HardLimit || 0) : 0), 0);
+    if (sum > Number(state.trip.budget.totalBudget)) {
+      alert("Custom daily limits exceed the total trip budget. Reduce a limit first.");
+      renderCustomDailyLimits();
+      return;
+    }
+    state.trip.budget.dailyLimits = limits;
+    saveState();
+    render();
   });
 
   el("expenseDate").addEventListener("change", autoDestinationForDate);
