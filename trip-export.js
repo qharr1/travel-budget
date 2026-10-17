@@ -255,3 +255,104 @@
       +'<p>External maps and web links need internet access. This saved document does not update when the app changes.</p></footer>';
     return html;
   }
+
+  const PRINT_STYLES = String.raw`
+    @page { size:A4; margin:13mm; }
+    .tp-x-print {font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; color:#172738;line-height:1.45;font-size:10pt;max-width:850px;margin:auto;}
+    .tp-x-print *{box-sizing:border-box}
+    .tp-x-print h1{font-size:27pt;line-height:1.2;color:#0f766e;margin:7px 0 12px}
+    .tp-x-print h2{font-size:16pt;color:#0f766e;border-bottom:1px solid #cbd5e1;padding-bottom:6px;margin:26px 0 12px;break-after:avoid}
+    .tp-x-print h3{font-size:11pt;margin:0 0 6px;color:#172738}
+    .tp-x-print p{margin:7px 0}
+    .tp-x-print .tp-x-overline{letter-spacing:1.5px;color:#0f766e;font-weight:800}
+    .tp-x-print .tp-x-cover{border-bottom:3px solid #0f766e;padding:14px 0 20px;margin-bottom:22px}
+    .tp-x-print .tp-x-dates{font-size:14pt;font-weight:750}
+    .tp-x-print .tp-x-alert{background:#e9f6f4;border-left:4px solid #0f766e;padding:9px 12px;font-size:9pt;margin-top:14px}
+    .tp-x-print .tp-x-subtitle,.tp-x-print .tp-x-muted{color:#627184;font-size:9pt}
+    .tp-x-print .tp-x-card{border:1px solid #d9e3e9;padding:10px 12px;border-radius:7px;margin:9px 0;break-inside:avoid;overflow-wrap:anywhere}
+    .tp-x-print .tp-x-row{display:flex;align-items:flex-start;gap:10px;font-size:9pt;margin:3px 0;overflow-wrap:anywhere}
+    .tp-x-print .tp-x-row>span{flex:0 0 88px;color:#52677d;font-weight:650}
+    .tp-x-print .tp-x-row>div{flex:1;min-width:0}
+    .tp-x-print .tp-x-note{white-space:pre-wrap;overflow-wrap:anywhere;font-size:9pt}
+    .tp-x-print .tp-x-day{margin:16px 0;break-inside:auto}
+    .tp-x-print .tp-x-day-heading{background:#e9f6f4;border-left:4px solid #0f766e;padding:9px 12px;border-radius:5px;break-after:avoid}
+    .tp-x-print .tp-x-day-heading>span{color:#0f766e;font-weight:800;font-size:8pt;letter-spacing:1px}
+    .tp-x-print .tp-x-day-heading h3{font-size:14pt;margin:4px 0}
+    .tp-x-print .tp-x-day-heading p{margin:4px 0;font-size:9pt}
+    .tp-x-print .tp-x-location{font-size:9pt;margin:6px 0;overflow-wrap:anywhere}
+    .tp-x-print .tp-x-location small{font-size:8pt;color:#56687a;margin-left:5px}
+    .tp-x-print .tp-x-person{display:inline-block;background:#e9f6f4;border-radius:12px;padding:6px 10px;margin:4px;font-size:9pt}
+    .tp-x-print .tp-x-total{font-size:13pt;font-weight:800;color:#0f766e}
+    .tp-x-print .tp-x-footer{margin-top:34px;border-top:1px solid #cbd5e1;padding:12px 0;color:#63758a;font-size:8pt}
+    .tp-x-print a{color:#0f766e;text-decoration:underline}
+    @media print {.tp-x-print .tp-x-day-heading,.tp-x-print .tp-x-alert{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  `;
+  function prepare() {
+    const data=savedState();
+    if (!data) throw new Error('Create or import a trip before exporting.');
+    const from=id('tripExportFrom').value, to=id('tripExportTo').value;
+    if (!from || !to || from>to || from<data.trip.startDate || to>data.trip.endDate)
+      throw new Error('Select a valid date range within the trip dates.');
+    const options=sectionOptions();
+    if (!Object.values(options).some(Boolean)) throw new Error('Select at least one section.');
+    remember();
+    return {html:renderTrip(data,options,from,to),title:data.trip.name||'My trip',from,to};
+  }
+  function preview(result) {
+    id('tripPrintSheet').innerHTML='<div class="tp-x-print">'+result.html+'</div>';
+    id('tripExportPreviewTitle').textContent=result.title+' · '+niceDate(result.from)+' - '+niceDate(result.to);
+    id('tripExportDialog').close();
+    document.body.classList.add('tp-export-preview-active');
+  }
+  function downloadOffline(result) {
+    const html='<!doctype html><html lang="en"><head><meta charset="utf-8">'
+      +'<meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(result.title)+'</title>'
+      +'<style>'+PRINT_STYLES+'body{padding:16px}@media print{body{padding:0}}</style></head><body>'
+      +'<main class="tp-x-print">'+result.html+'</main></body></html>';
+    const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    const url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url;
+    a.download=(result.title.replace(/[^a-z0-9_-]+/gi,'-').slice(0,50)||'trip')+'-'+result.from+'-offline.html';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),120000);
+  }
+  function open() {
+    const data=savedState();
+    if (!data) return alert('Create or import your trip first.');
+    ['From','To'].forEach(key=>{
+      id('tripExport'+key).min=data.trip.startDate;
+      id('tripExport'+key).max=data.trip.endDate;
+    });
+    id('tripExportFrom').value=data.trip.startDate;
+    id('tripExportTo').value=data.trip.endDate;
+    id('tripExportError').textContent='';
+    id('tripExportDialog').showModal();
+  }
+  function safeRun(handler) {
+    try { handler(); } catch(error) { id('tripExportError').textContent=error.message||'Export failed.'; }
+  }
+  function init() {
+    if (!id('tripExportDialog')) return;
+    restore();
+    document.querySelectorAll('[data-open-trip-export]').forEach(button=>button.addEventListener('click',open));
+    id('tripExportClose').addEventListener('click',()=>id('tripExportDialog').close());
+    id('tripExportPreset').addEventListener('change',event=>{
+      if (event.target.value!=='custom') selectPreset(event.target.value);
+      remember();
+    });
+    OPTIONS.forEach(([key])=>id('tripExportOpt-'+key).addEventListener('change',()=>{
+      id('tripExportPreset').value='custom';remember();
+    }));
+    id('tripExportPreview').addEventListener('click',()=>safeRun(()=>preview(prepare())));
+    id('tripExportSavePdf').addEventListener('click',()=>safeRun(()=>{preview(prepare());window.print();}));
+    id('tripExportOfflineHtml').addEventListener('click',()=>safeRun(()=>{
+      downloadOffline(prepare());
+      id('tripExportError').textContent='Offline HTML file created. Keep a copy in Files as a fallback.';
+    }));
+    id('tripExportPreviewClose').addEventListener('click',()=>document.body.classList.remove('tp-export-preview-active'));
+    id('tripExportPreviewPrint').addEventListener('click',()=>window.print());
+    window.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('tp-export-preview-active');});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
