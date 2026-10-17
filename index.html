@@ -11,7 +11,7 @@
 <meta content="Travel Planner" name="apple-mobile-web-app-title"/>
 <meta content="telephone=no" name="format-detection"/>
 <title>Travel Planner</title>
-<link href="./manifest.webmanifest?v=48" rel="manifest"/>
+<link href="./manifest.webmanifest?v=49" rel="manifest"/>
 <link href="./apple-touch-icon.png" rel="apple-touch-icon"/>
 <script>
 (() => {
@@ -24,7 +24,7 @@
     document.documentElement.style.colorScheme = dark ? "dark" : "light";
   } catch {}
 })();
-</script><link href="./styles.css?v=48" rel="stylesheet"/>
+</script><link href="./styles.css?v=49" rel="stylesheet"/>
 </head>
 <body>
 <div class="app-shell">
@@ -297,6 +297,10 @@
 <div class="full-itinerary-list" id="fullItineraryList"></div>
 </section>
 </div>
+
+<section class="panel tp-export-entry"><div class="section-heading"><div><p class="eyebrow">OFFLINE SAFEGUARD</p><h2>Download your travel pack</h2></div></div>
+<p class="muted small">Save a reader-friendly, customisable itinerary as PDF in your iPhone Files before departure. Works independently of this app.</p>
+<button class="primary-btn" type="button" data-open-trip-export>Export trip as PDF</button></section>
 <section class="panel share-panel">
 <div class="section-heading">
 <div>
@@ -639,6 +643,10 @@
 <h2>Everything else you need</h2>
 <p class="muted">Documents, travel contacts and reminders all stay available offline on this device. Points of interest now have their own POI tab.</p>
 </section>
+
+<section class="panel tp-export-entry tp-export-more"><div class="section-heading"><div><p class="eyebrow">OFFLINE SAFEGUARD</p><h2>Download your travel pack</h2></div></div>
+<p class="muted small">Save a reader-friendly, customisable itinerary as PDF in your iPhone Files before departure. Works independently of this app.</p>
+<button class="primary-btn" type="button" data-open-trip-export>Export trip as PDF</button></section>
 <details class="tool-panel" id="documentsPanel" open="">
 <summary>
 <div>
@@ -909,7 +917,7 @@
 <div><p class="eyebrow">YOUR DATA</p><h2>Export / import</h2></div>
 </div>
 <p class="muted">The exported trip file includes itinerary, budget setup, expenses and trip-tool metadata. When you import an update to the same trip, this device keeps its existing budget, exchange rates and expense history. Local PDF/image attachments in the document vault are not embedded in the export.</p>
-<div class="stack-actions">
+<div class="stack-actions"><button class="primary-btn" type="button" data-open-trip-export>Export readable PDF itinerary</button>
 <button class="secondary-btn" id="exportBtn" type="button">Export / Share Trip</button>
 <label class="secondary-btn file-btn">
                     Import from file
@@ -1753,7 +1761,19 @@ Trip date
 <button class="primary-btn" type="submit">Save traveller</button>
 </div>
 </form>
-</dialog><dialog id="confirmDialog">
+</dialog><dialog class="tp-export-dialog" id="tripExportDialog"><div class="tp-export-dialog-inner">
+<div class="section-heading"><div><p class="eyebrow">YOUR TRIP, OFFLINE</p><h2>Export travel pack</h2></div><button class="text-btn" id="tripExportClose" type="button">Close</button></div>
+<p class="muted small">Build a readable copy from the trip saved on this device. Pick what you want to include; your choices are remembered here.</p>
+<label>Export preset<select id="tripExportPreset"><option value="essentials">Travel essentials (recommended)</option><option value="complete">Everything</option><option value="custom">Custom selection</option></select></label>
+<div class="two-col"><label>From<input id="tripExportFrom" type="date"></label><label>To<input id="tripExportTo" type="date"></label></div>
+<h3>Include in your travel pack</h3><div class="tp-export-options"><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-essentials" checked><span>Flights, hotels & transfers at a glance</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-itinerary" checked><span>Daily itinerary, activities & times</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-places" checked><span>Saved points of interest / wishlist</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-locations" checked><span>Addresses, coordinates & map links</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-bookings" checked><span>Booking references & document vault details</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-contacts" checked><span>Emergency contacts & travel information</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-notes" checked><span>Item notes, day notes & journal</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-links" checked><span>Websites & booking links</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-travellers" ><span>Names of travellers</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-budget" ><span>Budget, currencies & custom daily limits</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-expenses" ><span>Recorded expenses</span></label><label class="tp-export-choice"><input type="checkbox" id="tripExportOpt-tasks" ><span>Pre-trip checklist</span></label></div>
+<p class="muted small">Booking references, document information, personal notes and contacts may be sensitive. Only include what you are comfortable keeping on your phone or sharing. Vault attachments are not included.</p>
+<p class="tp-export-status" id="tripExportError" role="status"></p>
+<div class="tp-export-actions"><button type="button" class="secondary-btn" id="tripExportPreview">Preview document</button><button type="button" class="primary-btn" id="tripExportSavePdf">Save as PDF / Print</button><button type="button" class="secondary-btn" id="tripExportOfflineHtml">Download offline HTML backup</button></div>
+<p class="muted small">On iPhone, choose Print, then expand the print preview and select Share → Save to Files. On desktop, select Save as PDF as the printer destination.</p>
+</div></dialog>
+<div id="tripExportPreviewOverlay" class="tp-export-preview-overlay"><div class="tp-export-preview-toolbar"><strong id="tripExportPreviewTitle">Trip preview</strong><div><button class="secondary-btn" id="tripExportPreviewClose" type="button">Back to planner</button><button class="primary-btn" id="tripExportPreviewPrint" type="button">Save as PDF / Print</button></div></div><div id="tripPrintSheet"></div></div>
+<dialog id="confirmDialog">
 <form method="dialog">
 <h2>Erase local trip?</h2>
 <p>This removes the trip, itinerary and expenses from this device and returns to the opening screen.</p>
@@ -1763,6 +1783,6 @@ Trip date
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=48"></script><script src="./family-sync.js?v=48" type="module"></script><script src="./trip-map.js?v=48" type="module"></script>
+<script defer="" src="./app.js?v=49"></script><script defer="" src="./trip-export.js?v=49"></script><script src="./family-sync.js?v=49" type="module"></script><script src="./trip-map.js?v=49" type="module"></script>
 </body>
 </html>

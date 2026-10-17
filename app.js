@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "tripBudgetApp.v1";
   const UI_SETTINGS_KEY = "travelPlanner.ui.v1";
-  const APP_VERSION = 48;
+  const APP_VERSION = 49;
 
   const LOCATION_HEADER_IMAGE_PRESETS = Object.freeze({
     shanghai: {

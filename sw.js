@@ -1,4 +1,4 @@
-const CACHE_NAME = "travel-planner-v48";
+const CACHE_NAME = "travel-planner-v49";
 const HEADER_IMAGE_CACHE = "tp-location-header-images-v2";
 
 const PRESET_HEADER_IMAGES = [
@@ -151,6 +151,7 @@ self.addEventListener("fetch", (event) => {
 
   const isCore =
     url.pathname.endsWith("/app.js") ||
+    url.pathname.endsWith("/trip-export.js") ||
     url.pathname.endsWith("/family-sync.js") ||
     url.pathname.endsWith("/trip-map.js") ||
     url.pathname.endsWith("/styles.css") ||

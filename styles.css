@@ -4542,3 +4542,61 @@ html[data-theme="dark"] .external-cost-editor-row {
 html[data-theme="dark"] .summary-outstanding-open:hover {
   background: #102033;
 }
+
+/* v49 - offline travel pack */
+.tp-export-entry{display:grid;gap:8px}.tp-export-entry .section-heading{margin-bottom:0}
+.tp-export-dialog{width:min(92vw,680px);max-height:90vh;padding:0;border:1px solid var(--line);border-radius:20px;color:var(--text);background:var(--surface)}
+.tp-export-dialog::backdrop{background:rgba(15,23,42,.67)}
+.tp-export-dialog-inner{padding:22px;display:grid;gap:16px}
+.tp-export-dialog-inner>.section-heading{margin-bottom:0}
+.tp-export-dialog-inner h3{margin:2px 0 0}
+.tp-export-dialog .two-col label{min-width:0}
+.tp-export-options{display:grid;gap:7px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.tp-export-choice{display:flex;align-items:flex-start;gap:9px;padding:10px;background:var(--surface-2);border-radius:10px;font-size:.85rem;font-weight:650;color:var(--text)}
+.tp-export-choice input{width:18px;height:18px;min-height:18px;flex:0 0 auto;accent-color:#0f766e}
+.tp-export-actions{display:grid;gap:8px}
+.tp-export-status{color:var(--warn);font-size:.86rem;margin:0}
+.tp-export-preview-overlay{display:none;position:fixed;inset:0;z-index:500;background:white;overflow:auto;color:#172738}
+body.tp-export-preview-active{overflow:hidden}
+body.tp-export-preview-active .tp-export-preview-overlay{display:block}
+.tp-export-preview-toolbar{position:sticky;top:0;z-index:1;background:#f8fafc;border-bottom:1px solid #cbd5e1;padding:10px 16px;display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.tp-export-preview-toolbar>div{display:flex;gap:8px;flex-wrap:wrap}
+#tripPrintSheet{padding:20px;max-width:900px;margin:auto}
+@media print {
+ body.tp-export-preview-active>.app-shell{display:none!important}
+ body.tp-export-preview-active>.tp-export-preview-overlay,body.tp-export-preview-active .tp-export-preview-overlay{position:static;display:block;overflow:visible}
+ body.tp-export-preview-active .tp-export-preview-toolbar{display:none!important}
+ body.tp-export-preview-active #tripPrintSheet{padding:0;max-width:none}
+ body.tp-export-preview-active .tp-x-print{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#172738;line-height:1.45;font-size:10pt}
+ body.tp-export-preview-active .tp-x-print h1{font-size:27pt;color:#0f766e}
+ body.tp-export-preview-active .tp-x-print h2{color:#0f766e;border-bottom:1px solid #cbd5e1;font-size:16pt;break-after:avoid}
+ body.tp-export-preview-active .tp-x-print h3{font-size:11pt}
+ body.tp-export-preview-active .tp-x-overline{color:#0f766e;letter-spacing:1px;font-weight:800}
+ body.tp-export-preview-active .tp-x-cover{border-bottom:3px solid #0f766e;break-inside:avoid}
+ body.tp-export-preview-active .tp-x-dates{font-size:14pt;font-weight:bold}
+ body.tp-export-preview-active .tp-x-alert{background:#e9f6f4;padding:8px;border-left:4px solid #0f766e}
+ body.tp-export-preview-active .tp-x-card{border:1px solid #d9e3e9;padding:9px;margin:9px 0;break-inside:avoid}
+ body.tp-export-preview-active .tp-x-day-heading{background:#e9f6f4;padding:8px;break-after:avoid}
+ body.tp-export-preview-active .tp-x-row{display:flex;gap:9px;margin:3px 0}
+ body.tp-export-preview-active .tp-x-row>span{flex:0 0 88px;font-weight:650;color:#52677d}
+ body.tp-export-preview-active .tp-x-note{white-space:pre-wrap}
+ body.tp-export-preview-active .tp-x-section{margin:20px 0}
+ body.tp-export-preview-active .tp-x-day{margin:16px 0}
+ body.tp-export-preview-active .tp-x-location{margin:6px 0}
+ body.tp-export-preview-active .tp-x-person{display:inline-block;padding:6px;background:#e9f6f4}
+ body.tp-export-preview-active .tp-x-footer{font-size:8pt;border-top:1px solid #cbd5e1;padding:10px}
+ body.tp-export-preview-active .tp-x-print a{color:#0f766e}
+ @page{size:A4;margin:13mm}
+}
+@media screen {
+ .tp-export-preview-overlay .tp-x-print{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:#172738;line-height:1.45}
+ .tp-export-preview-overlay .tp-x-cover{border-bottom:3px solid #0f766e;padding-bottom:16px}
+ .tp-export-preview-overlay .tp-x-overline,.tp-export-preview-overlay h1,.tp-export-preview-overlay h2{color:#0f766e}
+ .tp-export-preview-overlay .tp-x-section{margin:22px 0}
+ .tp-export-preview-overlay .tp-x-card{border:1px solid #d9e3e9;border-radius:8px;padding:12px;margin:9px 0}
+ .tp-export-preview-overlay .tp-x-row{display:flex;gap:10px;margin:4px 0}
+ .tp-export-preview-overlay .tp-x-row>span{flex:0 0 95px;font-weight:650;color:#52677d}
+ .tp-export-preview-overlay .tp-x-day-heading,.tp-export-preview-overlay .tp-x-alert{background:#e9f6f4;padding:12px}
+ .tp-export-preview-overlay .tp-x-day{margin:20px 0}
+ .tp-export-preview-overlay .tp-x-note{white-space:pre-wrap}
+}
