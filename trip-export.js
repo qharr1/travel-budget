@@ -123,3 +123,135 @@
     if (o.notes) body += paragraph(item.notes);
     return details(item.title || 'Activity', body);
   }
+
+  function renderTrip(data, o, from, to) {
+    const trip = data.trip;
+    const travellers = arr(trip.travellerProfiles);
+    const people = Object.fromEntries(travellers.map(p=>[p.id,p.name]));
+    const items = sortIt(trip.itinerary).filter(it=>isBetween(it.date,from,to));
+    const generated = new Date().toLocaleString('en-AU',{dateStyle:'medium',timeStyle:'short'});
+    let html = '<header class="tp-x-cover"><p class="tp-x-overline">OFFLINE TRAVEL PACK</p><h1>' + esc(trip.name || 'My Trip')
+      + '</h1><div class="tp-x-dates">' + esc(niceDate(from)) + ' - ' + esc(niceDate(to)) + '</div>'
+      + '<p>Prepared ' + esc(generated) + ' · Read this copy without opening Travel Planner.</p>'
+      + '<div class="tp-x-alert">This is a snapshot, not a live booking confirmation. Flight times, prices and opening hours can change. Save ticket PDFs and screenshots separately.</div></header>';
+    if (o.travellers && travellers.length) {
+      html += block('Travellers', travellers.map(p=>'<span class="tp-x-person">' + esc(p.name) + ' (' + esc(p.type) + ')</span>').join(''));
+    }
+    if (o.essentials) {
+      const essentials = items.filter(it =>
+        /flight|accommodat|hotel|stay|travel|transport|transfer|train|ferry/i.test(str(it.type))
+        || /hotel|airport|flight|check.in|check.out|shinkansen/i.test(str(it.title)));
+      html += block('Flights, stays & transfers', essentials.length ? essentials.map(it=>{
+        let info = row('Date',niceDate(it.date)) + row('Time',[it.startTime,it.endTime].filter(Boolean).join(' - '));
+        if (it.endDate && it.endDate !== it.date) info += row('Arrival date',niceDate(it.endDate));
+        info += row('Route',[it.flightOrigin || it.travelOrigin,it.flightDestination || it.travelDestination].filter(Boolean).join(' → '));
+        if (o.locations) info += mapLocation(it.location,it.latitude,it.longitude);
+        if (o.bookings) info += row('Booking ref',it.bookingRef);
+        if (o.notes) info += paragraph(it.notes);
+        return details(it.title,info);
+      }).join('') : paragraph('No flights, accommodation or transfers saved for the selected dates.'),'A quick reference to the most important travel arrangements.');
+    }
+    if (o.itinerary) {
+      const dates=[];
+      for (let d=from, i=0; d<=to && i<370; d=nextDate(d),i++) dates.push(d);
+      let days='';
+      dates.forEach((d,i)=>{
+        const meta=trip.dayMeta?.[d] || {};
+        const dayItems=items.filter(it=>it.date===d);
+        let content='<div class="tp-x-day-heading"><span>DAY '+(i+1)+'</span><h3>'+esc(niceDate(d))+'</h3>'
+          +(meta.tripLocation?'<strong>'+esc(meta.tripLocation)+'</strong>':'')
+          +(meta.headline?'<p>'+esc(meta.headline)+'</p>':'')+'</div>';
+        if (o.locations) content+=row('Overnight',meta.overnight);
+        if (o.notes) content+=paragraph(meta.notes);
+        content+=dayItems.length?dayItems.map(it=>itineraryCard(it,o,people)).join('')
+          :'<p class="tp-x-muted">No itinerary items scheduled.</p>';
+        if (o.notes) {
+          arr(trip.timelineNotes).filter(n=>n.date===d).forEach(n=>{
+            content+=details((n.time?n.time+' · ':'')+(n.title||'Timeline note'),paragraph(n.text));
+          });
+          arr(trip.dayNotes?.[d]).forEach(n=>{content+=details(n.title||'Day journal',paragraph(n.text));});
+        }
+        if (o.budget && trip.budget?.dailyLimits?.[d]!=null)
+          content+=row('Custom daily limit',currency(trip.budget.dailyLimits[d],'AUD'));
+        days+='<section class="tp-x-day">'+content+'</section>';
+      });
+      html+=block('Day-by-day itinerary',days,'Times are shown as saved in the planner, in the applicable local time.');
+    }
+    if (o.places) {
+      const savedPlaces=arr(trip.places).filter(p=>!p.date||isBetween(p.date,from,to));
+      const cards=savedPlaces.map(p=>{
+        let body=row('Category',p.category)+row('Status',p.status);
+        if (o.locations) body+=mapLocation(p.location||p.title,p.latitude,p.longitude);
+        if (o.bookings) body+=row('Booking ref',p.bookingRef);
+        if (o.budget) body+=row('Estimated cost',currency(p.costTotal,p.costCurrency));
+        if (o.links) body+=urlRow('Website',p.website);
+        if (o.notes) body+=paragraph(p.notes);
+        return details(p.title||'Place',body);
+      }).join('');
+      html+=block('Saved places / POIs',cards || paragraph('No places saved.'),'Saved points of interest and wishlist ideas are not necessarily booked.');
+    }
+    if (o.bookings) {
+      const cards=arr(trip.documents).map(doc=>{
+        const linked=items.find(it=>it.id===doc.linkedItineraryId);
+        let body=row('Category',doc.category)+row('Related itinerary',linked?.title||'');
+        body+=row('Booking reference',doc.bookingRef)+row('Confirmation',doc.confirmation)+row('Phone',doc.phone);
+        if (o.links) body+=urlRow('Website',doc.website);
+        if (o.notes) body+=paragraph(doc.notes);
+        body+=row('Attachment filename',doc.attachmentName);
+        return details(doc.title||'Document',body);
+      }).join('');
+      html+=block('Booking & document details',cards||paragraph('No booking records saved.'),
+        'The document details are exported, not the attached ticket PDFs, images or passport scans. Save those separately.');
+    }
+    if (o.contacts) {
+      const cards=arr(trip.travelInfo).map(info=>{
+        let body=row('Type',info.type)+row('Reference',info.reference)
+          +row('Phone',info.phone)+row('Email',info.email);
+        if (o.links) body+=urlRow('Website',info.website);
+        if (o.notes) body+=paragraph(info.notes);
+        return details(info.name||'Contact',body);
+      }).join('');
+      html+=block('Emergency & travel contacts',cards||paragraph('No saved contact information.'));
+    }
+    if (o.budget) {
+      const budget=trip.budget||{};
+      let info=row('Trip budget',currency(budget.totalBudget,'AUD'))
+        +row('Day 1 spending limit',currency(budget.day1HardLimit,'AUD'));
+      arr(budget.destinations).forEach(dest=>{
+        info+=details(dest.name||'Destination',row('Dates',niceDate(dest.startDate)+' - '+niceDate(dest.endDate))
+          +row('Currency',dest.currency)
+          +row('Planning exchange rate',dest.rate?'1 AUD = '+dest.rate+' '+(dest.currency||''):''));
+      });
+      const daily=Object.entries(budget.dailyLimits||{}).filter(entry=>isBetween(entry[0],from,to)).sort();
+      if (daily.length) {
+        info+='<h3>Custom daily limits</h3>';
+        daily.forEach(entry=>{info+=row(niceDate(entry[0]),currency(entry[1],'AUD'));});
+      }
+      html+=block('Budget plan',info||paragraph('No budget saved.'));
+    }
+    if (o.expenses) {
+      const expenses=arr(data.expenses).filter(e=>isBetween(e.date,from,to))
+        .sort((a,b)=>str(a.date).localeCompare(str(b.date)));
+      const total=expenses.reduce((sum,e)=>sum+(Number(e.audAmount)||0),0);
+      let cards='<p class="tp-x-total">Recorded spending: '+esc(currency(total,'AUD'))+'</p>';
+      cards+=expenses.map(e=>details(niceDate(e.date)+' - '+(e.category||'Other'),
+        row('Amount',currency(e.amount,e.currency))
+        +row('AUD equivalent',currency(e.audAmount,'AUD'))
+        +row('Destination',e.destinationName)
+        +row('Details',e.note))).join('');
+      if (!expenses.length) cards+=paragraph('No expenses recorded for the selected dates.');
+      html+=block('Expense history',cards);
+    }
+    if (o.tasks) {
+      const cards=arr(trip.preTripTasks).map(t=>{
+        let info=row('Due',t.dueDate?niceDate(t.dueDate):'')+row('Status',t.status)+row('Category',t.category);
+        if (o.travellers) info+=row('Assigned to',people[t.assigneeId]);
+        if (o.notes) info+=paragraph(t.notes);
+        return details(t.title||'Task',info);
+      }).join('');
+      html+=block('Pre-trip checklist',cards||paragraph('No pre-trip tasks saved.'));
+    }
+    html+='<footer class="tp-x-footer">Prepared from Travel Planner on '+esc(generated)
+      +'<p>External maps and web links need internet access. This saved document does not update when the app changes.</p></footer>';
+    return html;
+  }
