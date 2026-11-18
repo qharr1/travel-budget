@@ -25,6 +25,7 @@
   } catch {}
 })();
 </script><link href="./styles.css?v=49" rel="stylesheet"/>
+<style>.tp-perf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tp-perf-grid .panel{min-width:0}.tp-perf-grid h2{font-size:clamp(1.15rem,4vw,1.8rem);overflow-wrap:anywhere}.tp-perf-line{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.88rem}.tp-perf-line strong{text-align:right}.tp-perf-track{height:11px;background:var(--line);border-radius:20px;overflow:hidden;margin:5px 0 12px}.tp-perf-track div{height:100%;background:#0d9488}.tp-perf-days{display:grid;gap:10px;margin-top:16px}.tp-perf-day{display:grid;grid-template-columns:50px minmax(0,1fr) 88px;align-items:center;gap:8px;font-size:.78rem}.tp-perf-day strong{text-align:right}.tp-perf-bar{height:7px;border-radius:3px;margin:3px 0}.tp-perf-bar.plan{background:#94a3b8}.tp-perf-bar.actual{background:#0d9488}@media(max-width:380px){.tp-perf-grid{grid-template-columns:1fr}}</style>
 </head>
 <body>
 <div class="app-shell">
@@ -499,6 +500,7 @@
 <nav aria-label="Budget sections" class="tabs">
 <button class="tab active" data-budget-tab="today" type="button">Today</button>
 <button class="tab" data-budget-tab="history" type="button">History</button>
+<button class="tab" data-budget-tab="performance" type="button">Performance</button>
 </nav>
 <section class="budget-tab-panel active" data-budget-panel="today">
 
@@ -634,6 +636,7 @@
 <div class="history-summary" id="historySummary"></div>
 <div class="expense-list" id="historyExpenses"></div>
 </section>
+<section class="budget-tab-panel" data-budget-panel="performance"><div id="tripPerformance" aria-live="polite"></div></section>
 </section>
 </section>
 </section>
@@ -1783,6 +1786,6 @@ Trip date
 </div>
 </form>
 </dialog>
-<script defer="" src="./app.js?v=49"></script><script defer="" src="./trip-export.js?v=49"></script><script src="./family-sync.js?v=49" type="module"></script><script src="./trip-map.js?v=49" type="module"></script>
+<script defer="" src="./app.js?v=50"></script><script defer="" src="./trip-performance.js?v=50"></script><script defer="" src="./trip-export.js?v=49"></script><script src="./family-sync.js?v=49" type="module"></script><script src="./trip-map.js?v=49" type="module"></script>
 </body>
 </html>
