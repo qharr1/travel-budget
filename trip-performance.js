@@ -32,9 +32,19 @@
     const completed=dates.slice(0,elapsed), saved=completed.reduce((a,d,i)=>a+original[i]-daily[i],0);
     const originalRemaining=original.slice(elapsed).reduce((a,b)=>a+b,0);
     const futurePrepaid=expenses.filter(e=>e.date>local).reduce((a,e)=>a+(Number(e.audAmount)||0),0);
-    const historical=completed.map((d,i)=>({date:d,day:i+1,spent:daily[i],plan:original[i]}));
+    // Mirror app.js allocationForDate, including future prepaid expenses.
+    const adjusted=dates.map((date,i)=>{
+      const reference=i<elapsed?i:Math.min(elapsed,dates.length-1);
+      const remainingDays=dates.length-reference;
+      const baseRemaining=original.slice(reference).reduce((a,b)=>a+b,0);
+      const spentPrior=daily.slice(0,reference).reduce((a,b)=>a+b,0);
+      const futureRecorded=i>=elapsed?expenses.filter(e=>e.date>=dates[reference]).reduce((a,e)=>a+(Number(e.audAmount)||0),0):0;
+      const rollover=remainingDays?(total-spentPrior-futureRecorded-baseRemaining)/remainingDays:0;
+      return Math.max(0,original[i]+rollover);
+    });
+    const historical=completed.map((d,i)=>({date:d,day:i+1,spent:daily[i],plan:original[i],adjusted:adjusted[i],variance:adjusted[i]-daily[i]}));
     const highest=[...historical].sort((a,b)=>b.spent-a.spent).slice(0,3);
-    const max=Math.max(1,...historical.flatMap(x=>[x.spent,x.plan]));
+    const max=Math.max(1,...historical.flatMap(x=>[x.spent,x.plan,x.adjusted]));
     host.innerHTML=`
       <div class="tp-perf-grid">
         <article class="panel"><p class="metric-label">Budget spent</p><h2>${money(spent)}</h2><p class="muted">${pct(total?spent/total:0)} of ${money(total)}</p></article>
@@ -55,9 +65,17 @@
         <div class="tp-perf-line"><span>Original allocation for future days</span><strong>${money(originalRemaining)}</strong></div>
         <p class="muted small">The net difference is money retained in the overall trip budget, not a separate pot of cash. Custom limits and expenses dated in the future affect the live rolling allowances.</p>
       </section>
-      <section class="panel"><h3>Daily spending vs original allocation</h3>
-        <div class="tp-perf-days">${historical.map(r=>`<div class="tp-perf-day"><span>Day ${r.day}</span><div><div class="tp-perf-bar plan" style="width:${100*r.plan/max}%"></div><div class="tp-perf-bar actual" style="width:${100*r.spent/max}%"></div></div><strong>${money(r.spent)}</strong></div>`).join("")||'<p class="muted">No days completed yet.</p>'}</div>
-        <p class="muted small">Grey = original allocation; teal = actual spending. Original allocation is reconstructed from current custom limits and may differ if those limits were edited during the trip.</p>
+      <section class="panel"><h3>Daily allowance performance</h3>
+        <p class="muted small">Original = starting plan · Adjusted = allowance after prior days' spending · Actual = expenses recorded. Variance compares actual with adjusted.</p>
+        <div class="tp-perf-days">${historical.map(r=>`<article class="tp-perf-comparison">
+          <div class="tp-perf-line"><strong>Day ${r.day} · ${esc(r.date)}</strong><strong style="color:${r.variance>=0?'#0f766e':'#b91c1c'}">${r.variance>=0?'+':'−'}${money(Math.abs(r.variance))} vs adjusted</strong></div>
+          <div class="tp-perf-comparison-grid">
+            <span>Original</span><div class="tp-perf-bar plan" style="width:${100*r.plan/max}%"></div><strong>${money(r.plan)}</strong>
+            <span>Adjusted</span><div class="tp-perf-bar adjusted" style="width:${100*r.adjusted/max}%"></div><strong>${money(r.adjusted)}</strong>
+            <span>Actual</span><div class="tp-perf-bar actual" style="width:${100*r.spent/max}%"></div><strong>${money(r.spent)}</strong>
+          </div>
+        </article>`).join("")||'<p class="muted">No elapsed days yet.</p>'}</div>
+        <p class="muted small">Adjusted allowances are recalculated using the current budget settings and recorded spending, matching the app's rolling allowance formula. Past allowances are estimates if custom limits or expenses were subsequently edited. The original baseline is likewise reconstructed, not a saved historical snapshot.</p>
       </section>
       <section class="panel"><h3>Highest spending days</h3>
         ${highest.map(r=>`<div class="tp-perf-line"><span>Day ${r.day} · ${esc(r.date)}</span><strong>${money(r.spent)}</strong></div>`).join("")||'<p class="muted">No completed days.</p>'}
