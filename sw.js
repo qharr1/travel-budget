@@ -1,4 +1,4 @@
-const CACHE_NAME = "travel-planner-v49";
+const CACHE_NAME = "travel-planner-v50";
 const HEADER_IMAGE_CACHE = "tp-location-header-images-v2";
 
 const PRESET_HEADER_IMAGES = [
@@ -12,11 +12,12 @@ const PRESET_HEADER_IMAGES = [
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=48",
-  "./app.js?v=48",
-  "./family-sync.js?v=48",
-  "./trip-map.js?v=48",
-  "./manifest.webmanifest?v=48",
+  "./styles.css?v=49",
+  "./app.js?v=50",
+  "./trip-performance.js?v=50",
+  "./family-sync.js?v=49",
+  "./trip-map.js?v=49",
+  "./manifest.webmanifest?v=49",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
@@ -151,6 +152,7 @@ self.addEventListener("fetch", (event) => {
 
   const isCore =
     url.pathname.endsWith("/app.js") ||
+    url.pathname.endsWith("/trip-performance.js") ||
     url.pathname.endsWith("/trip-export.js") ||
     url.pathname.endsWith("/family-sync.js") ||
     url.pathname.endsWith("/trip-map.js") ||
