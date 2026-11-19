@@ -65,7 +65,7 @@
         <div class="tp-perf-line"><span>Original allocation for future days</span><strong>${money(originalRemaining)}</strong></div>
         <p class="muted small">The net difference is money retained in the overall trip budget, not a separate pot of cash. Custom limits and expenses dated in the future affect the live rolling allowances.</p>
       </section>
-      <section class="panel"><h3>Daily allowance performance</h3>
+      <section class="panel"><h3>Daily spending vs original allocation</h3>
         <p class="muted small">Original = starting plan · Adjusted = allowance after prior days' spending · Actual = expenses recorded. Variance compares actual with adjusted.</p>
         <div class="tp-perf-days">${historical.map(r=>`<article class="tp-perf-comparison">
           <div class="tp-perf-line"><strong>Day ${r.day} · ${esc(r.date)}</strong><strong style="color:${r.variance>=0?'#0f766e':'#b91c1c'}">${r.variance>=0?'+':'−'}${money(Math.abs(r.variance))} vs adjusted</strong></div>
