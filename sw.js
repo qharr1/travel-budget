@@ -1,4 +1,4 @@
-const CACHE_NAME = "travel-planner-v52";
+const CACHE_NAME = "travel-planner-v53";
 const HEADER_IMAGE_CACHE = "tp-location-header-images-v2";
 
 const PRESET_HEADER_IMAGES = [
